@@ -1,0 +1,10 @@
+README.md
+setup.py
+samsungtvws/__init__.py
+samsungtvws/remote.py
+samsungtvws/shortcuts.py
+samsungtvws.egg-info/PKG-INFO
+samsungtvws.egg-info/SOURCES.txt
+samsungtvws.egg-info/dependency_links.txt
+samsungtvws.egg-info/requires.txt
+samsungtvws.egg-info/top_level.txt
