@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: samsungtvws
-Version: 1.1.0
+Version: 1.1.1
 Summary: Samsung Smart TV WS API wrapper
 Home-page: https://github.com/xchwarze/samsung-tv-ws-api
 Author: Xchwarze
@@ -14,9 +14,10 @@ Description: <p align="center">
             Samsung Smart TV WS API wrapper
         </p>
         
-        This project is a library for remote controlling Samsung televisions via a TCP/IP connection. 
-        It currently supports modern (post-2016) TVs with Ethernet or Wi-Fi connectivity.
-        They should be all models with TizenOs.
+        This project is a library for remote controlling Samsung televisions via a TCP/IP connection.
+        
+        It currently supports modern (post-2016) TVs with Ethernet or Wi-Fi connectivity. They should be all models with TizenOs.
+        
         Based on https://github.com/marysieek/samsung-tv-api work
         
         ## Install
