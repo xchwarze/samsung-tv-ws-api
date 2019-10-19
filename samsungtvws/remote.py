@@ -32,7 +32,7 @@ class SamsungTVWS:
     _URL_FORMAT = 'ws://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}'
     _SSL_URL_FORMAT = 'wss://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}&token={token}'
 
-    def __init__(self, host, token=None, token_file=None, port=8002, timeout=None, key_press_delay=1.5, name='SamsungTvRemote'):
+    def __init__(self, host, token=None, token_file=None, port=8001, timeout=None, key_press_delay=1, name='SamsungTvRemote'):
         self.host = host
         self.token = token
         self.token_file = token_file
@@ -52,9 +52,7 @@ class SamsungTVWS:
         return base64.b64encode(string).decode('utf-8')
 
     def _is_ssl_connection(self):
-        return self.token is not None or \
-               self.token_file is not None or \
-               self.port == 8002
+        return self.port == 8002
 
     def _format_websocket_url(self, is_ssl=False):
         params = {
@@ -134,24 +132,7 @@ class SamsungTVWS:
         logging.info('Sending key %s', key)
         self._ws_send(payload)
 
-    def open_browser(self, url):
-        payload = json.dumps({
-            'method': 'ms.channel.emit',
-            'params': {
-                'event': 'ed.apps.launch',
-                'to': 'host',
-                'data': {
-                    'appId': 'org.tizen.browser',
-                    'action_type': 'NATIVE_LAUNCH',
-                    'metaTag': url
-                }
-            }
-        })
-
-        logging.info('Opening url in browser %s', url)
-        self._ws_send(payload)
-
-    def run_app(self, app_id, app_type='DEEP_LINK'):
+    def run_app(self, app_id, app_type='DEEP_LINK', meta_tag=''):
         payload = json.dumps({
             'method': 'ms.channel.emit',
             'params': {
@@ -161,13 +142,22 @@ class SamsungTVWS:
                     # action_type: NATIVE_LAUNCH / DEEP_LINK
                     # app_type == 2 ? 'DEEP_LINK' : 'NATIVE_LAUNCH',
                     'action_type': app_type,
-                    'appId': app_id
+                    'appId': app_id,
+                    'metaTag': meta_tag
                 }
             }
         })
 
         logging.info('Sending run_app %s', app_id)
         self._ws_send(payload)
+
+    def open_browser(self, url):
+        logging.info('Opening url in browser %s', url)
+        self.run_app(
+            'org.tizen.browser',
+            'NATIVE_LAUNCH',
+            url
+        )
 
     def app_list(self):
         payload = json.dumps({
