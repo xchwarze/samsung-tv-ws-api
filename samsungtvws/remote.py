@@ -148,7 +148,7 @@ class SamsungTVWS:
             }
         })
 
-        logging.info('Sending run_app %s', app_id)
+        logging.info('Sending run app app_id: %s app_type: %s meta_tag: %s', app_id, app_type, meta_tag)
         self._ws_send(payload)
 
     def open_browser(self, url):
@@ -168,6 +168,7 @@ class SamsungTVWS:
             }
         })
 
+        logging.info('Get app list')
         self._ws_send(payload)
         response = json.loads(self.connection.recv())
         if response.get('data') and response.get('data').get('data'):
