@@ -11,7 +11,7 @@ tv = SamsungTVWS('192.168.xxx.xxx')
 
 # Autosave token to file 
 token_file = os.path.dirname(os.path.realpath(__file__)) + '/tv-token.txt'
-tv = SamsungTVWS(host='192.168.xxx.xxx', token_file=token_file)
+tv = SamsungTVWS(host='192.168.xxx.xxx', port=8002, token_file=token_file)
 
 # Toggle power
 tv.shortcuts().power()
