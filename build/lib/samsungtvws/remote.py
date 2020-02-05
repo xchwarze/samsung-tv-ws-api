@@ -32,7 +32,8 @@ class SamsungTVWS:
     _URL_FORMAT = 'ws://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}'
     _SSL_URL_FORMAT = 'wss://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}&token={token}'
 
-    def __init__(self, host, token=None, token_file=None, port=8001, timeout=None, key_press_delay=1, name='SamsungTvRemote'):
+    def __init__(self, host, token=None, token_file=None, port=8001, timeout=None, key_press_delay=1,
+                 name='SamsungTvRemote'):
         self.host = host
         self.token = token
         self.token_file = token_file
@@ -69,7 +70,7 @@ class SamsungTVWS:
 
     def _get_token(self):
         if self.token_file is not None:
-            try :
+            try:
                 with open(self.token_file, 'r') as token_file:
                     return token_file.readline()
             except:
@@ -121,19 +122,20 @@ class SamsungTVWS:
         self.connection = None
         logging.debug('Connection closed.')
 
-    def send_key(self, key):
-        payload = json.dumps({
-            'method': 'ms.remote.control',
-            'params': {
-                'Cmd': 'Click',
-                'DataOfCmd': key,
-                'Option': 'false',
-                'TypeOfRemote': 'SendRemoteKey'
-            }
-        })
+    def send_key(self, key, repeat=1):
+        for _ in range(repeat):
+            payload = json.dumps({
+                'method': 'ms.remote.control',
+                'params': {
+                    'Cmd': 'Click',
+                    'DataOfCmd': key,
+                    'Option': 'false',
+                    'TypeOfRemote': 'SendRemoteKey'
+                }
+            })
 
-        logging.info('Sending key %s', key)
-        self._ws_send(payload)
+            logging.info('Sending key %s', key)
+            self._ws_send(payload)
 
     def run_app(self, app_id, app_type='DEEP_LINK', meta_tag=''):
         payload = json.dumps({
