@@ -88,6 +88,7 @@ class SamsungTVWS:
                 token_file.write(token)
         else:
             _LOGGING.info('New token %s', token)
+            self.token = token
 
     def _ws_send(self, payload):
         if self.connection is None:
