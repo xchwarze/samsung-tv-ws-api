@@ -27,3 +27,6 @@ tv.app_list()
 
 # Open apps (Spotify)
 tv.run_app('3201606009684')
+
+# Get device info (device name, model, supported features..)
+tv.device_info()
