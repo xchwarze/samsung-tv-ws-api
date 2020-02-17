@@ -1,6 +1,7 @@
 README.md
 setup.py
 samsungtvws/__init__.py
+samsungtvws/exceptions.py
 samsungtvws/remote.py
 samsungtvws/shortcuts.py
 samsungtvws.egg-info/PKG-INFO

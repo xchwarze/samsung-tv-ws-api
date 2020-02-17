@@ -25,8 +25,10 @@ import logging
 import time
 import ssl
 import websocket
+from . import exceptions
 from . import shortcuts
 
+_LOGGING = logging.getLogger(__name__)
 
 class SamsungTVWS:
     _URL_FORMAT = 'ws://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}'
@@ -42,6 +44,9 @@ class SamsungTVWS:
         self.key_press_delay = key_press_delay
         self.name = name
         self.connection = None
+
+    def __enter__(self):
+        return self
 
     def __exit__(self, type, value, traceback):
         self.close()
@@ -83,7 +88,8 @@ class SamsungTVWS:
             with open(self.token_file, 'w') as token_file:
                 token_file.write(token)
         else:
-            logging.info('New token %s', token)
+            _LOGGING.info('New token %s', token)
+            self.token = token
 
     def _ws_send(self, payload):
         if self.connection is None:
@@ -97,7 +103,7 @@ class SamsungTVWS:
         url = self._format_websocket_url(is_ssl)
         sslopt = {'cert_reqs': ssl.CERT_NONE} if is_ssl else {}
 
-        logging.debug('WS url %s', url)
+        _LOGGING.debug('WS url %s', url)
 
         self.connection = websocket.create_connection(
             url,
@@ -109,18 +115,19 @@ class SamsungTVWS:
 
         if response.get('data') and response.get('data').get('token'):
             token = response.get('data').get('token')
+            _LOGGING.debug('Got token %s', token)
             self._set_token(token)
 
         if response['event'] != 'ms.channel.connect':
             self.close()
-            raise Exception(response)
+            raise exceptions.ConnectionFailure(response)
 
     def close(self):
         if self.connection:
             self.connection.close()
 
         self.connection = None
-        logging.debug('Connection closed.')
+        _LOGGING.debug('Connection closed.')
 
     def send_key(self, key, repeat=1):
         for _ in range(repeat):
@@ -134,7 +141,7 @@ class SamsungTVWS:
                 }
             })
 
-            logging.info('Sending key %s', key)
+            _LOGGING.info('Sending key %s', key)
             self._ws_send(payload)
 
     def run_app(self, app_id, app_type='DEEP_LINK', meta_tag=''):
@@ -153,11 +160,11 @@ class SamsungTVWS:
             }
         })
 
-        logging.info('Sending run app app_id: %s app_type: %s meta_tag: %s', app_id, app_type, meta_tag)
+        _LOGGING.info('Sending run app app_id: %s app_type: %s meta_tag: %s', app_id, app_type, meta_tag)
         self._ws_send(payload)
 
     def open_browser(self, url):
-        logging.info('Opening url in browser %s', url)
+        _LOGGING.info('Opening url in browser %s', url)
         self.run_app(
             'org.tizen.browser',
             'NATIVE_LAUNCH',
@@ -173,7 +180,7 @@ class SamsungTVWS:
             }
         })
 
-        logging.info('Get app list')
+        _LOGGING.info('Get app list')
         self._ws_send(payload)
         response = json.loads(self.connection.recv())
         if response.get('data') and response.get('data').get('data'):
