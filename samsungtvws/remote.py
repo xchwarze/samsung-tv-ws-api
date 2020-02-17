@@ -25,6 +25,7 @@ import logging
 import time
 import ssl
 import websocket
+from . import exceptions
 from . import shortcuts
 
 _LOGGING = logging.getLogger(__name__)
@@ -118,7 +119,7 @@ class SamsungTVWS:
 
         if response['event'] != 'ms.channel.connect':
             self.close()
-            raise Exception(response)
+            raise exceptions.ConnectionFailure(response)
 
     def close(self):
         if self.connection:
