@@ -18,9 +18,10 @@ setup(
     python_requires='>=3.0.0',
     url='https://github.com/xchwarze/samsung-tv-ws-api',
     packages=find_packages(exclude=('tests',)),
-	install_requires=[
-		'websocket-client==0.56.0'
-	],
+    install_requires=[
+        'websocket-client==0.56.0',
+        'requests>=2.21.0'
+    ],
     include_package_data=True,
     license='MIT',
     classifiers=[

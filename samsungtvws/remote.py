@@ -27,6 +27,8 @@ import ssl
 import websocket
 from . import exceptions
 from . import shortcuts
+import requests
+from json import JSONDecodeError
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -195,3 +197,15 @@ class SamsungTVWS:
 
     def shortcuts(self):
         return shortcuts.SamsungTVShortcuts(self)
+
+    def device_info(self):
+        try:
+            url = 'http://{ip}:8001/api/v2/'.format(ip=self.host)
+            res = requests.get(url)
+            info = json.loads(res.text)
+            return info
+        except JSONDecodeError as ex:
+            _LOGGING.debug('Failed to parse response from TV on url: {}. status_code: {} response text: {}'.format(url, res.status_code, res.text))
+            raise exceptions.HttpApiError('Failed to parse response from TV. Feature not supported on this model')
+        except ConnectionError as ex:
+            raise exceptions.HttpApiError('TV unreachable or feature not supported on this model')
