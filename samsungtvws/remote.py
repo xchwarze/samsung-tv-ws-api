@@ -129,12 +129,12 @@ class SamsungTVWS:
         self.connection = None
         _LOGGING.debug('Connection closed.')
 
-    def send_key(self, key, repeat=1):
+    def send_key(self, key, repeat=1, cmd='Click'):
         for _ in range(repeat):
             payload = json.dumps({
                 'method': 'ms.remote.control',
                 'params': {
-                    'Cmd': 'Click',
+                    'Cmd': cmd,
                     'DataOfCmd': key,
                     'Option': 'false',
                     'TypeOfRemote': 'SendRemoteKey'
@@ -144,6 +144,11 @@ class SamsungTVWS:
             _LOGGING.info('Sending key %s', key)
             self._ws_send(payload)
 
+    def hold_key(self, key, seconds):
+        self.send_key(key, cmd='Press')
+        time.sleep(seconds)
+        self.send_key(key, cmd='Release')
+    
     def run_app(self, app_id, app_type='DEEP_LINK', meta_tag=''):
         payload = json.dumps({
             'method': 'ms.channel.emit',
