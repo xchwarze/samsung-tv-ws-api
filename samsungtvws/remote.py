@@ -200,7 +200,7 @@ class SamsungTVWS:
             info = json.loads(res.text)
             return info
         except JSONDecodeError as ex:
-            _LOGGING.debug('Failed parse response from TV on url: {}. status_code: {} response text: {}'.format(url, res.status_code, res.text))
-            raise exceptions.HttpApiError('Failed parse response from TV. Feature not supported on this model')
+            _LOGGING.debug('Failed to parse response from TV on url: {}. status_code: {} response text: {}'.format(url, res.status_code, res.text))
+            raise exceptions.HttpApiError('Failed to parse response from TV. Feature not supported on this model')
         except ConnectionError as ex:
             raise exceptions.HttpApiError('TV unreachable or feature not supported on this model')
