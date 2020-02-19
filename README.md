@@ -33,11 +33,15 @@ $ pip3 install ./samsung-tv-ws-api
 ```python
 import sys
 import os
+import logging
 import wakeonlan
 
 sys.path.append('../')
 
 from samsungtvws import SamsungTVWS
+
+# Increase debug level
+logging.basicConfig(level=logging.INFO)
 
 # Normal constructor
 tv = SamsungTVWS('192.168.xxx.xxx')
@@ -63,6 +67,10 @@ tv.run_app('3201606009684')
 
 # Get device info (device name, model, supported features..)
 tv.device_info()
+
+# Get device info (device name, model, supported features..)
+info = tv.device_info()
+logging.info(info)
 
 ```
 
