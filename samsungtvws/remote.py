@@ -234,8 +234,8 @@ class SamsungTVWS:
         response = self._rest_request('applications/' + app_id)
         return self._process_api_response(response.text)
 
-    def rest_app_launch(self, app_id):
-        _LOGGING.debug('Launch app %s status via rest api', app_id)
+    def rest_app_run(self, app_id):
+        _LOGGING.debug('Run app %s status via rest api', app_id)
         response = self._rest_request('applications/' + app_id, 'POST')
         return self._process_api_response(response.text)
 
