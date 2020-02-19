@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from setuptools import find_packages, setup, Command
+from setuptools import find_packages, setup
 
 
 def readme():
@@ -25,13 +25,9 @@ setup(
     include_package_data=True,
     license='MIT',
     classifiers=[
-        'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
-        'Intended Audience :: Education',
-        'Intended Audience :: Information Technology',
-        'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License'
     ]
 )
