@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 import wakeonlan
 
 sys.path.append('../')
@@ -7,8 +8,7 @@ sys.path.append('../')
 from samsungtvws import SamsungTVWS
 
 # Increase debug level
-#import logging
-#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # Normal constructor
 tv = SamsungTVWS('192.168.xxx.xxx')
@@ -33,4 +33,5 @@ tv.app_list()
 tv.run_app('3201606009684')
 
 # Get device info (device name, model, supported features..)
-tv.device_info()
+info = tv.device_info()
+logging.info(info)
