@@ -93,13 +93,13 @@ class SamsungTVWS:
             _LOGGING.info('New token %s', token)
             self.token = token
 
-    def _ws_send(self, payload, key_press_delay):
+    def _ws_send(self, command):
         if self.connection is None:
             self.open()
 
+        payload = json.dumps(command)
         self.connection.send(payload)
-        key_press_delay = self.key_press_delay if key_press_delay is None else key_press_delay
-        time.sleep(key_press_delay)
+        time.sleep(self.key_press_delay)
 
     def open(self):
         is_ssl = self._is_ssl_connection()
@@ -132,9 +132,10 @@ class SamsungTVWS:
         self.connection = None
         _LOGGING.debug('Connection closed.')
 
-    def send_key(self, key, times=1, key_press_delay=None, cmd='Click'):
-        for _ in range(times):
-            payload = json.dumps({
+    def send_key(self, key, repeat=1, cmd='Click'):
+        for _ in range(repeat):
+            _LOGGING.info('Sending key %s', key)
+            self._ws_send({
                 'method': 'ms.remote.control',
                 'params': {
                     'Cmd': cmd,
@@ -144,16 +145,14 @@ class SamsungTVWS:
                 }
             })
 
-            _LOGGING.info('Sending key %s', key)
-            self._ws_send(payload, key_press_delay)
-
     def hold_key(self, key, seconds):
         self.send_key(key, cmd='Press')
         time.sleep(seconds)
         self.send_key(key, cmd='Release')
-    
+
     def run_app(self, app_id, app_type='DEEP_LINK', meta_tag=''):
-        payload = json.dumps({
+        _LOGGING.info('Sending run app app_id: %s app_type: %s meta_tag: %s', app_id, app_type, meta_tag)
+        self._ws_send({
             'method': 'ms.channel.emit',
             'params': {
                 'event': 'ed.apps.launch',
@@ -168,9 +167,6 @@ class SamsungTVWS:
             }
         })
 
-        _LOGGING.info('Sending run app app_id: %s app_type: %s meta_tag: %s', app_id, app_type, meta_tag)
-        self._ws_send(payload)
-
     def open_browser(self, url):
         _LOGGING.info('Opening url in browser %s', url)
         self.run_app(
@@ -180,16 +176,14 @@ class SamsungTVWS:
         )
 
     def app_list(self):
-        payload = json.dumps({
+        _LOGGING.info('Get app list')
+        self._ws_send({
             'method': 'ms.channel.emit',
             'params': {
                 'event': 'ed.installedApp.get',
                 'to': 'host'
             }
         })
-
-        _LOGGING.info('Get app list')
-        self._ws_send(payload)
         response = json.loads(self.connection.recv())
         if response.get('data') and response.get('data').get('data'):
             return response.get('data').get('data')
@@ -198,14 +192,15 @@ class SamsungTVWS:
 
     def device_info(self):
         try:
-            url = 'http://{ip}:8001/api/v2/'.format(ip=self.host)
+            url = 'http://{host}:8001/api/v2/'.format(host=self.host)
             res = requests.get(url)
             info = json.loads(res.text)
+
             return info
-        except JSONDecodeError as ex:
-            _LOGGING.debug('Failed to parse response from TV on url: {}. status_code: {} response text: {}'.format(url, res.status_code, res.text))
+        except JSONDecodeError:
+            _LOGGING.debug('Failed to parse response from TV on url: %s. status_code: %s response text: %s', url, res.status_code, res.text)
             raise exceptions.HttpApiError('Failed to parse response from TV. Feature not supported on this model')
-        except ConnectionError as ex:
+        except ConnectionError:
             raise exceptions.HttpApiError('TV unreachable or feature not supported on this model')
 
     def shortcuts(self):
