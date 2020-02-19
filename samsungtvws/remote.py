@@ -93,12 +93,13 @@ class SamsungTVWS:
             _LOGGING.info('New token %s', token)
             self.token = token
 
-    def _ws_send(self, payload):
+    def _ws_send(self, payload, key_press_delay):
         if self.connection is None:
             self.open()
 
         self.connection.send(payload)
-        time.sleep(self.key_press_delay)
+        key_press_delay = self.key_press_delay if key_press_delay is None else key_press_delay
+        time.sleep(key_press_delay)
 
     def open(self):
         is_ssl = self._is_ssl_connection()
@@ -131,8 +132,8 @@ class SamsungTVWS:
         self.connection = None
         _LOGGING.debug('Connection closed.')
 
-    def send_key(self, key, repeat=1, cmd='Click'):
-        for _ in range(repeat):
+    def send_key(self, key, times=1, key_press_delay=None, cmd='Click'):
+        for _ in range(times):
             payload = json.dumps({
                 'method': 'ms.remote.control',
                 'params': {
@@ -144,7 +145,7 @@ class SamsungTVWS:
             })
 
             _LOGGING.info('Sending key %s', key)
-            self._ws_send(payload)
+            self._ws_send(payload, key_press_delay)
 
     def hold_key(self, key, seconds):
         self.send_key(key, cmd='Press')
@@ -195,9 +196,6 @@ class SamsungTVWS:
         else:
             return response
 
-    def shortcuts(self):
-        return shortcuts.SamsungTVShortcuts(self)
-
     def device_info(self):
         try:
             url = 'http://{ip}:8001/api/v2/'.format(ip=self.host)
@@ -209,3 +207,6 @@ class SamsungTVWS:
             raise exceptions.HttpApiError('Failed to parse response from TV. Feature not supported on this model')
         except ConnectionError as ex:
             raise exceptions.HttpApiError('TV unreachable or feature not supported on this model')
+
+    def shortcuts(self):
+        return shortcuts.SamsungTVShortcuts(self)
