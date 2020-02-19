@@ -6,6 +6,10 @@ sys.path.append('../')
 
 from samsungtvws import SamsungTVWS
 
+# Increase debug level
+#import logging
+#logging.basicConfig(level=logging.DEBUG)
+
 # Normal constructor
 tv = SamsungTVWS('192.168.xxx.xxx')
 
