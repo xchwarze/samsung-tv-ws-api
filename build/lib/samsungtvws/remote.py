@@ -93,10 +93,11 @@ class SamsungTVWS:
             _LOGGING.info('New token %s', token)
             self.token = token
 
-    def _ws_send(self, payload):
+    def _ws_send(self, command):
         if self.connection is None:
             self.open()
 
+        payload = json.dumps(command)
         self.connection.send(payload)
         time.sleep(self.key_press_delay)
 
@@ -133,7 +134,8 @@ class SamsungTVWS:
 
     def send_key(self, key, repeat=1, cmd='Click'):
         for _ in range(repeat):
-            payload = json.dumps({
+            _LOGGING.info('Sending key %s', key)
+            self._ws_send({
                 'method': 'ms.remote.control',
                 'params': {
                     'Cmd': cmd,
@@ -143,16 +145,14 @@ class SamsungTVWS:
                 }
             })
 
-            _LOGGING.info('Sending key %s', key)
-            self._ws_send(payload)
-
     def hold_key(self, key, seconds):
         self.send_key(key, cmd='Press')
         time.sleep(seconds)
         self.send_key(key, cmd='Release')
     
     def run_app(self, app_id, app_type='DEEP_LINK', meta_tag=''):
-        payload = json.dumps({
+        _LOGGING.info('Sending run app app_id: %s app_type: %s meta_tag: %s', app_id, app_type, meta_tag)
+        self._ws_send({
             'method': 'ms.channel.emit',
             'params': {
                 'event': 'ed.apps.launch',
@@ -167,9 +167,6 @@ class SamsungTVWS:
             }
         })
 
-        _LOGGING.info('Sending run app app_id: %s app_type: %s meta_tag: %s', app_id, app_type, meta_tag)
-        self._ws_send(payload)
-
     def open_browser(self, url):
         _LOGGING.info('Opening url in browser %s', url)
         self.run_app(
@@ -179,16 +176,14 @@ class SamsungTVWS:
         )
 
     def app_list(self):
-        payload = json.dumps({
+        _LOGGING.info('Get app list')
+        self._ws_send({
             'method': 'ms.channel.emit',
             'params': {
                 'event': 'ed.installedApp.get',
                 'to': 'host'
             }
         })
-
-        _LOGGING.info('Get app list')
-        self._ws_send(payload)
         response = json.loads(self.connection.recv())
         if response.get('data') and response.get('data').get('data'):
             return response.get('data').get('data')
