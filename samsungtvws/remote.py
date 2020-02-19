@@ -25,10 +25,9 @@ import logging
 import time
 import ssl
 import websocket
+import requests
 from . import exceptions
 from . import shortcuts
-import requests
-from json import JSONDecodeError
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -36,6 +35,7 @@ _LOGGING = logging.getLogger(__name__)
 class SamsungTVWS:
     _URL_FORMAT = 'ws://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}'
     _SSL_URL_FORMAT = 'wss://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}&token={token}'
+    _REST_URL_FORMAT = 'http://{host}:8001/api/v2/{append}'
 
     def __init__(self, host, token=None, token_file=None, port=8001, timeout=None, key_press_delay=1,
                  name='SamsungTvRemote'):
@@ -76,6 +76,14 @@ class SamsungTVWS:
         else:
             return self._URL_FORMAT.format(**params)
 
+    def _format_rest_url(self, append=''):
+        params = {
+            'host': self.host,
+            'append': append,
+        }
+
+        return self._REST_URL_FORMAT.format(**params)
+
     def _get_token(self):
         if self.token_file is not None:
             try:
@@ -103,6 +111,17 @@ class SamsungTVWS:
 
         key_press_delay = self.key_press_delay if key_press_delay is None else key_press_delay
         time.sleep(key_press_delay)
+
+    def _rest_request(self, target, method='GET'):
+        url = self._format_rest_url(target)
+        if method == 'POST':
+            return requests.post(url, timeout=self.timeout)
+        elif method == 'PUT':
+            return requests.put(url, timeout=self.timeout)
+        elif method == 'DELETE':
+            return requests.delete(url, timeout=self.timeout)
+        else:
+            return requests.get(url, timeout=self.timeout)
 
     def open(self):
         is_ssl = self._is_ssl_connection()
@@ -196,18 +215,15 @@ class SamsungTVWS:
         else:
             return response
 
-    def device_info(self):
+    def rest_device_info(self):
         try:
-            url = 'http://{host}:8001/api/v2/'.format(host=self.host)
-            res = requests.get(url)
-            info = json.loads(res.text)
-
-            return info
-        except JSONDecodeError:
-            _LOGGING.debug('Failed to parse response from TV on url: %s. status_code: %s response text: %s', url,
-                           res.status_code, res.text)
+            response = self._rest_request('')
+            return json.loads(response.text)
+        except json.JSONDecodeError:
+            _LOGGING.debug('Failed to parse response from TV. status_code: %s response text: %s',
+                           response.status_code, response.text)
             raise exceptions.HttpApiError('Failed to parse response from TV. Feature not supported on this model')
-        except ConnectionError:
+        except requests.ConnectionError:
             raise exceptions.HttpApiError('TV unreachable or feature not supported on this model')
 
     def shortcuts(self):

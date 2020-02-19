@@ -60,16 +60,14 @@ wakeonlan.send_magic_packet('CC:6E:A4:xx:xx:xx')
 tv.open_browser('https://duckduckgo.com/')
 
 # View installed apps (Spotify)
-tv.app_list()
+apps = tv.app_list()
+logging.info(apps)
 
 # Open apps (Spotify)
 tv.run_app('3201606009684')
 
 # Get device info (device name, model, supported features..)
-tv.device_info()
-
-# Get device info (device name, model, supported features..)
-info = tv.device_info()
+info = tv.rest_device_info()
 logging.info(info)
 
 ```
