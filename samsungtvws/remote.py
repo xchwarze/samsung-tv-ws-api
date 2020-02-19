@@ -102,7 +102,7 @@ class SamsungTVWS:
         self.connection.send(payload)
 
         key_press_delay = self.key_press_delay if key_press_delay is None else key_press_delay
-        time.sleep(self.key_press_delay)
+        time.sleep(key_press_delay)
 
     def open(self):
         is_ssl = self._is_ssl_connection()
