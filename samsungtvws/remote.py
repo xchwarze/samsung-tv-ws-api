@@ -183,6 +183,20 @@ class SamsungTVWS:
         time.sleep(seconds)
         self.send_key(key, cmd='Release')
 
+    def move_cursor(self, x, y, duration=0):
+        self._ws_send({
+            "method":"ms.remote.control",
+            "params": {
+                "Cmd":"Move",
+                "Position": {
+                    "x": x,
+                    "y": y,
+                    "Time": str(duration)
+                },
+                "TypeOfRemote": "ProcessMouseDevice"
+            }
+        }, key_press_delay=0)
+
     def run_app(self, app_id, app_type='DEEP_LINK', meta_tag=''):
         _LOGGING.debug('Sending run app app_id: %s app_type: %s meta_tag: %s', app_id, app_type, meta_tag)
         self._ws_send({
