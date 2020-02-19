@@ -32,6 +32,7 @@ from json import JSONDecodeError
 
 _LOGGING = logging.getLogger(__name__)
 
+
 class SamsungTVWS:
     _URL_FORMAT = 'ws://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}'
     _SSL_URL_FORMAT = 'wss://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}&token={token}'
@@ -93,12 +94,14 @@ class SamsungTVWS:
             _LOGGING.info('New token %s', token)
             self.token = token
 
-    def _ws_send(self, command):
+    def _ws_send(self, command, key_press_delay):
         if self.connection is None:
             self.open()
 
         payload = json.dumps(command)
         self.connection.send(payload)
+
+        key_press_delay = self.key_press_delay if key_press_delay is None else key_press_delay
         time.sleep(self.key_press_delay)
 
     def open(self):
@@ -132,18 +135,21 @@ class SamsungTVWS:
         self.connection = None
         _LOGGING.debug('Connection closed.')
 
-    def send_key(self, key, repeat=1, cmd='Click'):
-        for _ in range(repeat):
+    def send_key(self, key, times=1, key_press_delay=None, cmd='Click'):
+        for _ in range(times):
             _LOGGING.info('Sending key %s', key)
-            self._ws_send({
-                'method': 'ms.remote.control',
-                'params': {
-                    'Cmd': cmd,
-                    'DataOfCmd': key,
-                    'Option': 'false',
-                    'TypeOfRemote': 'SendRemoteKey'
-                }
-            })
+            self._ws_send(
+                {
+                    'method': 'ms.remote.control',
+                    'params': {
+                        'Cmd': cmd,
+                        'DataOfCmd': key,
+                        'Option': 'false',
+                        'TypeOfRemote': 'SendRemoteKey'
+                    }
+                },
+                key_press_delay
+            )
 
     def hold_key(self, key, seconds):
         self.send_key(key, cmd='Press')
@@ -198,7 +204,8 @@ class SamsungTVWS:
 
             return info
         except JSONDecodeError:
-            _LOGGING.debug('Failed to parse response from TV on url: %s. status_code: %s response text: %s', url, res.status_code, res.text)
+            _LOGGING.debug('Failed to parse response from TV on url: %s. status_code: %s response text: %s', url,
+                           res.status_code, res.text)
             raise exceptions.HttpApiError('Failed to parse response from TV. Feature not supported on this model')
         except ConnectionError:
             raise exceptions.HttpApiError('TV unreachable or feature not supported on this model')
