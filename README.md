@@ -86,6 +86,12 @@ logging.info(app)
 info = tv.rest_device_info()
 logging.info(info)
 
+# Listen to incoming events
+def handle_message(msg):
+    print(msg['event'])
+
+tv.events.subscribe(const.Events.ALL, handle_message)
+
 ```
 
 ## License
