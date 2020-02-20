@@ -95,11 +95,12 @@ class SamsungTVWS:
             return self.token
 
     def _set_token(self, token):
+        _LOGGING.info('New token %s', token)
         if self.token_file is not None:
+            _LOGGING.debug('Save token to file', token)
             with open(self.token_file, 'w') as token_file:
                 token_file.write(token)
         else:
-            _LOGGING.info('New token %s', token)
             self.token = token
 
     def _ws_send(self, command, key_press_delay=None):
@@ -109,8 +110,8 @@ class SamsungTVWS:
         payload = json.dumps(command)
         self.connection.send(payload)
 
-        key_press_delay = self.key_press_delay if key_press_delay is None else key_press_delay
-        time.sleep(key_press_delay)
+        delay = self.key_press_delay if key_press_delay is None else key_press_delay
+        time.sleep(delay)
 
     def _rest_request(self, target, method='GET'):
         url = self._format_rest_url(target)
@@ -184,18 +185,21 @@ class SamsungTVWS:
         self.send_key(key, cmd='Release')
 
     def move_cursor(self, x, y, duration=0):
-        self._ws_send({
-            "method":"ms.remote.control",
-            "params": {
-                "Cmd":"Move",
-                "Position": {
-                    "x": x,
-                    "y": y,
-                    "Time": str(duration)
-                },
-                "TypeOfRemote": "ProcessMouseDevice"
-            }
-        }, key_press_delay=0)
+        self._ws_send(
+            {
+                'method': 'ms.remote.control',
+                'params': {
+                    'Cmd': 'Move',
+                    'Position': {
+                        'x': x,
+                        'y': y,
+                        'Time': str(duration)
+                    },
+                    'TypeOfRemote': 'ProcessMouseDevice'
+                }
+            },
+            key_press_delay=0
+        )
 
     def run_app(self, app_id, app_type='DEEP_LINK', meta_tag=''):
         _LOGGING.debug('Sending run app app_id: %s app_type: %s meta_tag: %s', app_id, app_type, meta_tag)
