@@ -253,17 +253,17 @@ class SamsungTVWS:
         return self._process_api_response(response.text)
 
     def rest_app_run(self, app_id):
-        _LOGGING.debug('Run app %s status via rest api', app_id)
+        _LOGGING.debug('Run app %s via rest api', app_id)
         response = self._rest_request('applications/' + app_id, 'POST')
         return self._process_api_response(response.text)
 
     def rest_app_close(self, app_id):
-        _LOGGING.debug('Close app %s status via rest api', app_id)
+        _LOGGING.debug('Close app %s via rest api', app_id)
         response = self._rest_request('applications/' + app_id, 'DELETE')
         return self._process_api_response(response.text)
 
     def rest_app_install(self, app_id):
-        _LOGGING.debug('Install app %s status via rest api', app_id)
+        _LOGGING.debug('Install app %s via rest api', app_id)
         response = self._rest_request('applications/' + app_id, 'PUT')
         return self._process_api_response(response.text)
 
