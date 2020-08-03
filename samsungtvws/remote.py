@@ -97,7 +97,7 @@ class SamsungTVWS:
     def _set_token(self, token):
         _LOGGING.info('New token %s', token)
         if self.token_file is not None:
-            _LOGGING.debug('Save token to file', token)
+            _LOGGING.debug('Save token to file: %s', token)
             with open(self.token_file, 'w') as token_file:
                 token_file.write(token)
         else:
