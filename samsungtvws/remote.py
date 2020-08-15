@@ -144,6 +144,7 @@ class SamsungTVWS:
             url,
             self.timeout,
             sslopt=sslopt
+            header={"connection": "Upgrade"}
         )
 
         response = self._process_api_response(self.connection.recv())
