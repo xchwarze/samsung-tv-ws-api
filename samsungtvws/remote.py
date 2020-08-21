@@ -143,7 +143,7 @@ class SamsungTVWS:
         self.connection = websocket.create_connection(
             url,
             self.timeout,
-            sslopt=sslopt
+            sslopt=sslopt,
             header={"connection": "Upgrade"}
         )
 
