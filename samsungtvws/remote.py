@@ -141,10 +141,15 @@ class SamsungTVWS:
         sslopt = {'cert_reqs': ssl.CERT_NONE} if self._is_ssl_connection() else {}
 
         _LOGGING.debug('WS url %s', url)
+        # Only for debug use!
+        # websocket.enableTrace(True)
         self.connection = websocket.create_connection(
             url,
             self.timeout,
-            sslopt=sslopt
+            sslopt=sslopt,
+            # Use 'connection' for fix websocket-client 0.57 bug
+            # header={'Connection': 'Upgrade'}
+            connection='Connection: Upgrade'
         )
 
         response = self._process_api_response(self.connection.recv())
