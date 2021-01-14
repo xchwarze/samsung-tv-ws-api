@@ -35,7 +35,7 @@ _LOGGING = logging.getLogger(__name__)
 class SamsungTVWS:
     _URL_FORMAT = 'ws://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}'
     _SSL_URL_FORMAT = 'wss://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}&token={token}'
-    _REST_URL_FORMAT = 'http://{host}:8001/api/v2/{append}'
+    _REST_URL_FORMAT = '{protocol}://{host}:{port}/api/v2/{route}'
 
     def __init__(self, host, token=None, token_file=None, port=8001, timeout=None, key_press_delay=1,
                  name='SamsungTvRemote'):
@@ -63,7 +63,7 @@ class SamsungTVWS:
     def _is_ssl_connection(self):
         return self.port == 8002
 
-    def _format_websocket_url(self, is_ssl=False):
+    def _format_websocket_url(self):
         params = {
             'host': self.host,
             'port': self.port,
@@ -71,15 +71,17 @@ class SamsungTVWS:
             'token': self._get_token(),
         }
 
-        if is_ssl:
+        if self._is_ssl_connection():
             return self._SSL_URL_FORMAT.format(**params)
         else:
             return self._URL_FORMAT.format(**params)
 
-    def _format_rest_url(self, append=''):
+    def _format_rest_url(self, route=''):
         params = {
+            'protocol': 'https' if self._is_ssl_connection() else 'http',
             'host': self.host,
-            'append': append,
+            'port': self.port,
+            'route': route,
         }
 
         return self._REST_URL_FORMAT.format(**params)
@@ -117,13 +119,13 @@ class SamsungTVWS:
         url = self._format_rest_url(target)
         try:
             if method == 'POST':
-                return requests.post(url, timeout=self.timeout)
+                return requests.post(url, timeout=self.timeout, verify=False)
             elif method == 'PUT':
-                return requests.put(url, timeout=self.timeout)
+                return requests.put(url, timeout=self.timeout, verify=False)
             elif method == 'DELETE':
-                return requests.delete(url, timeout=self.timeout)
+                return requests.delete(url, timeout=self.timeout, verify=False)
             else:
-                return requests.get(url, timeout=self.timeout)
+                return requests.get(url, timeout=self.timeout, verify=False)
         except requests.ConnectionError:
             raise exceptions.HttpApiError('TV unreachable or feature not supported on this model.')
 
@@ -135,9 +137,8 @@ class SamsungTVWS:
             raise exceptions.ResponseError('Failed to parse response from TV. Maybe feature not supported on this model')
 
     def open(self):
-        is_ssl = self._is_ssl_connection()
-        url = self._format_websocket_url(is_ssl)
-        sslopt = {'cert_reqs': ssl.CERT_NONE} if is_ssl else {}
+        url = self._format_websocket_url()
+        sslopt = {'cert_reqs': ssl.CERT_NONE} if self._is_ssl_connection() else {}
 
         _LOGGING.debug('WS url %s', url)
         self.connection = websocket.create_connection(
