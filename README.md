@@ -88,6 +88,20 @@ logging.info(info)
 
 ```
 
+## Supported TVs
+
+List of support TV models. https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html
+
+```
+2017 : M5500 and above
+2016 : K4300, K5300 and above
+2015 : J5500 and above (except J6203)
+2014 : H4500, H5500 and above (except H6003/H6103/H6153/H6201/H6203)
+Supported TV models may vary by region.
+```
+
+For complete list https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html
+
 ## License
 
 MIT
