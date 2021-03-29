@@ -33,8 +33,8 @@ _LOGGING = logging.getLogger(__name__)
 
 
 class SamsungTVWS:
-    _URL_FORMAT = 'ws://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}'
-    _SSL_URL_FORMAT = 'wss://{host}:{port}/api/v2/channels/samsung.remote.control?name={name}&token={token}'
+    _URL_FORMAT = 'ws://{host}:{port}/api/v2/channels/{endpoint}?name={name}'
+    _SSL_URL_FORMAT = 'wss://{host}:{port}/api/v2/channels/{endpoint}?name={name}&token={token}'
     _REST_URL_FORMAT = '{protocol}://{host}:{port}/api/v2/{route}'
 
     def __init__(self, host, token=None, token_file=None, port=8001, timeout=None, key_press_delay=1,
@@ -63,10 +63,11 @@ class SamsungTVWS:
     def _is_ssl_connection(self):
         return self.port == 8002
 
-    def _format_websocket_url(self):
+    def _format_websocket_url(self, endpoint):
         params = {
             'host': self.host,
             'port': self.port,
+            'endpoint': endpoint,
             'name': self._serialize_string(self.name),
             'token': self._get_token(),
         }
@@ -107,7 +108,7 @@ class SamsungTVWS:
 
     def _ws_send(self, command, key_press_delay=None):
         if self.connection is None:
-            self.open()
+            self.connection = self.open("samsung.remote.control")
 
         payload = json.dumps(command)
         self.connection.send(payload)
@@ -136,14 +137,14 @@ class SamsungTVWS:
             _LOGGING.debug('Failed to parse response from TV. response text: %s', response)
             raise exceptions.ResponseError('Failed to parse response from TV. Maybe feature not supported on this model')
 
-    def open(self):
-        url = self._format_websocket_url()
+    def open(self, endpoint):
+        url = self._format_websocket_url(endpoint)
         sslopt = {'cert_reqs': ssl.CERT_NONE} if self._is_ssl_connection() else {}
 
         _LOGGING.debug('WS url %s', url)
         # Only for debug use!
         # websocket.enableTrace(True)
-        self.connection = websocket.create_connection(
+        connection = websocket.create_connection(
             url,
             self.timeout,
             sslopt=sslopt,
@@ -152,7 +153,7 @@ class SamsungTVWS:
             connection='Connection: Upgrade'
         )
 
-        response = self._process_api_response(self.connection.recv())
+        response = self._process_api_response(connection.recv())
         if response.get('data') and response.get('data').get('token'):
             token = response.get('data').get('token')
             _LOGGING.debug('Got token %s', token)
@@ -161,6 +162,7 @@ class SamsungTVWS:
         if response['event'] != 'ms.channel.connect':
             self.close()
             raise exceptions.ConnectionFailure(response)
+        return connection
 
     def close(self):
         if self.connection:
