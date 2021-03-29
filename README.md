@@ -88,6 +88,63 @@ logging.info(info)
 
 ```
 
+## Art Mode
+
+TVs that support art mode (such as The Frame) can be controlled as follows:
+
+```
+from samsungtvws import SamsungTVWS
+tv = SamsungTVWS('192.168.xxx.xxx')
+
+# Is art mode supported?
+print (tv.art().supported())
+
+# List the art available on the device
+print(tv.art().available())
+
+# Retrieve information about the currently selected art
+print(tv.art().get_current())
+
+# Retrieve a thumbnail for a specific piece of art. Returns a JPEG.
+thumbnail = tv.art().get_thumbnail('SAM-F0206')
+
+# Set a piece of art
+tv.art().set('SAM-F0206')
+
+# Set a piece of art, but don't immediately show it if not in art mode
+tv.art().set('SAM-F0201', show=False)
+
+# Determine whether the TV is currently in art mode
+print(tv.art().get_artmode())
+
+# Switch art mode on or off
+tv.art().set_artmode(True)
+tv.art().set_artmode(False)
+
+# Upload a picture
+file = open("test.png", "rb")
+data = file.read()
+tv.art().upload(data)
+
+# If uploading a JPEG
+tv.art().upload(data, filetype='JPEG')
+
+# To set the matte to modern and apricot color
+tv.art().upload(data, matte='modern_apricot')
+
+# Delete an uploaded item
+tv.art().delete("MY-F0020")
+
+# Delete multiple uploaded items
+tv.art().delete_list(["MY-F0020", "MY-F0021"])
+
+# List available photo filters
+print(tv.art().get_photo_filter_list())
+
+# Apply a filter to a specific piece of art
+tv.art().set_photo_filter('SAM-F0206', 'ink')
+```
+
 ## Supported TVs
 
 List of support TV models. https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html
