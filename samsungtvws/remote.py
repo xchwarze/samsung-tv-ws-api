@@ -26,6 +26,7 @@ import time
 import ssl
 import websocket
 import requests
+from . import art
 from . import exceptions
 from . import shortcuts
 
@@ -47,6 +48,7 @@ class SamsungTVWS:
         self.key_press_delay = key_press_delay
         self.name = name
         self.connection = None
+        self.art_connection = None
 
     def __enter__(self):
         return self
@@ -115,6 +117,14 @@ class SamsungTVWS:
 
         delay = self.key_press_delay if key_press_delay is None else key_press_delay
         time.sleep(delay)
+
+    def _art_ws_send(self, command):
+        if self.art_connection is None:
+            self.art_connection = self.open("com.samsung.art-app")
+            self.art_connection.recv()
+
+        payload = json.dumps(command)
+        self.art_connection.send(payload)
 
     def _rest_request(self, target, method='GET'):
         url = self._format_rest_url(target)
@@ -277,3 +287,6 @@ class SamsungTVWS:
 
     def shortcuts(self):
         return shortcuts.SamsungTVShortcuts(self)
+
+    def art(self):
+        return art.SamsungTVArt(self)
