@@ -19,7 +19,6 @@ Copyright (C) 2019 Xchwarze
     Boston, MA  02110-1335  USA
 
 """
-import base64
 import json
 import logging
 import time
@@ -29,13 +28,14 @@ import requests
 from . import art
 from . import exceptions
 from . import shortcuts
+from . import helper
 
 _LOGGING = logging.getLogger(__name__)
 
 
 class SamsungTVWS:
-    _URL_FORMAT = 'ws://{host}:{port}/api/v2/channels/{endpoint}?name={name}'
-    _SSL_URL_FORMAT = 'wss://{host}:{port}/api/v2/channels/{endpoint}?name={name}&token={token}'
+    _URL_FORMAT = 'ws://{host}:{port}/api/v2/channels/{app}?name={name}'
+    _SSL_URL_FORMAT = 'wss://{host}:{port}/api/v2/channels/{app}?name={name}&token={token}'
     _REST_URL_FORMAT = '{protocol}://{host}:{port}/api/v2/{route}'
 
     def __init__(self, host, token=None, token_file=None, port=8001, timeout=None, key_press_delay=1,
@@ -48,7 +48,6 @@ class SamsungTVWS:
         self.key_press_delay = key_press_delay
         self.name = name
         self.connection = None
-        self.art_connection = None
 
     def __enter__(self):
         return self
@@ -56,21 +55,15 @@ class SamsungTVWS:
     def __exit__(self, type, value, traceback):
         self.close()
 
-    def _serialize_string(self, string):
-        if isinstance(string, str):
-            string = str.encode(string)
-
-        return base64.b64encode(string).decode('utf-8')
-
     def _is_ssl_connection(self):
         return self.port == 8002
 
-    def _format_websocket_url(self, endpoint):
+    def _format_websocket_url(self, app):
         params = {
             'host': self.host,
             'port': self.port,
-            'endpoint': endpoint,
-            'name': self._serialize_string(self.name),
+            'app': app,
+            'name': helper.serialize_string(self.name),
             'token': self._get_token(),
         }
 
@@ -110,21 +103,13 @@ class SamsungTVWS:
 
     def _ws_send(self, command, key_press_delay=None):
         if self.connection is None:
-            self.connection = self.open("samsung.remote.control")
+            self.connection = self.open('samsung.remote.control')
 
         payload = json.dumps(command)
         self.connection.send(payload)
 
         delay = self.key_press_delay if key_press_delay is None else key_press_delay
         time.sleep(delay)
-
-    def _art_ws_send(self, command):
-        if self.art_connection is None:
-            self.art_connection = self.open("com.samsung.art-app")
-            self.art_connection.recv()
-
-        payload = json.dumps(command)
-        self.art_connection.send(payload)
 
     def _rest_request(self, target, method='GET'):
         url = self._format_rest_url(target)
@@ -139,13 +124,6 @@ class SamsungTVWS:
                 return requests.get(url, timeout=self.timeout, verify=False)
         except requests.ConnectionError:
             raise exceptions.HttpApiError('TV unreachable or feature not supported on this model.')
-
-    def _process_api_response(self, response):
-        try:
-            return json.loads(response)
-        except json.JSONDecodeError:
-            _LOGGING.debug('Failed to parse response from TV. response text: %s', response)
-            raise exceptions.ResponseError('Failed to parse response from TV. Maybe feature not supported on this model')
 
     def open(self, endpoint):
         url = self._format_websocket_url(endpoint)
@@ -163,7 +141,7 @@ class SamsungTVWS:
             connection='Connection: Upgrade'
         )
 
-        response = self._process_api_response(connection.recv())
+        response = helper.process_api_response(connection.recv())
         if response.get('data') and response.get('data').get('token'):
             token = response.get('data').get('token')
             _LOGGING.debug('Got token %s', token)
@@ -172,6 +150,7 @@ class SamsungTVWS:
         if response['event'] != 'ms.channel.connect':
             self.close()
             raise exceptions.ConnectionFailure(response)
+
         return connection
 
     def close(self):
@@ -254,7 +233,7 @@ class SamsungTVWS:
             }
         })
 
-        response = self._process_api_response(self.connection.recv())
+        response = helper.process_api_response(self.connection.recv())
         if response.get('data') and response.get('data').get('data'):
             return response.get('data').get('data')
         else:
@@ -263,27 +242,32 @@ class SamsungTVWS:
     def rest_device_info(self):
         _LOGGING.debug('Get device info via rest api')
         response = self._rest_request('')
-        return self._process_api_response(response.text)
+
+        return helper.process_api_response(response.text)
 
     def rest_app_status(self, app_id):
         _LOGGING.debug('Get app %s status via rest api', app_id)
         response = self._rest_request('applications/' + app_id)
-        return self._process_api_response(response.text)
+
+        return helper.process_api_response(response.text)
 
     def rest_app_run(self, app_id):
         _LOGGING.debug('Run app %s via rest api', app_id)
         response = self._rest_request('applications/' + app_id, 'POST')
-        return self._process_api_response(response.text)
+
+        return helper.process_api_response(response.text)
 
     def rest_app_close(self, app_id):
         _LOGGING.debug('Close app %s via rest api', app_id)
         response = self._rest_request('applications/' + app_id, 'DELETE')
-        return self._process_api_response(response.text)
+
+        return helper.process_api_response(response.text)
 
     def rest_app_install(self, app_id):
         _LOGGING.debug('Install app %s via rest api', app_id)
         response = self._rest_request('applications/' + app_id, 'PUT')
-        return self._process_api_response(response.text)
+
+        return helper.process_api_response(response.text)
 
     def shortcuts(self):
         return shortcuts.SamsungTVShortcuts(self)
