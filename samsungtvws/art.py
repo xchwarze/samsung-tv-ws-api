@@ -20,7 +20,6 @@ Copyright (C) 2021 Matthew Garrett <mjg59@srcf.ucam.org>
     Boston, MA  02110-1335  USA
 
 """
-
 import json
 import random
 import logging
@@ -35,7 +34,7 @@ _LOGGING = logging.getLogger(__name__)
 class SamsungTVArt:
     def __init__(self, remote):
         self.remote = remote
-        self.art_uuid = uuid.uuid4()
+        self.art_uuid = str(uuid.uuid4())
         self.art_connection = None
 
     def _art_ws_send(self, command):
@@ -47,7 +46,7 @@ class SamsungTVArt:
         self.art_connection.send(payload)
 
     def _send_art_request(self, data, response=False):
-        data['id'] = str(self.art_uuid)
+        data['id'] = self.art_uuid
         self._art_ws_send({
             'method': 'ms.channel.emit',
             'params': {
@@ -67,10 +66,7 @@ class SamsungTVArt:
         if device:
             support = device.get('FrameTVSupport')
 
-        if support == 'true':
-            return True
-
-        return False
+        return support == 'true'
 
     def get_api_version(self):
         response = self._send_art_request(
@@ -90,9 +86,8 @@ class SamsungTVArt:
             },
             response=True
         )
-        data = json.loads(response['data'])
 
-        return data
+        return json.loads(response['data'])
 
     def available(self, category=None):
         response = self._send_art_request(
@@ -103,9 +98,8 @@ class SamsungTVArt:
             response=True
         )
         data = json.loads(response['data'])
-        content_list = json.loads(data['content_list'])
 
-        return content_list
+        return json.loads(data['content_list'])
 
     def get_current(self):
         response = self._send_art_request(
@@ -114,19 +108,18 @@ class SamsungTVArt:
             },
             response=True
         )
-        data = json.loads(response['data'])
 
-        return data
+        return json.loads(response['data'])
 
-    def get_thumbnail(self, art):
+    def get_thumbnail(self, content_id):
         response = self._send_art_request(
             {
                 'request': 'get_thumbnail',
-                'content_id': art,
+                'content_id': content_id,
                 'conn_info': {
                     'd2d_mode': 'socket',
                     'connection_id': random.randrange(4 * 1024 * 1024 * 1024),
-                    'id': str(self.art_uuid)
+                    'id': self.art_uuid
                 }
             },
             response=True
@@ -141,10 +134,12 @@ class SamsungTVArt:
 
         return art_socket.recv(int(header['fileLength']))
 
-    def upload(self, art, matte='shadowbox_polar', filetype='png', date=None):
-        filetype = filetype.lower()
-        if filetype == 'jpeg':
-            header_filetype = 'jpg'
+    def upload(self, file, matte='shadowbox_polar', file_type='png', date=None):
+        file_size = len(file)
+
+        file_type = file_type.lower()
+        if file_type == 'jpeg':
+            file_type = 'jpg'
 
         if date is None:
             date = datetime.now().strftime('%Y:%m:%d %H:%M:%S')
@@ -152,61 +147,60 @@ class SamsungTVArt:
         response = self._send_art_request(
             {
                 'request': 'send_image',
-                'file_type': filetype,
+                'file_type': file_type,
                 'conn_info': {
                     'd2d_mode': 'socket',
                     'connection_id': random.randrange(4 * 1024 * 1024 * 1024),
-                    'id': str(self.art_uuid),
+                    'id': self.art_uuid,
                 },
                 'image_date': date,
                 'matte_id': matte,
-                'file_size': len(art)
+                'file_size': file_size
             },
             response=True
         )
         data = json.loads(response['data'])
         conn_info = json.loads(data['conn_info'])
 
-        header_string = json.dumps({
+        header = json.dumps({
             'num': 0,
             'total': 1,
-            'fileLength': len(art),
+            'fileLength': file_size,
             'fileName': 'dummy',
-            'fileType': filetype,
+            'fileType': file_type,
             'secKey': conn_info['key'],
             'version': '0.0.1'
         })
-        header_len = len(header_string).to_bytes(4, 'big')
 
         art_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         art_socket.connect((conn_info['ip'], int(conn_info['port'])))
-        art_socket.send(header_len)
-        art_socket.send(header_string.encode('ascii'))
-        art_socket.send(art)
+        art_socket.send(len(header).to_bytes(4, 'big'))
+        art_socket.send(header.encode('ascii'))
+        art_socket.send(file)
 
         response = helper.process_api_response(self.art_connection.recv())
         data = json.loads(response['data'])
 
         return data['content_id']
 
-    def delete(self, art):
-        self.delete_list([art])
+    def delete(self, content_id):
+        self.delete_list([content_id])
 
-    def delete_list(self, art):
-        art_list = []
-        for entry in art:
-            art_list.append({'content_id': entry})
+    def delete_list(self, content_ids):
+        content_id_list = []
+        for item in content_ids:
+            content_id_list.append({'content_id': item})
 
         self._send_art_request({
             'request': 'delete_image_list',
-            'content_id_list': art_list
+            'content_id_list': content_id_list
         })
 
-    def set(self, art, category=None, show=True):
+    def select_image(self, content_id, category=None, show=True):
         self._send_art_request({
             'request': 'select_image',
             'category_id': category,
-            'content_id': art,
+            'content_id': content_id,
             'show': show,
         })
 
@@ -235,13 +229,12 @@ class SamsungTVArt:
             response=True
         )
         data = json.loads(response['data'])
-        filter_list = json.loads(data['filter_list'])
 
-        return filter_list
+        return json.loads(data['filter_list'])
 
-    def set_photo_filter(self, art, filter_id):
+    def set_photo_filter(self, content_id, filter_id):
         self._send_art_request({
             'request': 'set_photo_filter',
-            'content_id': art,
+            'content_id': content_id,
             'filter_id': filter_id
         })
