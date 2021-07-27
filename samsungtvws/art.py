@@ -1,56 +1,54 @@
 """
 SamsungTVWS - Samsung Smart TV WS API wrapper
 
-Copyright 2021 Matthew Garrett <mjg59@srcf.ucam.org>
+Copyright (C) 2019 Xchwarze
+Copyright (C) 2021 Matthew Garrett <mjg59@srcf.ucam.org>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin Street, Fifth Floor,
+    Boston, MA  02110-1335  USA
 
 """
 
 import json
 import random
-import requests
+import logging
 import socket
 import uuid
-
 from datetime import datetime
+from . import helper
+
+_LOGGING = logging.getLogger(__name__)
+
 
 class SamsungTVArt:
     def __init__(self, remote):
         self.remote = remote
-        self._art_uuid = uuid.uuid4()
+        self.art_uuid = uuid.uuid4()
+        self.art_connection = None
 
-    def supported(self):
-        data =  self.remote.rest_device_info()
-        device = data.get('device')
-        if device:
-            support = device.get('FrameTVSupport')
-        else:
-            support = None
+    def _art_ws_send(self, command):
+        if self.art_connection is None:
+            self.art_connection = self.open('com.samsung.art-app')
+            self.art_connection.recv()
 
-        if support == 'true':
-            return True
-        return False
+        payload = json.dumps(command)
+        self.art_connection.send(payload)
 
     def _send_art_request(self, data, response=False):
-        data['id'] = str(self._art_uuid)
-        self.remote._art_ws_send({
+        data['id'] = str(self.art_uuid)
+        self._art_ws_send({
             'method': 'ms.channel.emit',
             'params': {
                 'event': 'art_app_request',
@@ -59,175 +57,191 @@ class SamsungTVArt:
             }
         })
 
-        if response == True:
-            response = self.remote._process_api_response(self.remote.art_connection.recv())
-            return response
+        if response:
+            return helper.process_api_response(self.art_connection.recv())
+
+    def supported(self):
+        support = None
+        data = self.remote.rest_device_info()
+        device = data.get('device')
+        if device:
+            support = device.get('FrameTVSupport')
+
+        if support == 'true':
+            return True
+
+        return False
 
     def get_api_version(self):
-        data = {
-            'request': 'get_api_version'
-        }
-
-        response = self._send_art_request(data, response=True)
+        response = self._send_art_request(
+            {
+                'request': 'get_api_version'
+            },
+            response=True
+        )
         data = json.loads(response['data'])
+
         return data['version']
 
     def get_device_info(self):
-        data = {
-            'request': 'get_device_info'
-        }
-
-        response = self._send_art_request(data, response=True)
+        response = self._send_art_request(
+            {
+                'request': 'get_device_info'
+            },
+            response=True
+        )
         data = json.loads(response['data'])
+
         return data
 
     def available(self, category=None):
-        data = {
-            'request': 'get_content_list',
-            'category': category
-        }
-
-        response = self._send_art_request(data, response=True)
+        response = self._send_art_request(
+            {
+                'request': 'get_content_list',
+                'category': category
+            },
+            response=True
+        )
         data = json.loads(response['data'])
         content_list = json.loads(data['content_list'])
+
         return content_list
 
     def get_current(self):
-        data = {
-            'request': 'get_current_artwork',
-        }
-
-        response = self._send_art_request(data, response=True)
+        response = self._send_art_request(
+            {
+                'request': 'get_current_artwork',
+            },
+            response=True
+        )
         data = json.loads(response['data'])
+
         return data
 
     def get_thumbnail(self, art):
-        data = {
-            'request': 'get_thumbnail',
-            'content_id': art,
-            'conn_info': {
-                'd2d_mode': 'socket',
-                'connection_id': '1616911254067',
-                'id': str(self._art_uuid)
-            }
-        }
-
-        response = self._send_art_request(data, response=True)
-        data = json.loads(response['data'])
-        conn_info = json.loads(data['conn_info'])
-        ip = conn_info['ip']
-        port = int(conn_info['port'])
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((ip, port))
-        header_len = int.from_bytes(s.recv(4), 'big')
-        header = json.loads(s.recv(header_len))
-        data = s.recv(int(header['fileLength']))
-        return data
-
-    def upload(self, art, matte='shadowbox_polar', date=None, filetype='PNG'):
-        if date == None:
-            now = datetime.now()
-            date = now.strftime("%Y:%m:%d %H:%M:%S")
-        connection_id = random.randrange(4*1024*1024*1024)
-        data = {
-            'request': 'send_image',
-            'file_type': filetype,
-            'conn_info': {
-                'd2d_mode': 'socket',
-                'connection_id': connection_id,
-                'id': str(self._art_uuid),
+        response = self._send_art_request(
+            {
+                'request': 'get_thumbnail',
+                'content_id': art,
+                'conn_info': {
+                    'd2d_mode': 'socket',
+                    'connection_id': random.randrange(4 * 1024 * 1024 * 1024),
+                    'id': str(self.art_uuid)
+                }
             },
-            'image_date': date,
-            'matte_id': matte,
-            'file_size': len(art)
-        }
-        
-        response = self._send_art_request(data, response=True)
+            response=True
+        )
         data = json.loads(response['data'])
         conn_info = json.loads(data['conn_info'])
-        ip = conn_info['ip']
-        port = int(conn_info['port'])
-        key = conn_info['key']
-        header_filetype = 'png'
-        if filetype == 'JPEG':
+
+        art_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        art_socket.connect((conn_info['ip'], int(conn_info['port'])))
+        header_len = int.from_bytes(art_socket.recv(4), 'big')
+        header = json.loads(art_socket.recv(header_len))
+
+        return art_socket.recv(int(header['fileLength']))
+
+    def upload(self, art, matte='shadowbox_polar', filetype='png', date=None):
+        filetype = filetype.lower()
+        if filetype == 'jpeg':
             header_filetype = 'jpg'
 
-        header = {
+        if date is None:
+            date = datetime.now().strftime('%Y:%m:%d %H:%M:%S')
+
+        response = self._send_art_request(
+            {
+                'request': 'send_image',
+                'file_type': filetype,
+                'conn_info': {
+                    'd2d_mode': 'socket',
+                    'connection_id': random.randrange(4 * 1024 * 1024 * 1024),
+                    'id': str(self.art_uuid),
+                },
+                'image_date': date,
+                'matte_id': matte,
+                'file_size': len(art)
+            },
+            response=True
+        )
+        data = json.loads(response['data'])
+        conn_info = json.loads(data['conn_info'])
+
+        header_string = json.dumps({
             'num': 0,
             'total': 1,
             'fileLength': len(art),
             'fileName': 'dummy',
-            'fileType': header_filetype,
-            'secKey': key,
+            'fileType': filetype,
+            'secKey': conn_info['key'],
             'version': '0.0.1'
-        }
-        header_string = json.dumps(header)
+        })
         header_len = len(header_string).to_bytes(4, 'big')
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((ip, port))
-        s.send(header_len)
-        s.send(header_string.encode('ascii'))
-        s.send(art)
-        response = self.remote._process_api_response(self.remote.art_connection.recv())
+
+        art_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        art_socket.connect((conn_info['ip'], int(conn_info['port'])))
+        art_socket.send(header_len)
+        art_socket.send(header_string.encode('ascii'))
+        art_socket.send(art)
+
+        response = helper.process_api_response(self.art_connection.recv())
         data = json.loads(response['data'])
+
         return data['content_id']
 
     def delete(self, art):
         self.delete_list([art])
 
     def delete_list(self, art):
-        artlist = []
+        art_list = []
         for entry in art:
-            artlist.append({'content_id': entry})
-        data = {
+            art_list.append({'content_id': entry})
+
+        self._send_art_request({
             'request': 'delete_image_list',
-            'content_id_list': artlist
-        }
-        self._send_art_request(data, response=True)
+            'content_id_list': art_list
+        })
 
     def set(self, art, category=None, show=True):
-        data = {
+        self._send_art_request({
             'request': 'select_image',
             'category_id': category,
             'content_id': art,
             'show': show,
-        }
-
-        self._send_art_request(data)
+        })
 
     def get_artmode(self):
-        data = {
-            'request': 'get_artmode_status',
-        }
-
-        response = self._send_art_request(data, response=True)
+        response = self._send_art_request(
+            {
+                'request': 'get_artmode_status',
+            },
+            response=True
+        )
         data = json.loads(response['data'])
+
         return data['value']
 
     def set_artmode(self, mode):
-        data = {
+        self._send_art_request({
             'request': 'set_artmode_status',
             'value': mode,
-        }
-
-        self._send_art_request(data)
+        })
 
     def get_photo_filter_list(self):
-        data = {
-            'request': 'get_photo_filter_list'
-        }
-
-        response = self._send_art_request(data, response=True)
+        response = self._send_art_request(
+            {
+                'request': 'get_photo_filter_list'
+            },
+            response=True
+        )
         data = json.loads(response['data'])
         filter_list = json.loads(data['filter_list'])
+
         return filter_list
 
     def set_photo_filter(self, art, filter_id):
-        data = {
+        self._send_art_request({
             'request': 'set_photo_filter',
             'content_id': art,
             'filter_id': filter_id
-        }
-
-        self._send_art_request(data)
-
+        })

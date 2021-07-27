@@ -2,7 +2,7 @@
     <img src="https://user-images.githubusercontent.com/5860071/47255992-611d9b00-d481-11e8-965d-d9816f254be2.png" width="300px" border="0" />
     <br/>
     <a href="https://github.com/xchwarze/samsung-tv-ws-api/releases/latest">
-        <img src="https://img.shields.io/badge/version-1.6.0-brightgreen.svg?style=flat-square" alt="Version">
+        <img src="https://img.shields.io/badge/version-1.7.0-brightgreen.svg?style=flat-square" alt="Version">
     </a>
     Samsung Smart TV WS API wrapper
 </p>
@@ -92,7 +92,7 @@ logging.info(info)
 
 TVs that support art mode (such as The Frame) can be controlled as follows:
 
-```
+```python
 from samsungtvws import SamsungTVWS
 tv = SamsungTVWS('192.168.xxx.xxx')
 
@@ -122,7 +122,7 @@ tv.art().set_artmode(True)
 tv.art().set_artmode(False)
 
 # Upload a picture
-file = open("test.png", "rb")
+file = open('test.png', 'rb')
 data = file.read()
 tv.art().upload(data)
 
@@ -133,10 +133,10 @@ tv.art().upload(data, filetype='JPEG')
 tv.art().upload(data, matte='modern_apricot')
 
 # Delete an uploaded item
-tv.art().delete("MY-F0020")
+tv.art().delete('MY-F0020')
 
 # Delete multiple uploaded items
-tv.art().delete_list(["MY-F0020", "MY-F0021"])
+tv.art().delete_list(['MY-F0020', 'MY-F0021'])
 
 # List available photo filters
 print(tv.art().get_photo_filter_list())
@@ -161,4 +161,4 @@ For complete list https://developer.samsung.com/smarttv/develop/specifications/t
 
 ## License
 
-MIT
+GPL-2.0
