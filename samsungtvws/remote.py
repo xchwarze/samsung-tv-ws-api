@@ -243,8 +243,9 @@ class SamsungTVWS:
         })
 
         response = self._process_api_response(self.connection.recv())
-        if response.get('data') and response.get('data').get('data'):
-            return response.get('data').get('data')
+        # response = {'data': 200, 'event': 'ed.apps.launch', 'from': 'host'}
+        if response.get('data'):
+            return response.get('data')
         else:
             return response
 
