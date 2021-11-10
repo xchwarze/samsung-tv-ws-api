@@ -132,3 +132,7 @@ dmypy.json
 
 # pytype static type analyzer
 .pytype/
+
+
+# extras
+.idea/
