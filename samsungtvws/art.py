@@ -39,7 +39,7 @@ class SamsungTVArt:
 
     def _art_ws_send(self, command):
         if self.art_connection is None:
-            self.art_connection = self.open('com.samsung.art-app')
+            self.art_connection = self.remote.open('com.samsung.art-app')
             self.art_connection.recv()
 
         payload = json.dumps(command)
