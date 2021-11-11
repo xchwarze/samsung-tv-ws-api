@@ -132,13 +132,13 @@ class SamsungTVArt:
         header_len = int.from_bytes(art_socket.recv(4), 'big')
         header = json.loads(art_socket.recv(header_len))
 
-        datalen = int(header['fileLength'])
-        data = bytearray()
-        while len(data) < datalen:
-            packet = art_socket.recv(datalen - len(data))
-            data.extend(packet)
+        thumbnail_data_len = int(header['fileLength'])
+        thumbnail_data = bytearray()
+        while len(thumbnail_data) < thumbnail_data_len:
+            packet = art_socket.recv(thumbnail_data_len - len(thumbnail_data))
+            thumbnail_data.extend(packet)
 
-        return data
+        return thumbnail_data
 
     def upload(self, file, matte='shadowbox_polar', file_type='png', date=None):
         file_size = len(file)
