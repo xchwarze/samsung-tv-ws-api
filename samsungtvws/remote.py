@@ -234,8 +234,11 @@ class SamsungTVWS:
         })
 
         response = helper.process_api_response(self.connection.recv())
-        if response.get('data') and response.get('data').get('data'):
-            return response.get('data').get('data')
+        if response.get('data'):
+            data = response['data']
+            if isinstance(data, dict) and data.get('data'):
+                return data['data']
+            return data
         else:
             return response
 
