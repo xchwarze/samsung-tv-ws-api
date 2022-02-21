@@ -14,8 +14,8 @@ def serialize_string(string):
 
 
 def process_api_response(response):
+    _LOGGING.debug('Processing API response: %s', response)
     try:
         return json.loads(response)
     except json.JSONDecodeError:
-        _LOGGING.debug('Failed to parse response from TV. response text: %s', response)
         raise exceptions.ResponseError('Failed to parse response from TV. Maybe feature not supported on this model')
