@@ -19,25 +19,18 @@ Copyright (C) 2019 Xchwarze
     Boston, MA  02110-1335  USA
 
 """
-import json
 import logging
 import time
-import ssl
-import websocket
+from typing import overload
+
 import requests
-from . import art
-from . import exceptions
-from . import shortcuts
-from . import helper
+
+from . import art, connection, exceptions, helper, shortcuts
 
 _LOGGING = logging.getLogger(__name__)
 
 
-class SamsungTVWS:
-    _URL_FORMAT = "ws://{host}:{port}/api/v2/channels/{app}?name={name}"
-    _SSL_URL_FORMAT = (
-        "wss://{host}:{port}/api/v2/channels/{app}?name={name}&token={token}"
-    )
+class SamsungTVWS(connection.SamsungTVWSConnection):
     _REST_URL_FORMAT = "{protocol}://{host}:{port}/api/v2/{route}"
 
     def __init__(
@@ -50,37 +43,15 @@ class SamsungTVWS:
         key_press_delay=1,
         name="SamsungTvRemote",
     ):
-        self.host = host
-        self.token = token
-        self.token_file = token_file
-        self.port = port
-        self.timeout = None if timeout == 0 else timeout
-        self.key_press_delay = key_press_delay
-        self.name = name
-        self.connection = None
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.close()
-
-    def _is_ssl_connection(self):
-        return self.port == 8002
-
-    def _format_websocket_url(self, app):
-        params = {
-            "host": self.host,
-            "port": self.port,
-            "app": app,
-            "name": helper.serialize_string(self.name),
-            "token": self._get_token(),
-        }
-
-        if self._is_ssl_connection():
-            return self._SSL_URL_FORMAT.format(**params)
-        else:
-            return self._URL_FORMAT.format(**params)
+        super().__init__(
+            host,
+            token=token,
+            token_file=token_file,
+            port=port,
+            timeout=timeout,
+            key_press_delay=key_press_delay,
+            name=name,
+        )
 
     def _format_rest_url(self, route=""):
         params = {
@@ -92,34 +63,8 @@ class SamsungTVWS:
 
         return self._REST_URL_FORMAT.format(**params)
 
-    def _get_token(self):
-        if self.token_file is not None:
-            try:
-                with open(self.token_file, "r") as token_file:
-                    return token_file.readline()
-            except:
-                return ""
-        else:
-            return self.token
-
-    def _set_token(self, token):
-        _LOGGING.info("New token %s", token)
-        if self.token_file is not None:
-            _LOGGING.debug("Save token to file: %s", token)
-            with open(self.token_file, "w") as token_file:
-                token_file.write(token)
-        else:
-            self.token = token
-
     def _ws_send(self, command, key_press_delay=None):
-        if self.connection is None:
-            self.connection = self.open("samsung.remote.control")
-
-        payload = json.dumps(command)
-        self.connection.send(payload)
-
-        delay = self.key_press_delay if key_press_delay is None else key_press_delay
-        time.sleep(delay)
+        return super().send_command(command, key_press_delay)
 
     def _rest_request(self, target, method="GET"):
         url = self._format_rest_url(target)
@@ -137,40 +82,14 @@ class SamsungTVWS:
                 "TV unreachable or feature not supported on this model."
             )
 
+    # endpoint is kept here for compatibility - can be removed in v2
+    @overload
     def open(self, endpoint):
-        url = self._format_websocket_url(endpoint)
-        sslopt = {"cert_reqs": ssl.CERT_NONE} if self._is_ssl_connection() else {}
+        return super().open()
 
-        _LOGGING.debug("WS url %s", url)
-        # Only for debug use!
-        # websocket.enableTrace(True)
-        connection = websocket.create_connection(
-            url,
-            self.timeout,
-            sslopt=sslopt,
-            # Use 'connection' for fix websocket-client 0.57 bug
-            # header={'Connection': 'Upgrade'}
-            connection="Connection: Upgrade",
-        )
-
-        response = helper.process_api_response(connection.recv())
-        if response.get("data") and response.get("data").get("token"):
-            token = response.get("data").get("token")
-            _LOGGING.debug("Got token %s", token)
-            self._set_token(token)
-
-        if response["event"] != "ms.channel.connect":
-            self.close()
-            raise exceptions.ConnectionFailure(response)
-
-        return connection
-
-    def close(self):
-        if self.connection:
-            self.connection.close()
-
-        self.connection = None
-        _LOGGING.debug("Connection closed.")
+    # required for overloading - can be removed in v2
+    def open(self):
+        return super().open()
 
     def send_key(self, key, times=1, key_press_delay=None, cmd="Click"):
         for _ in range(times):
