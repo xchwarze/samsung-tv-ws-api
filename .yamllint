@@ -1,0 +1,7 @@
+extends: default
+
+rules:
+  braces:
+    max-spaces-inside: 1
+  document-start:
+    present: false
