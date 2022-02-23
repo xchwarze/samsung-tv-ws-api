@@ -19,7 +19,7 @@ setup(
     packages=find_packages(exclude=("tests",)),
     install_requires=["websocket-client>=0.57.0", "requests>=2.21.0"],
     extras_require={
-        "async": ["websockets>=10.2"],
+        "async": ["aiohttp>=3.8.1", "websockets>=10.2"],
     },
     include_package_data=True,
     license="MIT",

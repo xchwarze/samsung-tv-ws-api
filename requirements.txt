@@ -1,6 +1,12 @@
+# sync
 websocket-client>=0.57.0
 requests>=2.21.0
+
+# async
+websockets>=10.2
+aiohttp>=3.8.1
+
+# dev
 black>=22.1
 pre-commit>=2.17
 pytest>=6.2.5
-websockets>=10.2

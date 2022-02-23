@@ -37,6 +37,7 @@ class SamsungTVWSBaseConnection:
     _SSL_URL_FORMAT = (
         "wss://{host}:{port}/api/v2/channels/{app}?name={name}&token={token}"
     )
+    _REST_URL_FORMAT = "{protocol}://{host}:{port}/api/v2/{route}"
 
     def __init__(
         self,
@@ -76,6 +77,16 @@ class SamsungTVWSBaseConnection:
             return self._SSL_URL_FORMAT.format(**params)
         else:
             return self._URL_FORMAT.format(**params)
+
+    def _format_rest_url(self, route=""):
+        params = {
+            "protocol": "https" if self._is_ssl_connection() else "http",
+            "host": self.host,
+            "port": self.port,
+            "route": route,
+        }
+
+        return self._REST_URL_FORMAT.format(**params)
 
     def _get_token(self):
         if self.token_file is not None:
