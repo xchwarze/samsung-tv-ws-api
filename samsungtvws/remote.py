@@ -24,13 +24,139 @@ import time
 from typing import overload
 
 from . import art, connection, helper, rest, shortcuts
+from .command import SamsungTVCommand
 
 _LOGGING = logging.getLogger(__name__)
 
+REMOTE_ENDPOINT = "samsung.remote.control"
+
+
+class RemoteControlCommand(SamsungTVCommand):
+    def __init__(self, params):
+        super().__init__("ms.remote.control", params)
+
+
+class ChannelEmitCommand(SamsungTVCommand):
+    def __init__(self, params):
+        super().__init__("ms.channel.emit", params)
+
+
+class SendRemoteKey(RemoteControlCommand):
+    @staticmethod
+    def click(key: str):
+        return SendRemoteKey(
+            {
+                "Cmd": "Click",
+                "DataOfCmd": key,
+                "Option": "false",
+                "TypeOfRemote": "SendRemoteKey",
+            }
+        )
+
+    # power
+    @staticmethod
+    def power():
+        return SendRemoteKey.click("KEY_POWER")
+
+    # menu
+    @staticmethod
+    def home():
+        return SendRemoteKey.click("KEY_HOME")
+
+    @staticmethod
+    def menu():
+        return SendRemoteKey.click("KEY_MENU")
+
+    @staticmethod
+    def source():
+        return SendRemoteKey.click("KEY_SOURCE")
+
+    @staticmethod
+    def guide():
+        return SendRemoteKey.click("KEY_GUIDE")
+
+    @staticmethod
+    def tools():
+        return SendRemoteKey.click("KEY_TOOLS")
+
+    @staticmethod
+    def info():
+        return SendRemoteKey.click("KEY_INFO")
+
+    # navigation
+    @staticmethod
+    def up():
+        return SendRemoteKey.click("KEY_UP")
+
+    @staticmethod
+    def down():
+        return SendRemoteKey.click("KEY_DOWN")
+
+    @staticmethod
+    def left():
+        return SendRemoteKey.click("KEY_LEFT")
+
+    @staticmethod
+    def right():
+        return SendRemoteKey.click("KEY_RIGHT")
+
+    @staticmethod
+    def enter():
+        return SendRemoteKey.click("KEY_ENTER")
+
+    @staticmethod
+    def back():
+        return SendRemoteKey.click("KEY_RETURN")
+
+    # channel
+    @staticmethod
+    def channel_list():
+        return SendRemoteKey.click("KEY_CH_LIST")
+
+    @staticmethod
+    def digit(d):
+        return SendRemoteKey.click(f"KEY_{d}")
+
+    @staticmethod
+    def channel_up():
+        return SendRemoteKey.click("KEY_CHUP")
+
+    @staticmethod
+    def channel_down():
+        return SendRemoteKey.click("KEY_CHDOWN")
+
+    # volume
+    @staticmethod
+    def volume_up():
+        return SendRemoteKey.click("KEY_VOLUP")
+
+    @staticmethod
+    def volume_down():
+        return SendRemoteKey.click("KEY_VOLDOWN")
+
+    @staticmethod
+    def mute():
+        return SendRemoteKey.click("KEY_MUTE")
+
+    # extra
+    @staticmethod
+    def red():
+        return SendRemoteKey.click("KEY_RED")
+
+    @staticmethod
+    def green():
+        return SendRemoteKey.click("KEY_GREEN")
+
+    @staticmethod
+    def yellow():
+        return SendRemoteKey.click("KEY_YELLOW")
+
+    @staticmethod
+    def blue():
+        return SendRemoteKey.click("KEY_BLUE")
+
 
 class SamsungTVWS(connection.SamsungTVWSConnection):
-    _REMOTE_ENDPOINT = "samsung.remote.control"
-
     def __init__(
         self,
         host,
@@ -43,7 +169,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
     ):
         super().__init__(
             host,
-            endpoint=self._REMOTE_ENDPOINT,
+            endpoint=REMOTE_ENDPOINT,
             token=token,
             token_file=token_file,
             port=port,
@@ -69,15 +195,14 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
         for _ in range(times):
             _LOGGING.debug("Sending key %s", key)
             self._ws_send(
-                {
-                    "method": "ms.remote.control",
-                    "params": {
+                RemoteControlCommand(
+                    {
                         "Cmd": cmd,
                         "DataOfCmd": key,
                         "Option": "false",
                         "TypeOfRemote": "SendRemoteKey",
-                    },
-                },
+                    }
+                ),
                 key_press_delay,
             )
 
@@ -88,14 +213,13 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
 
     def move_cursor(self, x, y, duration=0):
         self._ws_send(
-            {
-                "method": "ms.remote.control",
-                "params": {
+            RemoteControlCommand(
+                {
                     "Cmd": "Move",
                     "Position": {"x": x, "y": y, "Time": str(duration)},
                     "TypeOfRemote": "ProcessMouseDevice",
-                },
-            },
+                }
+            ),
             key_press_delay=0,
         )
 
@@ -107,9 +231,8 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
             meta_tag,
         )
         self._ws_send(
-            {
-                "method": "ms.channel.emit",
-                "params": {
+            ChannelEmitCommand(
+                {
                     "event": "ed.apps.launch",
                     "to": "host",
                     "data": {
@@ -119,8 +242,8 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
                         "appId": app_id,
                         "metaTag": meta_tag,
                     },
-                },
-            }
+                }
+            )
         )
 
     def open_browser(self, url):
@@ -130,10 +253,12 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
     def app_list(self):
         _LOGGING.debug("Get app list")
         self._ws_send(
-            {
-                "method": "ms.channel.emit",
-                "params": {"event": "ed.installedApp.get", "to": "host"},
-            }
+            ChannelEmitCommand(
+                {
+                    "event": "ed.installedApp.get",
+                    "to": "host",
+                }
+            )
         )
 
         response = helper.process_api_response(self.connection.recv())
