@@ -3,3 +3,4 @@ requests>=2.21.0
 black>=22.1
 pre-commit>=2.17
 pytest>=6.2.5
+websockets>=10.2
