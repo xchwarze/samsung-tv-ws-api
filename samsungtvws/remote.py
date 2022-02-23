@@ -31,6 +31,7 @@ _LOGGING = logging.getLogger(__name__)
 
 
 class SamsungTVWS(connection.SamsungTVWSConnection):
+    _REMOTE_ENDPOINT = "samsung.remote.control"
     _REST_URL_FORMAT = "{protocol}://{host}:{port}/api/v2/{route}"
 
     def __init__(
@@ -45,6 +46,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
     ):
         super().__init__(
             host,
+            endpoint=self._REMOTE_ENDPOINT,
             token=token,
             token_file=token_file,
             port=port,

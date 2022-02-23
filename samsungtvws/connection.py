@@ -41,13 +41,13 @@ class SamsungTVWSBaseConnection:
         self,
         host,
         *,
+        endpoint,
         token=None,
         token_file=None,
         port=8001,
         timeout=None,
         key_press_delay=1,
         name="SamsungTvRemote",
-        endpoint="samsung.remote.control",
     ):
         self.host = host
         self.token = token
