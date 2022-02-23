@@ -147,7 +147,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
 
     def _get_rest_api(self):
         if self._rest_api is None:
-            self._rest_api = rest.SamsungTVRest()
+            self._rest_api = rest.SamsungTVRest(self.host, self.port, self.timeout)
         return self._rest_api
 
     def rest_device_info(self):
