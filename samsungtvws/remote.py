@@ -40,6 +40,31 @@ class ChannelEmitCommand(SamsungTVCommand):
     def __init__(self, params):
         super().__init__("ms.channel.emit", params)
 
+    @staticmethod
+    def get_installed_app():
+        return ChannelEmitCommand(
+            {
+                "event": "ed.installedApp.get",
+                "to": "host",
+            }
+        )
+
+    @staticmethod
+    def launch_app(app_id, app_type="DEEP_LINK", meta_tag=""):
+        return ChannelEmitCommand(
+            {
+                "event": "ed.apps.launch",
+                "to": "host",
+                "data": {
+                    # action_type: NATIVE_LAUNCH / DEEP_LINK
+                    # app_type == 2 ? 'DEEP_LINK' : 'NATIVE_LAUNCH',
+                    "action_type": app_type,
+                    "appId": app_id,
+                    "metaTag": meta_tag,
+                },
+            }
+        )
+
 
 class SendRemoteKey(RemoteControlCommand):
     @staticmethod
@@ -221,21 +246,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
             app_type,
             meta_tag,
         )
-        self._ws_send(
-            ChannelEmitCommand(
-                {
-                    "event": "ed.apps.launch",
-                    "to": "host",
-                    "data": {
-                        # action_type: NATIVE_LAUNCH / DEEP_LINK
-                        # app_type == 2 ? 'DEEP_LINK' : 'NATIVE_LAUNCH',
-                        "action_type": app_type,
-                        "appId": app_id,
-                        "metaTag": meta_tag,
-                    },
-                }
-            )
-        )
+        self._ws_send(ChannelEmitCommand.launch_app(app_id, app_type, meta_tag))
 
     def open_browser(self, url):
         _LOGGING.debug("Opening url in browser %s", url)
@@ -243,14 +254,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
 
     def app_list(self):
         _LOGGING.debug("Get app list")
-        self._ws_send(
-            ChannelEmitCommand(
-                {
-                    "event": "ed.installedApp.get",
-                    "to": "host",
-                }
-            )
-        )
+        self._ws_send(ChannelEmitCommand.get_installed_app())
 
         response = helper.process_api_response(self.connection.recv())
         if response.get("data"):
