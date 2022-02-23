@@ -1,6 +1,7 @@
-import sys
-import os
 import logging
+import os
+import sys
+
 import wakeonlan
 
 sys.path.append("../")

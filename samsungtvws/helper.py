@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+
 from . import exceptions
 
 _LOGGING = logging.getLogger(__name__)

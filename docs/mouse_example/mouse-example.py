@@ -1,9 +1,11 @@
-from samsungtvws.remote import SamsungTVWS
-import os
-import websockets
 import asyncio
-import json
 import concurrent
+import json
+import os
+
+import websockets
+
+from samsungtvws.remote import SamsungTVWS
 
 TV_IP = "192.168.0.X"
 
