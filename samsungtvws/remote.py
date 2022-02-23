@@ -36,6 +36,11 @@ class RemoteControlCommand(SamsungTVCommand):
         super().__init__("ms.remote.control", params)
 
 
+class ChannelEmitCommand(SamsungTVCommand):
+    def __init__(self, params):
+        super().__init__("ms.channel.emit", params)
+
+
 class SendRemoteKey(RemoteControlCommand):
     @staticmethod
     def click(key: str):
@@ -226,9 +231,8 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
             meta_tag,
         )
         self._ws_send(
-            {
-                "method": "ms.channel.emit",
-                "params": {
+            ChannelEmitCommand(
+                {
                     "event": "ed.apps.launch",
                     "to": "host",
                     "data": {
@@ -238,8 +242,8 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
                         "appId": app_id,
                         "metaTag": meta_tag,
                     },
-                },
-            }
+                }
+            )
         )
 
     def open_browser(self, url):
@@ -249,10 +253,12 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
     def app_list(self):
         _LOGGING.debug("Get app list")
         self._ws_send(
-            {
-                "method": "ms.channel.emit",
-                "params": {"event": "ed.installedApp.get", "to": "host"},
-            }
+            ChannelEmitCommand(
+                {
+                    "event": "ed.installedApp.get",
+                    "to": "host",
+                }
+            )
         )
 
         response = helper.process_api_response(self.connection.recv())
