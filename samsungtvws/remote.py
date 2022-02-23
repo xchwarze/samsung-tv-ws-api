@@ -182,15 +182,6 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
     def _ws_send(self, command, key_press_delay=None):
         return super().send_command(command, key_press_delay)
 
-    # endpoint is kept here for compatibility - can be removed in v2
-    @overload
-    def open(self, endpoint):
-        return super().open()
-
-    # required for overloading - can be removed in v2
-    def open(self):
-        return super().open()
-
     def send_key(self, key, times=1, key_press_delay=None, cmd="Click"):
         for _ in range(times):
             _LOGGING.debug("Sending key %s", key)
