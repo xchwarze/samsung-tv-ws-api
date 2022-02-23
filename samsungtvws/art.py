@@ -21,11 +21,12 @@ Copyright (C) 2021 Matthew Garrett <mjg59@srcf.ucam.org>
 
 """
 import json
-import random
 import logging
+import random
 import socket
 import uuid
 from datetime import datetime
+
 from . import helper
 
 _LOGGING = logging.getLogger(__name__)

@@ -7,3 +7,7 @@ repos:
         language: system
         types: [python]
         require_serial: true
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.10.0
+    hooks:
+      - id: isort
