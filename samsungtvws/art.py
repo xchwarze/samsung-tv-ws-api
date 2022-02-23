@@ -59,6 +59,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
         self.art_uuid = str(uuid.uuid4())
         self.art_connection = None
+        self._rest_api = None
 
     def _art_ws_send(self, command):
         if self.art_connection is None:

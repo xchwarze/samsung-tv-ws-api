@@ -21,6 +21,7 @@ Copyright (C) 2019 Xchwarze
 """
 import logging
 
+import aiohttp
 import requests
 
 from . import connection, exceptions, helper
@@ -28,10 +29,12 @@ from . import connection, exceptions, helper
 _LOGGING = logging.getLogger(__name__)
 
 
-class SamsungTVRest(connection.SamsungTVWSBaseConnection):
+class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
     def __init__(
         self,
         host,
+        *,
+        session: aiohttp.ClientSession,
         port=8001,
         timeout=None,
     ):
@@ -41,40 +44,44 @@ class SamsungTVRest(connection.SamsungTVWSBaseConnection):
             port=port,
             timeout=timeout,
         )
+        self.session = session
 
-    def _rest_request(self, target, method="GET"):
+    async def _rest_request(self, target, method="GET"):
         url = self._format_rest_url(target)
         try:
             if method == "POST":
-                response = requests.post(url, timeout=self.timeout, verify=False)
+                future = self.session.post(url, timeout=self.timeout, verify_ssl=False)
             elif method == "PUT":
-                response = requests.put(url, timeout=self.timeout, verify=False)
+                future = self.session.put(url, timeout=self.timeout, verify_ssl=False)
             elif method == "DELETE":
-                response = requests.delete(url, timeout=self.timeout, verify=False)
+                future = self.session.delete(
+                    url, timeout=self.timeout, verify_ssl=False
+                )
             else:
-                response = requests.get(url, timeout=self.timeout, verify=False)
-            return helper.process_api_response(response.text)
+                future = self.session.get(url, timeout=self.timeout, verify_ssl=False)
+            async with future as resp:
+                return helper.process_api_response(await resp.text())
         except requests.ConnectionError:
             raise exceptions.HttpApiError(
                 "TV unreachable or feature not supported on this model."
             )
 
-    def rest_device_info(self):
+    async def rest_device_info(self):
         _LOGGING.debug("Get device info via rest api")
-        return self._rest_request("")
+        return await self._rest_request("")
 
-    def rest_app_status(self, app_id):
+    async def rest_app_status(self, app_id):
         _LOGGING.debug("Get app %s status via rest api", app_id)
-        return self._rest_request("applications/" + app_id)
+        return await self._rest_request("applications/" + app_id)
 
-    def rest_app_run(self, app_id):
+    async def rest_app_run(self, app_id):
         _LOGGING.debug("Run app %s via rest api", app_id)
-        return self._rest_request("applications/" + app_id, "POST")
+        return await self._rest_request("applications/" + app_id, "POST")
 
-    def rest_app_close(self, app_id):
+    async def rest_app_close(self, app_id):
         _LOGGING.debug("Close app %s via rest api", app_id)
-        return self._rest_request("applications/" + app_id, "DELETE")
+        return await self._rest_request("applications/" + app_id, "DELETE")
 
-    def rest_app_install(self, app_id):
+    async def rest_app_install(self, app_id):
         _LOGGING.debug("Install app %s via rest api", app_id)
-        return self._rest_request("applications/" + app_id, "PUT")
+        return await self._rest_request("applications/" + app_id, "PUT")
