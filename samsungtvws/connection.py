@@ -79,7 +79,7 @@ class SamsungTVWSBaseConnection:
     def _get_token(self):
         if self.token_file is not None:
             try:
-                with open(self.token_file, "r") as token_file:
+                with open(self.token_file) as token_file:
                     return token_file.readline()
             except:
                 return ""
