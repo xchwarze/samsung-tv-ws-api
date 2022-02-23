@@ -22,7 +22,6 @@ Copyright (C) 2019 Xchwarze
 import logging
 
 import aiohttp
-import requests
 
 from . import connection, exceptions, helper
 
@@ -61,7 +60,7 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
                 future = self.session.get(url, timeout=self.timeout, verify_ssl=False)
             async with future as resp:
                 return helper.process_api_response(await resp.text())
-        except requests.ConnectionError:
+        except aiohttp.ClientConnectionError:
             raise exceptions.HttpApiError(
                 "TV unreachable or feature not supported on this model."
             )
