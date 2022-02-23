@@ -169,4 +169,12 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
         return shortcuts.SamsungTVShortcuts(self)
 
     def art(self):
-        return art.SamsungTVArt(self)
+        return art.SamsungTVArt(
+            self.host,
+            token=self.token,
+            token_file=self.token_file,
+            port=self.port,
+            timeout=self.timeout,
+            key_press_delay=self.key_press_delay,
+            name=self.name,
+        )

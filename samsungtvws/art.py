@@ -28,19 +28,41 @@ import uuid
 from datetime import datetime
 
 from . import helper
+from .connection import SamsungTVWSConnection
+from .rest import SamsungTVRest
 
 _LOGGING = logging.getLogger(__name__)
 
+ART_ENDPOINT = "com.samsung.art-app"
 
-class SamsungTVArt:
-    def __init__(self, remote):
-        self.remote = remote
+
+class SamsungTVArt(SamsungTVWSConnection):
+    def __init__(
+        self,
+        host,
+        token=None,
+        token_file=None,
+        port=8001,
+        timeout=None,
+        key_press_delay=1,
+        name="SamsungTvRemote",
+    ):
+        super().__init__(
+            host,
+            endpoint=ART_ENDPOINT,
+            token=token,
+            token_file=token_file,
+            port=port,
+            timeout=timeout,
+            key_press_delay=key_press_delay,
+            name=name,
+        )
         self.art_uuid = str(uuid.uuid4())
         self.art_connection = None
 
     def _art_ws_send(self, command):
         if self.art_connection is None:
-            self.art_connection = self.remote.open("com.samsung.art-app")
+            self.art_connection = self.open()
             self.art_connection.recv()
 
         payload = json.dumps(command)
@@ -62,9 +84,14 @@ class SamsungTVArt:
         if response:
             return helper.process_api_response(self.art_connection.recv())
 
+    def _get_rest_api(self):
+        if self._rest_api is None:
+            self._rest_api = SamsungTVRest(self.host, self.port, self.timeout)
+        return self._rest_api
+
     def supported(self):
         support = None
-        data = self.remote.rest_device_info()
+        data = self._get_rest_api().rest_device_info()
         device = data.get("device")
         if device:
             support = device.get("FrameTVSupport")
