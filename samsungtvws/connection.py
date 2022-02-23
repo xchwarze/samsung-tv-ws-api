@@ -27,6 +27,7 @@ import time
 import websocket
 
 from . import exceptions, helper
+from .command import SamsungTVCommand
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -145,7 +146,10 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
         if self.connection is None:
             self.connection = self.open()
 
-        payload = json.dumps(command)
+        if isinstance(command, SamsungTVCommand):
+            payload = command.get_payload()
+        else:
+            payload = json.dumps(command)
         self.connection.send(payload)
 
         delay = self.key_press_delay if key_press_delay is None else key_press_delay
