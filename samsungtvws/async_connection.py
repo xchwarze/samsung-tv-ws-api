@@ -46,7 +46,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         url = self._format_websocket_url(self.endpoint)
 
         _LOGGING.debug("WS url %s", url)
-        connection = await connect(url, ssl=ssl_context)
+        connection = await connect(url, open_timeout=self.timeout, ssl=ssl_context)
 
         response = helper.process_api_response(await connection.recv())
         self._check_for_token(response)
