@@ -136,3 +136,4 @@ dmypy.json
 
 # extras
 .idea/
+.vscode/
