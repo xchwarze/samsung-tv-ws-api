@@ -49,7 +49,8 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
             # someone else already created a new connection
             return self.connection
 
-        ssl_context = ssl.SSLContext(cert_reqs=ssl.CERT_NONE)
+        ssl_context = ssl.SSLContext()
+        ssl_context.verify_mode = ssl.CERT_NONE
         url = self._format_websocket_url(self.endpoint)
 
         _LOGGING.debug("WS url %s", url)
