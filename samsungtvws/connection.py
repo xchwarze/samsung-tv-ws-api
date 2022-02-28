@@ -121,7 +121,11 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
     def __exit__(self, type, value, traceback):
         self.close()
 
-    def open(self):
+    def open(self) -> websocket.WebSocket:
+        if self.connection:
+            # someone else already created a new connection
+            return self.connection
+
         url = self._format_websocket_url(self.endpoint)
         sslopt = {"cert_reqs": ssl.CERT_NONE} if self._is_ssl_connection() else {}
 
@@ -144,6 +148,7 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
             self.close()
             raise exceptions.ConnectionFailure(response)
 
+        self.connection = connection
         return connection
 
     def close(self):
