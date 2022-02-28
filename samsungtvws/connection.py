@@ -165,3 +165,6 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
 
         delay = self.key_press_delay if key_press_delay is None else key_press_delay
         time.sleep(delay)
+
+    def is_alive(self):
+        return self.connection and self.connection.connected
