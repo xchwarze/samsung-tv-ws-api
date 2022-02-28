@@ -26,7 +26,7 @@ import json
 import logging
 import ssl
 
-from websockets.client import connect
+from websockets.client import WebSocketClientProtocol, connect
 
 from . import connection, exceptions, helper
 from .command import SamsungTVCommand
@@ -41,7 +41,11 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
     async def __aexit__(self, type, value, traceback):
         await self.close()
 
-    async def open(self):
+    async def open(self) -> WebSocketClientProtocol:
+        if self.connection:
+            # someone else already created a new connection
+            return self.connection
+
         ssl_context = ssl.SSLContext(cert_reqs=ssl.CERT_NONE)
         url = self._format_websocket_url(self.endpoint)
 
@@ -55,6 +59,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
             await self.close()
             raise exceptions.ConnectionFailure(response)
 
+        self.connection = connection
         return connection
 
     async def close(self):
