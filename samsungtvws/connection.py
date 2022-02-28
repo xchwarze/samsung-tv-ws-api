@@ -60,6 +60,7 @@ class SamsungTVWSBaseConnection:
         self.name = name
         self.endpoint = endpoint
         self.connection = None
+        self._recv_loop = None
 
     def _is_ssl_connection(self):
         return self.port == 8002

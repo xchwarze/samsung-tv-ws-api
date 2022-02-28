@@ -22,11 +22,14 @@ Copyright (C) 2019 Xchwarze
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import ssl
+from typing import Any, Awaitable, Callable
 
 from websockets.client import WebSocketClientProtocol, connect
+from websockets.exceptions import ConnectionClosed
 
 from . import connection, exceptions, helper
 from .command import SamsungTVCommand
@@ -62,9 +65,30 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         self.connection = connection
         return connection
 
+    async def start_listening(
+        self, callback: Callable[[str, Any], Awaitable[None]]
+    ) -> None:
+        """Open, and start listening."""
+        if self.connection is None:
+            self.connection = await self.open()
+
+        self._recv_loop = asyncio.create_task(self._do_start_listening(callback))
+
+    async def _do_start_listening(
+        self, callback: Callable[[str, Any], Awaitable[None]]
+    ) -> None:
+        """Do start listening."""
+        with contextlib.suppress(ConnectionClosed):
+            while True:
+                data = await self.connection.recv()
+                response = helper.process_api_response(data)
+                await callback(response.get("event", "*"), response)
+
     async def close(self):
         if self.connection:
             await self.connection.close()
+            if self._recv_loop:
+                await self._recv_loop
 
         self.connection = None
         _LOGGING.debug("Connection closed.")
