@@ -3,7 +3,7 @@ from typing import Any, Dict
 
 
 class SamsungTVCommand:
-    def __init__(self, method: str, params: Any) -> None:
+    def __init__(self, method: str, params: Dict[str, Any]) -> None:
         self.method = method
         self.params = params
 

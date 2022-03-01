@@ -21,7 +21,9 @@ Copyright (C) 2019 Xchwarze
 """
 import logging
 import time
-from typing import overload
+from typing import Any, Dict, List, Optional, Union
+
+from samsungtvws.event import ED_INSTALLED_APP_EVENT, parse_installed_app
 
 from . import art, connection, helper, rest, shortcuts
 from .command import SamsungTVCommand
@@ -32,16 +34,16 @@ REMOTE_ENDPOINT = "samsung.remote.control"
 
 
 class RemoteControlCommand(SamsungTVCommand):
-    def __init__(self, params):
+    def __init__(self, params: Dict[str, Any]) -> None:
         super().__init__("ms.remote.control", params)
 
 
 class ChannelEmitCommand(SamsungTVCommand):
-    def __init__(self, params):
+    def __init__(self, params: Dict[str, Any]) -> None:
         super().__init__("ms.channel.emit", params)
 
     @staticmethod
-    def get_installed_app():
+    def get_installed_app() -> "ChannelEmitCommand":
         return ChannelEmitCommand(
             {
                 "event": "ed.installedApp.get",
@@ -50,7 +52,9 @@ class ChannelEmitCommand(SamsungTVCommand):
         )
 
     @staticmethod
-    def launch_app(app_id, app_type="DEEP_LINK", meta_tag=""):
+    def launch_app(
+        app_id: str, app_type: str = "DEEP_LINK", meta_tag: str = ""
+    ) -> "ChannelEmitCommand":
         return ChannelEmitCommand(
             {
                 "event": "ed.apps.launch",
@@ -68,7 +72,7 @@ class ChannelEmitCommand(SamsungTVCommand):
 
 class SendRemoteKey(RemoteControlCommand):
     @staticmethod
-    def click(key):
+    def click(key: str) -> "SendRemoteKey":
         return SendRemoteKey(
             {
                 "Cmd": "Click",
@@ -80,118 +84,118 @@ class SendRemoteKey(RemoteControlCommand):
 
     # power
     @staticmethod
-    def power():
+    def power() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_POWER")
 
     # menu
     @staticmethod
-    def home():
+    def home() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_HOME")
 
     @staticmethod
-    def menu():
+    def menu() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_MENU")
 
     @staticmethod
-    def source():
+    def source() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_SOURCE")
 
     @staticmethod
-    def guide():
+    def guide() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_GUIDE")
 
     @staticmethod
-    def tools():
+    def tools() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_TOOLS")
 
     @staticmethod
-    def info():
+    def info() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_INFO")
 
     # navigation
     @staticmethod
-    def up():
+    def up() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_UP")
 
     @staticmethod
-    def down():
+    def down() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_DOWN")
 
     @staticmethod
-    def left():
+    def left() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_LEFT")
 
     @staticmethod
-    def right():
+    def right() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_RIGHT")
 
     @staticmethod
-    def enter():
+    def enter() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_ENTER")
 
     @staticmethod
-    def back():
+    def back() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_RETURN")
 
     # channel
     @staticmethod
-    def channel_list():
+    def channel_list() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_CH_LIST")
 
     @staticmethod
-    def digit(d):
+    def digit(d: int) -> "SendRemoteKey":
         return SendRemoteKey.click(f"KEY_{d}")
 
     @staticmethod
-    def channel_up():
+    def channel_up() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_CHUP")
 
     @staticmethod
-    def channel_down():
+    def channel_down() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_CHDOWN")
 
     # volume
     @staticmethod
-    def volume_up():
+    def volume_up() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_VOLUP")
 
     @staticmethod
-    def volume_down():
+    def volume_down() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_VOLDOWN")
 
     @staticmethod
-    def mute():
+    def mute() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_MUTE")
 
     # extra
     @staticmethod
-    def red():
+    def red() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_RED")
 
     @staticmethod
-    def green():
+    def green() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_GREEN")
 
     @staticmethod
-    def yellow():
+    def yellow() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_YELLOW")
 
     @staticmethod
-    def blue():
+    def blue() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_BLUE")
 
 
 class SamsungTVWS(connection.SamsungTVWSConnection):
     def __init__(
         self,
-        host,
-        token=None,
-        token_file=None,
-        port=8001,
-        timeout=None,
-        key_press_delay=1,
-        name="SamsungTvRemote",
-    ):
+        host: str,
+        token: Optional[str] = None,
+        token_file: Optional[str] = None,
+        port: int = 8001,
+        timeout: Optional[float] = None,
+        key_press_delay: float = 1,
+        name: str = "SamsungTvRemote",
+    ) -> None:
         super().__init__(
             host,
             endpoint=REMOTE_ENDPOINT,
@@ -202,12 +206,22 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
             key_press_delay=key_press_delay,
             name=name,
         )
-        self._rest_api = None
+        self._rest_api: Optional[rest.SamsungTVRest] = None
 
-    def _ws_send(self, command, key_press_delay=None):
+    def _ws_send(
+        self,
+        command: Union[SamsungTVCommand, Dict[str, Any]],
+        key_press_delay: Optional[float] = None,
+    ) -> None:
         return super().send_command(command, key_press_delay)
 
-    def send_key(self, key, times=1, key_press_delay=None, cmd="Click"):
+    def send_key(
+        self,
+        key: str,
+        times: int = 1,
+        key_press_delay: Optional[float] = None,
+        cmd: str = "Click",
+    ) -> None:
         for _ in range(times):
             _LOGGING.debug("Sending key %s", key)
             self._ws_send(
@@ -222,12 +236,12 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
                 key_press_delay,
             )
 
-    def hold_key(self, key, seconds):
+    def hold_key(self, key: str, seconds: float) -> None:
         self.send_key(key, cmd="Press")
         time.sleep(seconds)
         self.send_key(key, cmd="Release")
 
-    def move_cursor(self, x, y, duration=0):
+    def move_cursor(self, x: int, y: int, duration: int = 0) -> None:
         self._ws_send(
             RemoteControlCommand(
                 {
@@ -239,7 +253,9 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
             key_press_delay=0,
         )
 
-    def run_app(self, app_id, app_type="DEEP_LINK", meta_tag=""):
+    def run_app(
+        self, app_id: str, app_type: str = "DEEP_LINK", meta_tag: str = ""
+    ) -> None:
         _LOGGING.debug(
             "Sending run app app_id: %s app_type: %s meta_tag: %s",
             app_id,
@@ -248,48 +264,46 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
         )
         self._ws_send(ChannelEmitCommand.launch_app(app_id, app_type, meta_tag))
 
-    def open_browser(self, url):
+    def open_browser(self, url: str) -> None:
         _LOGGING.debug("Opening url in browser %s", url)
         self.run_app("org.tizen.browser", "NATIVE_LAUNCH", url)
 
-    def app_list(self):
+    def app_list(self) -> Optional[List[Dict[str, Any]]]:
         _LOGGING.debug("Get app list")
         self._ws_send(ChannelEmitCommand.get_installed_app())
 
         assert self.connection
         response = helper.process_api_response(self.connection.recv())
-        if response.get("data"):
-            data = response["data"]
-            if isinstance(data, dict) and data.get("data"):
-                return data["data"]
-            return data
+        if response.get("event") == ED_INSTALLED_APP_EVENT:
+            return parse_installed_app(response)
         else:
-            return response
+            _LOGGING.debug("Failed to get app list: %s", response)
+            return None
 
-    def _get_rest_api(self):
+    def _get_rest_api(self) -> rest.SamsungTVRest:
         if self._rest_api is None:
             self._rest_api = rest.SamsungTVRest(self.host, self.port, self.timeout)
         return self._rest_api
 
-    def rest_device_info(self):
+    def rest_device_info(self) -> Dict[str, Any]:
         return self._get_rest_api().rest_device_info()
 
-    def rest_app_status(self, app_id):
+    def rest_app_status(self, app_id: str) -> Dict[str, Any]:
         return self._get_rest_api().rest_app_status(app_id)
 
-    def rest_app_run(self, app_id):
+    def rest_app_run(self, app_id: str) -> Dict[str, Any]:
         return self._get_rest_api().rest_app_run(app_id)
 
-    def rest_app_close(self, app_id):
+    def rest_app_close(self, app_id: str) -> Dict[str, Any]:
         return self._get_rest_api().rest_app_close(app_id)
 
-    def rest_app_install(self, app_id):
+    def rest_app_install(self, app_id: str) -> Dict[str, Any]:
         return self._get_rest_api().rest_app_install(app_id)
 
-    def shortcuts(self):
+    def shortcuts(self) -> shortcuts.SamsungTVShortcuts:
         return shortcuts.SamsungTVShortcuts(self)
 
-    def art(self):
+    def art(self) -> art.SamsungTVArt:
         return art.SamsungTVArt(
             self.host,
             token=self.token,

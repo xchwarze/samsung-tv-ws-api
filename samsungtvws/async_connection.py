@@ -19,38 +19,38 @@ Copyright (C) 2019 Xchwarze
     Boston, MA  02110-1335  USA
 
 """
+from asyncio import Task, ensure_future, sleep
 import contextlib
 import json
 import logging
 import ssl
 import sys
-from asyncio import sleep
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Dict, Union
+from typing import Any, Awaitable, Callable, Dict, Optional, Union
 
 from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import ConnectionClosed
 
 from . import connection, exceptions, helper
 from .command import SamsungTVCommand
-
-if sys.version_info >= (3, 7):
-    from asyncio import create_task
-else:
-    from asyncio import ensure_future as create_task
+from .event import MS_CHANNEL_CONNECT
 
 _LOGGING = logging.getLogger(__name__)
 
 
 class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
+
+    connection: Optional[WebSocketClientProtocol]
+    _recv_loop: Optional[Task[None]]
+
     async def __aenter__(self) -> "SamsungTVWSAsyncConnection":
         return self
 
     async def __aexit__(
         self,
-        exc_type: Union[type, None],
-        exc_val: Union[BaseException, None],
-        exc_tb: Union[TracebackType, None],
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
     ) -> None:
         await self.close()
 
@@ -69,7 +69,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         response = helper.process_api_response(await connection.recv())
         self._check_for_token(response)
 
-        if response["event"] != "ms.channel.connect":
+        if response["event"] != MS_CHANNEL_CONNECT:
             await self.close()
             raise exceptions.ConnectionFailure(response)
 
@@ -83,7 +83,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         if self.connection is None:
             self.connection = await self.open()
 
-        self._recv_loop = create_task(
+        self._recv_loop = ensure_future(
             self._do_start_listening(callback, self.connection)
         )
 
@@ -111,7 +111,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
     async def send_command(
         self,
         command: Union[SamsungTVCommand, Dict[str, Any]],
-        key_press_delay: Union[float, None] = None,
+        key_press_delay: Optional[float] = None,
     ) -> None:
         if self.connection is None:
             self.connection = await self.open()

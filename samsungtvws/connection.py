@@ -23,11 +23,14 @@ import json
 import logging
 import ssl
 import time
+from types import TracebackType
+from typing import Any, Dict, Optional, Union
 
 import websocket
 
 from . import exceptions, helper
 from .command import SamsungTVCommand
+from .event import MS_CHANNEL_CONNECT
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -41,15 +44,15 @@ class SamsungTVWSBaseConnection:
 
     def __init__(
         self,
-        host,
+        host: str,
         *,
-        endpoint,
-        token=None,
-        token_file=None,
-        port=8001,
-        timeout=None,
-        key_press_delay=1,
-        name="SamsungTvRemote",
+        endpoint: str,
+        token: Optional[str] = None,
+        token_file: Optional[str] = None,
+        port: int = 8001,
+        timeout: Optional[float] = None,
+        key_press_delay: float = 1,
+        name: str = "SamsungTvRemote",
     ):
         self.host = host
         self.token = token
@@ -59,13 +62,13 @@ class SamsungTVWSBaseConnection:
         self.key_press_delay = key_press_delay
         self.name = name
         self.endpoint = endpoint
-        self.connection = None
-        self._recv_loop = None
+        self.connection: Optional[Any] = None
+        self._recv_loop: Optional[Any] = None
 
-    def _is_ssl_connection(self):
+    def _is_ssl_connection(self) -> bool:
         return self.port == 8002
 
-    def _format_websocket_url(self, app):
+    def _format_websocket_url(self, app: str) -> str:
         params = {
             "host": self.host,
             "port": self.port,
@@ -79,7 +82,7 @@ class SamsungTVWSBaseConnection:
         else:
             return self._URL_FORMAT.format(**params)
 
-    def _format_rest_url(self, route=""):
+    def _format_rest_url(self, route: str = "") -> str:
         params = {
             "protocol": "https" if self._is_ssl_connection() else "http",
             "host": self.host,
@@ -89,17 +92,17 @@ class SamsungTVWSBaseConnection:
 
         return self._REST_URL_FORMAT.format(**params)
 
-    def _get_token(self):
+    def _get_token(self) -> Optional[str]:
         if self.token_file is not None:
             try:
                 with open(self.token_file) as token_file:
                     return token_file.readline()
             except:
-                return ""
+                return None
         else:
             return self.token
 
-    def _set_token(self, token):
+    def _set_token(self, token: str) -> None:
         _LOGGING.info("New token %s", token)
         if self.token_file is not None:
             _LOGGING.debug("Save token to file: %s", token)
@@ -108,18 +111,26 @@ class SamsungTVWSBaseConnection:
         else:
             self.token = token
 
-    def _check_for_token(self, response):
-        if response.get("data") and response["data"].get("token"):
-            token = response["data"].get("token")
+    def _check_for_token(self, response: Dict[str, Any]) -> None:
+        token = response.get("data", {}).get("token")
+        if token:
             _LOGGING.debug("Got token %s", token)
             self._set_token(token)
 
 
 class SamsungTVWSConnection(SamsungTVWSBaseConnection):
-    def __enter__(self):
+
+    connection: Optional[websocket.WebSocket]
+
+    def __enter__(self) -> "SamsungTVWSConnection":
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         self.close()
 
     def open(self) -> websocket.WebSocket:
@@ -145,21 +156,25 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
         response = helper.process_api_response(connection.recv())
         self._check_for_token(response)
 
-        if response["event"] != "ms.channel.connect":
+        if response["event"] != MS_CHANNEL_CONNECT:
             self.close()
             raise exceptions.ConnectionFailure(response)
 
         self.connection = connection
         return connection
 
-    def close(self):
+    def close(self) -> None:
         if self.connection:
             self.connection.close()
 
         self.connection = None
         _LOGGING.debug("Connection closed.")
 
-    def send_command(self, command, key_press_delay=None):
+    def send_command(
+        self,
+        command: Union[SamsungTVCommand, Dict[str, Any]],
+        key_press_delay: Optional[float] = None,
+    ) -> None:
         if self.connection is None:
             self.connection = self.open()
 
@@ -172,5 +187,5 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
         delay = self.key_press_delay if key_press_delay is None else key_press_delay
         time.sleep(delay)
 
-    def is_alive(self):
-        return self.connection and self.connection.connected
+    def is_alive(self) -> bool:
+        return self.connection is not None and self.connection.connected
