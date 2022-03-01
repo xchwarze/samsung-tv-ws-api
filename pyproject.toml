@@ -12,8 +12,52 @@ forced_separate = [
 combine_as_imports = true
 
 [tool.mypy]
-python_version = "3.7"
+python_version = "3.6"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+no_implicit_reexport = true
+pretty = true
+show_column_numbers = true
+show_error_codes = true
+show_error_context = true
+strict_equality = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+exclude = [
+    '^docs',
+    '^example',
+    '^setup',
+    '^tests'
+]
 
 [[tool.mypy.overrides]]
 module = 'websocket.*'
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    'samsungtvws.art',
+    'samsungtvws.connection',
+    'samsungtvws.helper',
+    'samsungtvws.remote',
+    'samsungtvws.rest',
+    'samsungtvws.shortcuts',
+]
+disallow_untyped_calls = false
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = [
+    'samsungtvws.async_connection',
+    'samsungtvws.async_rest',
+]
+disallow_untyped_calls = false

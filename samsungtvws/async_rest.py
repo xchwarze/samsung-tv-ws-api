@@ -20,6 +20,7 @@ Copyright (C) 2019 Xchwarze
 
 """
 import logging
+from typing import Any, Dict, Union
 
 import aiohttp
 
@@ -31,12 +32,12 @@ _LOGGING = logging.getLogger(__name__)
 class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
     def __init__(
         self,
-        host,
+        host: str,
         *,
         session: aiohttp.ClientSession,
-        port=8001,
-        timeout=None,
-    ):
+        port: int = 8001,
+        timeout: Union[float, None] = None,
+    ) -> None:
         super().__init__(
             host,
             endpoint=None,
@@ -45,7 +46,7 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
         )
         self.session = session
 
-    async def _rest_request(self, target, method="GET"):
+    async def _rest_request(self, target: str, method: str = "GET") -> Dict[str, Any]:
         url = self._format_rest_url(target)
         try:
             if method == "POST":
@@ -59,28 +60,28 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
             else:
                 future = self.session.get(url, timeout=self.timeout, verify_ssl=False)
             async with future as resp:
-                return helper.process_api_response(await resp.text())
+                return helper.process_api_response(await resp.text())  # type: ignore[no-any-return]
         except aiohttp.ClientConnectionError:
             raise exceptions.HttpApiError(
                 "TV unreachable or feature not supported on this model."
             )
 
-    async def rest_device_info(self):
+    async def rest_device_info(self) -> Dict[str, Any]:
         _LOGGING.debug("Get device info via rest api")
         return await self._rest_request("")
 
-    async def rest_app_status(self, app_id):
+    async def rest_app_status(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Get app %s status via rest api", app_id)
         return await self._rest_request("applications/" + app_id)
 
-    async def rest_app_run(self, app_id):
+    async def rest_app_run(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Run app %s via rest api", app_id)
         return await self._rest_request("applications/" + app_id, "POST")
 
-    async def rest_app_close(self, app_id):
+    async def rest_app_close(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Close app %s via rest api", app_id)
         return await self._rest_request("applications/" + app_id, "DELETE")
 
-    async def rest_app_install(self, app_id):
+    async def rest_app_install(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Install app %s via rest api", app_id)
         return await self._rest_request("applications/" + app_id, "PUT")

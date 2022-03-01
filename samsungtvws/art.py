@@ -82,6 +82,7 @@ class SamsungTVArt(SamsungTVWSConnection):
             }
         )
 
+        assert self.art_connection
         if response:
             return helper.process_api_response(self.art_connection.recv())
 
@@ -203,6 +204,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         art_socket.send(header.encode("ascii"))
         art_socket.send(file)
 
+        assert self.art_connection
         response = helper.process_api_response(self.art_connection.recv())
         data = json.loads(response["data"])
 

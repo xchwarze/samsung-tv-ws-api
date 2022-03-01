@@ -68,7 +68,7 @@ class ChannelEmitCommand(SamsungTVCommand):
 
 class SendRemoteKey(RemoteControlCommand):
     @staticmethod
-    def click(key: str):
+    def click(key):
         return SendRemoteKey(
             {
                 "Cmd": "Click",
@@ -256,6 +256,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
         _LOGGING.debug("Get app list")
         self._ws_send(ChannelEmitCommand.get_installed_app())
 
+        assert self.connection
         response = helper.process_api_response(self.connection.recv())
         if response.get("data"):
             data = response["data"]
