@@ -42,3 +42,9 @@ module = [
 disallow_untyped_calls = false
 disallow_untyped_defs = false
 
+[[tool.mypy.overrides]]
+module = [
+    'samsungtvws.async_connection',
+    'samsungtvws.async_rest',
+]
+disallow_untyped_calls = false
