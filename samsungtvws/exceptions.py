@@ -14,3 +14,9 @@ class HttpApiError(Exception):
     """Error using HTTP API."""
 
     pass
+
+
+class MessageError(Exception):
+    """Error from ms.error event."""
+
+    pass
