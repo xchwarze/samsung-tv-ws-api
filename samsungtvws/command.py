@@ -1,7 +1,5 @@
-from __future__ import annotations
-
 import json
-from typing import Any
+from typing import Any, Dict
 
 
 class SamsungTVCommand:
@@ -9,7 +7,7 @@ class SamsungTVCommand:
         self.method = method
         self.params = params
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> Dict[str, Any]:
         return {
             "method": self.method,
             "params": self.params,

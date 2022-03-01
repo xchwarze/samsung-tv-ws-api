@@ -29,3 +29,16 @@ exclude = [
 [[tool.mypy.overrides]]
 module = 'websocket.*'
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    'samsungtvws.art',
+    'samsungtvws.connection',
+    'samsungtvws.helper',
+    'samsungtvws.remote',
+    'samsungtvws.rest',
+    'samsungtvws.shortcuts',
+]
+disallow_untyped_calls = false
+disallow_untyped_defs = false
+
