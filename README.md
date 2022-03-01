@@ -18,11 +18,15 @@ Based on https://github.com/marysieek/samsung-tv-api work
 ```bash
 $ pip3 install samsungtvws
 ```
+
 or
+
 ```bash
 $ pip3 install git+https://github.com/xchwarze/samsung-tv-ws-api.git
 ```
+
 or...!
+
 ```bash
 $ git clone https://github.com/xchwarze/samsung-tv-ws-api
 $ pip3 install ./samsung-tv-ws-api
@@ -46,7 +50,7 @@ logging.basicConfig(level=logging.INFO)
 # Normal constructor
 tv = SamsungTVWS('192.168.xxx.xxx')
 
-# Autosave token to file 
+# Autosave token to file
 token_file = os.path.dirname(os.path.realpath(__file__)) + '/tv-token.txt'
 tv = SamsungTVWS(host='192.168.xxx.xxx', port=8002, token_file=token_file)
 
