@@ -20,12 +20,12 @@ Copyright (C) 2021 Matthew Garrett <mjg59@srcf.ucam.org>
     Boston, MA  02110-1335  USA
 
 """
+from datetime import datetime
 import json
 import logging
 import random
 import socket
 import uuid
-from datetime import datetime
 
 from . import helper
 from .connection import SamsungTVWSConnection
