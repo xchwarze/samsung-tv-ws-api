@@ -46,10 +46,6 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     'samsungtvws.art',
-    'samsungtvws.connection',
-    'samsungtvws.helper',
-    'samsungtvws.remote',
-    'samsungtvws.rest',
     'samsungtvws.shortcuts',
 ]
 disallow_untyped_calls = false
@@ -57,7 +53,6 @@ disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
 module = [
-    'samsungtvws.async_connection',
-    'samsungtvws.async_rest',
+    'samsungtvws.remote',
 ]
 disallow_untyped_calls = false

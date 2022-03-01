@@ -20,7 +20,7 @@ Copyright (C) 2019 Xchwarze
 
 """
 import logging
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional
 
 import aiohttp
 
@@ -36,11 +36,11 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
         *,
         session: aiohttp.ClientSession,
         port: int = 8001,
-        timeout: Union[float, None] = None,
+        timeout: Optional[float] = None,
     ) -> None:
         super().__init__(
             host,
-            endpoint=None,
+            endpoint="",
             port=port,
             timeout=timeout,
         )
@@ -60,7 +60,7 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
             else:
                 future = self.session.get(url, timeout=self.timeout, verify_ssl=False)
             async with future as resp:
-                return helper.process_api_response(await resp.text())  # type: ignore[no-any-return]
+                return helper.process_api_response(await resp.text())
         except aiohttp.ClientConnectionError:
             raise exceptions.HttpApiError(
                 "TV unreachable or feature not supported on this model."

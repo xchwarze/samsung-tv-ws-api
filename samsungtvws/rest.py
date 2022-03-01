@@ -20,6 +20,7 @@ Copyright (C) 2019 Xchwarze
 
 """
 import logging
+from typing import Any, Dict, Optional
 
 import requests
 
@@ -31,18 +32,18 @@ _LOGGING = logging.getLogger(__name__)
 class SamsungTVRest(connection.SamsungTVWSBaseConnection):
     def __init__(
         self,
-        host,
-        port=8001,
-        timeout=None,
-    ):
+        host: str,
+        port: int = 8001,
+        timeout: Optional[float] = None,
+    ) -> None:
         super().__init__(
             host,
-            endpoint=None,
+            endpoint="",
             port=port,
             timeout=timeout,
         )
 
-    def _rest_request(self, target, method="GET"):
+    def _rest_request(self, target: str, method: str = "GET") -> Dict[str, Any]:
         url = self._format_rest_url(target)
         try:
             if method == "POST":
@@ -59,22 +60,22 @@ class SamsungTVRest(connection.SamsungTVWSBaseConnection):
                 "TV unreachable or feature not supported on this model."
             )
 
-    def rest_device_info(self):
+    def rest_device_info(self) -> Dict[str, Any]:
         _LOGGING.debug("Get device info via rest api")
         return self._rest_request("")
 
-    def rest_app_status(self, app_id):
+    def rest_app_status(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Get app %s status via rest api", app_id)
         return self._rest_request("applications/" + app_id)
 
-    def rest_app_run(self, app_id):
+    def rest_app_run(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Run app %s via rest api", app_id)
         return self._rest_request("applications/" + app_id, "POST")
 
-    def rest_app_close(self, app_id):
+    def rest_app_close(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Close app %s via rest api", app_id)
         return self._rest_request("applications/" + app_id, "DELETE")
 
-    def rest_app_install(self, app_id):
+    def rest_app_install(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Install app %s via rest api", app_id)
         return self._rest_request("applications/" + app_id, "PUT")
