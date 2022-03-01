@@ -59,7 +59,7 @@ def test_app_list_invalid(connection: Mock) -> None:
 
     connection.recv.side_effect = [open_response, app_list_response]
     tv = SamsungTVWS("127.0.0.1")
-    assert tv.app_list() == 200
+    assert tv.app_list() == None
     connection.send.assert_called_once_with(
         '{"method": "ms.channel.emit", "params": {"event": "ed.installedApp.get", "to": "host"}}'
     )
