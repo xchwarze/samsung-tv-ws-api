@@ -30,7 +30,7 @@ import websocket
 
 from . import exceptions, helper
 from .command import SamsungTVCommand
-from .event import MS_CHANNEL_CONNECT
+from .event import MS_CHANNEL_CONNECT, MS_ERROR_EVENT
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -116,6 +116,13 @@ class SamsungTVWSBaseConnection:
         if token:
             _LOGGING.debug("Got token %s", token)
             self._set_token(token)
+
+    def _websocket_event(self, event: str, response: Dict[str, Any]) -> None:
+        """Handle websocket event."""
+        if event == MS_ERROR_EVENT:
+            _LOGGING.warning("SamsungTVWS websocket error message: %s", response)
+        else:
+            _LOGGING.debug("SamsungTVWS websocket event: %s", response)
 
 
 class SamsungTVWSConnection(SamsungTVWSBaseConnection):

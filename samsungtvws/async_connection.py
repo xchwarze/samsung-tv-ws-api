@@ -24,7 +24,6 @@ import contextlib
 import json
 import logging
 import ssl
-import sys
 from types import TracebackType
 from typing import Any, Awaitable, Callable, Dict, Optional, Union
 
@@ -77,11 +76,13 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         return connection
 
     async def start_listening(
-        self, callback: Callable[[str, Any], Awaitable[None]]
+        self, callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]] = None
     ) -> None:
         """Open, and start listening."""
-        if self.connection is None:
-            self.connection = await self.open()
+        if self.connection:
+            raise exceptions.ConnectionFailure("Connection already exists")
+
+        self.connection = await self.open()
 
         self._recv_loop = ensure_future(
             self._do_start_listening(callback, self.connection)
@@ -89,7 +90,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     async def _do_start_listening(
         self,
-        callback: Callable[[str, Any], Awaitable[None]],
+        callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]],
         connection: WebSocketClientProtocol,
     ) -> None:
         """Do start listening."""
@@ -97,7 +98,12 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
             while True:
                 data = await connection.recv()
                 response = helper.process_api_response(data)
-                await callback(response.get("event", "*"), response)
+                event = response.get("event", "*")
+                self._websocket_event(event, response)
+                if callback:
+                    awaitable = callback(event, response)
+                    if awaitable:
+                        await awaitable
 
     async def close(self) -> None:
         if self.connection:
