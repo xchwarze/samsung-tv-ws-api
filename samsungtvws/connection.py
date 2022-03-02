@@ -97,7 +97,7 @@ class SamsungTVWSBaseConnection:
             try:
                 with open(self.token_file) as token_file:
                     return token_file.readline()
-            except:
+            except OSError:
                 return None
         else:
             return self.token
