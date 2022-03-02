@@ -207,6 +207,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
             name=name,
         )
         self._rest_api: Optional[rest.SamsungTVRest] = None
+        self._app_list: Optional[List[Dict[str, Any]]] = None
 
     def _ws_send(
         self,
@@ -214,6 +215,12 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
         key_press_delay: Optional[float] = None,
     ) -> None:
         return super().send_command(command, key_press_delay)
+
+    def _websocket_event(self, event: str, response: Dict[str, Any]) -> None:
+        """Handle websocket event."""
+        super()._websocket_event(event, response)
+        if event == ED_INSTALLED_APP_EVENT:
+            self._app_list = parse_installed_app(response)
 
     def send_key(
         self,
@@ -270,15 +277,23 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
 
     def app_list(self) -> Optional[List[Dict[str, Any]]]:
         _LOGGING.debug("Get app list")
+        self._app_list = None
         self._ws_send(ChannelEmitCommand.get_installed_app())
 
-        assert self.connection
-        response = helper.process_api_response(self.connection.recv())
-        if response.get("event") == ED_INSTALLED_APP_EVENT:
-            return parse_installed_app(response)
+        if self._recv_loop:
+            attempts_left = 10
+            while attempts_left and not self._app_list:
+                time.sleep(1)
+                attempts_left -= 1
         else:
-            _LOGGING.debug("Failed to get app list: %s", response)
-            return None
+            assert self.connection
+            response = helper.process_api_response(self.connection.recv())
+            if response.get("event") == ED_INSTALLED_APP_EVENT:
+                self._app_list = parse_installed_app(response)
+            else:
+                _LOGGING.debug("Failed to get app list: %s", response)
+
+        return self._app_list
 
     def _get_rest_api(self) -> rest.SamsungTVRest:
         if self._rest_api is None:

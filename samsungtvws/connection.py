@@ -19,12 +19,14 @@ Copyright (C) 2019 Xchwarze
     Boston, MA  02110-1335  USA
 
 """
+import contextlib
 import json
 import logging
 import ssl
+import threading
 import time
 from types import TracebackType
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 import websocket
 
@@ -128,6 +130,7 @@ class SamsungTVWSBaseConnection:
 class SamsungTVWSConnection(SamsungTVWSBaseConnection):
 
     connection: Optional[websocket.WebSocket]
+    _recv_loop: Optional[threading.Thread]
 
     def __enter__(self) -> "SamsungTVWSConnection":
         return self
@@ -170,9 +173,42 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
         self.connection = connection
         return connection
 
+    def start_listening(
+        self, callback: Optional[Callable[[str, Any], None]] = None
+    ) -> None:
+        """Open, and start listening."""
+        if self.connection:
+            raise exceptions.ConnectionFailure("Connection already exists")
+
+        self.connection = self.open()
+
+        self._recv_loop = threading.Thread(
+            target=self._do_start_listening, args=(callback, self.connection)
+        )
+        self._recv_loop.start()
+
+    def _do_start_listening(
+        self,
+        callback: Optional[Callable[[str, Any], None]],
+        connection: websocket.WebSocket,
+    ) -> None:
+        """Do start listening."""
+        while True:
+            data = connection.recv()
+            if not data:
+                return
+            response = helper.process_api_response(data)
+            event = response.get("event", "*")
+            self._websocket_event(event, response)
+            if callback:
+                callback(event, response)
+
     def close(self) -> None:
         if self.connection:
             self.connection.close()
+            if self._recv_loop:
+                self._recv_loop.join()
+                self._recv_loop = None
 
         self.connection = None
         _LOGGING.debug("Connection closed.")
