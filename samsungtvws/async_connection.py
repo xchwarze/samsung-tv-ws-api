@@ -58,12 +58,15 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
             # someone else already created a new connection
             return self.connection
 
-        ssl_context = ssl.SSLContext()
-        ssl_context.verify_mode = ssl.CERT_NONE
         url = self._format_websocket_url(self.endpoint)
 
         _LOGGING.debug("WS url %s", url)
-        connection = await connect(url, open_timeout=self.timeout, ssl=ssl_context)
+        connect_kwargs: Dict[str, Any] = {}
+        if self._is_ssl_connection():
+            ssl_context = ssl.SSLContext()
+            ssl_context.verify_mode = ssl.CERT_NONE
+            connect_kwargs["ssl"] = ssl_context
+        connection = await connect(url, open_timeout=self.timeout, **connect_kwargs)
 
         response = helper.process_api_response(await connection.recv())
         self._check_for_token(response)
