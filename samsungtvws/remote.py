@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Optional, Union
 from samsungtvws.event import ED_INSTALLED_APP_EVENT, parse_installed_app
 
 from . import art, connection, helper, rest, shortcuts
-from .command import SamsungTVCommand
+from .command import SamsungTVCommand, SamsungTVSleepCommand
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -81,6 +81,36 @@ class SendRemoteKey(RemoteControlCommand):
                 "TypeOfRemote": "SendRemoteKey",
             }
         )
+
+    @staticmethod
+    def press(key: str) -> "SendRemoteKey":
+        return SendRemoteKey(
+            {
+                "Cmd": "Press",
+                "DataOfCmd": key,
+                "Option": "false",
+                "TypeOfRemote": "SendRemoteKey",
+            }
+        )
+
+    @staticmethod
+    def release(key: str) -> "SendRemoteKey":
+        return SendRemoteKey(
+            {
+                "Cmd": "Release",
+                "DataOfCmd": key,
+                "Option": "false",
+                "TypeOfRemote": "SendRemoteKey",
+            }
+        )
+
+    @staticmethod
+    def hold_key(key: str, seconds: float) -> List["SamsungTVCommand"]:
+        return [
+            SendRemoteKey.press(key),
+            SamsungTVSleepCommand(seconds),
+            SendRemoteKey.release(key),
+        ]
 
     # power
     @staticmethod
@@ -244,9 +274,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
             )
 
     def hold_key(self, key: str, seconds: float) -> None:
-        self.send_key(key, cmd="Press")
-        time.sleep(seconds)
-        self.send_key(key, cmd="Release")
+        self.send_command(SendRemoteKey.hold_key(key, seconds))
 
     def move_cursor(self, x: int, y: int, duration: int = 0) -> None:
         self._ws_send(

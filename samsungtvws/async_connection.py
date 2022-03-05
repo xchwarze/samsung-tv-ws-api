@@ -19,19 +19,19 @@ Copyright (C) 2019 Xchwarze
     Boston, MA  02110-1335  USA
 
 """
-from asyncio import Task, ensure_future, sleep
+import asyncio
 import contextlib
 import json
 import logging
 import ssl
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Dict, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 
 from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import ConnectionClosed
 
 from . import connection, exceptions, helper
-from .command import SamsungTVCommand
+from .command import SamsungTVCommand, SamsungTVSleepCommand
 from .event import MS_CHANNEL_CONNECT
 
 _LOGGING = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ _LOGGING = logging.getLogger(__name__)
 class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     connection: Optional[WebSocketClientProtocol]
-    _recv_loop: Optional[Task[None]]
+    _recv_loop: Optional["asyncio.Task[None]"]
 
     async def __aenter__(self) -> "SamsungTVWSAsyncConnection":
         return self
@@ -87,7 +87,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
         self.connection = await self.open()
 
-        self._recv_loop = ensure_future(
+        self._recv_loop = asyncio.ensure_future(
             self._do_start_listening(callback, self.connection)
         )
 
@@ -117,22 +117,38 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         self.connection = None
         _LOGGING.debug("Connection closed.")
 
+    async def _send_command_sequence(
+        self, commands: List[SamsungTVCommand], key_press_delay: float
+    ) -> None:
+        assert self.connection
+        for command in commands:
+            if isinstance(command, SamsungTVSleepCommand):
+                await asyncio.sleep(command.delay)
+            else:
+                payload = command.get_payload()
+                await self.connection.send(payload)
+                await asyncio.sleep(key_press_delay)
+
     async def send_command(
         self,
-        command: Union[SamsungTVCommand, Dict[str, Any]],
+        command: Union[List[SamsungTVCommand], SamsungTVCommand, Dict[str, Any]],
         key_press_delay: Optional[float] = None,
     ) -> None:
         if self.connection is None:
             self.connection = await self.open()
 
-        if isinstance(command, SamsungTVCommand):
-            payload = command.get_payload()
-        else:
-            payload = json.dumps(command)
-        await self.connection.send(payload)
-
         delay = self.key_press_delay if key_press_delay is None else key_press_delay
-        await sleep(delay)
+
+        if isinstance(command, list):
+            await self._send_command_sequence(command, delay)
+            return
+
+        if isinstance(command, SamsungTVCommand):
+            await self.connection.send(command.get_payload())
+        else:
+            await self.connection.send(json.dumps(command))
+
+        await asyncio.sleep(delay)
 
     def is_alive(self) -> bool:
         return self.connection is not None and not self.connection.closed

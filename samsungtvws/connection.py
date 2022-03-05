@@ -26,12 +26,12 @@ import ssl
 import threading
 import time
 from types import TracebackType
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import websocket
 
 from . import exceptions, helper
-from .command import SamsungTVCommand
+from .command import SamsungTVCommand, SamsungTVSleepCommand
 from .event import MS_CHANNEL_CONNECT, MS_ERROR_EVENT
 
 _LOGGING = logging.getLogger(__name__)
@@ -213,21 +213,37 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
         self.connection = None
         _LOGGING.debug("Connection closed.")
 
+    def _send_command_sequence(
+        self, commands: List[SamsungTVCommand], key_press_delay: float
+    ) -> None:
+        assert self.connection
+        for command in commands:
+            if isinstance(command, SamsungTVSleepCommand):
+                time.sleep(command.delay)
+            else:
+                payload = command.get_payload()
+                self.connection.send(payload)
+                time.sleep(key_press_delay)
+
     def send_command(
         self,
-        command: Union[SamsungTVCommand, Dict[str, Any]],
+        command: Union[List[SamsungTVCommand], SamsungTVCommand, Dict[str, Any]],
         key_press_delay: Optional[float] = None,
     ) -> None:
         if self.connection is None:
             self.connection = self.open()
 
-        if isinstance(command, SamsungTVCommand):
-            payload = command.get_payload()
-        else:
-            payload = json.dumps(command)
-        self.connection.send(payload)
-
         delay = self.key_press_delay if key_press_delay is None else key_press_delay
+
+        if isinstance(command, list):
+            self._send_command_sequence(command, delay)
+            return
+
+        if isinstance(command, SamsungTVCommand):
+            self.connection.send(command.get_payload())
+        else:
+            self.connection.send(json.dumps(command))
+
         time.sleep(delay)
 
     def is_alive(self) -> bool:
