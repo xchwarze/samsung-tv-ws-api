@@ -15,3 +15,15 @@ class SamsungTVCommand:
 
     def get_payload(self) -> str:
         return json.dumps(self.as_dict())
+
+
+class SamsungTVSleepCommand(SamsungTVCommand):
+    def __init__(self, delay: float) -> None:
+        super().__init__("sleep", {})
+        self.delay = delay
+
+    def as_dict(self) -> Dict[str, Any]:
+        raise NotImplementedError("Cannot use as_dict on SamsungTVSleepCommand")
+
+    def get_payload(self) -> str:
+        raise NotImplementedError("Cannot use get_payload on SamsungTVSleepCommand")

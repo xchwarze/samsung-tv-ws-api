@@ -1,5 +1,5 @@
 """Tests for remote module."""
-from unittest.mock import Mock
+from unittest.mock import Mock, call, patch
 
 from samsungtvws.remote import SamsungTVWS
 
@@ -63,3 +63,18 @@ def test_app_list_invalid(connection: Mock) -> None:
     connection.send.assert_called_once_with(
         '{"method": "ms.channel.emit", "params": {"event": "ed.installedApp.get", "to": "host"}}'
     )
+
+
+def test_send_hold_key(connection: Mock) -> None:
+    """Ensure simple data can be parsed."""
+    open_response = (
+        '{"data": {"token": 123456789}, "event": "ms.channel.connect", "from": "host"}'
+    )
+    connection.recv.side_effect = [open_response]
+
+    tv = SamsungTVWS("127.0.0.1")
+    with patch("samsungtvws.connection.time.sleep") as patch_sleep:
+        tv.hold_key("KEY_POWER", 3)
+
+    assert patch_sleep.call_count == 3
+    assert patch_sleep.call_args_list == [call(1), call(3), call(1)]
