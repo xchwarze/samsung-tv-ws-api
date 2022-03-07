@@ -139,7 +139,7 @@ async def test_send_hold_key(async_connection: Mock) -> None:
     with patch(
         "samsungtvws.async_connection.asyncio.sleep", return_value=NONE_FUTURE
     ) as patch_sleep:
-        await tv.send_command(SendRemoteKey.hold_key("KEY_POWER", 3))
+        await tv.send_command(SendRemoteKey.hold("KEY_POWER", 3))
 
     assert patch_sleep.call_count == 3
     assert patch_sleep.call_args_list == [call(1), call(3), call(1)]

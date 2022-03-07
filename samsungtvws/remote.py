@@ -22,6 +22,7 @@ Copyright (C) 2019 Xchwarze
 import logging
 import time
 from typing import Any, Dict, List, Optional, Union
+import warnings
 
 from samsungtvws.event import ED_INSTALLED_APP_EVENT, parse_installed_app
 
@@ -105,12 +106,20 @@ class SendRemoteKey(RemoteControlCommand):
         )
 
     @staticmethod
-    def hold_key(key: str, seconds: float) -> List["SamsungTVCommand"]:
+    def hold(key: str, seconds: float) -> List["SamsungTVCommand"]:
         return [
             SendRemoteKey.press(key),
             SamsungTVSleepCommand(seconds),
             SendRemoteKey.release(key),
         ]
+
+    @staticmethod
+    def hold_key(key: str, seconds: float) -> List["SamsungTVCommand"]:
+        warnings.warn(
+            "SendRemoteKey.hold_key is deprecated, please use SendRemoteKey.hold instead",
+            DeprecationWarning,
+        )
+        return SendRemoteKey.hold(key, seconds)
 
     # power
     @staticmethod
@@ -274,7 +283,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
             )
 
     def hold_key(self, key: str, seconds: float) -> None:
-        self.send_command(SendRemoteKey.hold_key(key, seconds))
+        self.send_command(SendRemoteKey.hold(key, seconds))
 
     def move_cursor(self, x: int, y: int, duration: int = 0) -> None:
         self._ws_send(
