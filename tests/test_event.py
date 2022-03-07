@@ -3,10 +3,11 @@ import json
 from samsungtvws import event
 from samsungtvws.exceptions import MessageError
 
+from .const import ED_INSTALLED_APP_SAMPLE, MS_ERROR_SAMPLE
+
 
 def test_parse_installed_app() -> None:
-    with open("tests/fixtures/event_ed_installedApp_get.json") as file:
-        json_response = json.load(file)
+    json_response = json.loads(ED_INSTALLED_APP_SAMPLE)
     assert event.parse_installed_app(json_response) == [
         {
             "appId": "111299001912",
@@ -26,8 +27,7 @@ def test_parse_installed_app() -> None:
 
 
 def test_parse_ms_error() -> None:
-    with open("tests/fixtures/event_ms_error.json") as file:
-        json_response = json.load(file)
+    json_response = json.loads(MS_ERROR_SAMPLE)
     error = event.parse_ms_error(json_response)
     assert isinstance(error, MessageError)
     assert str(error) == "unrecognized method value : ms.application.stop"
