@@ -8,6 +8,7 @@ from samsungtvws.remote import SamsungTVWS
 
 from .const import (
     ED_APPS_LAUNCH_SAMPLE,
+    ED_EDENTV_UPDATE_SAMPLE,
     ED_INSTALLED_APP_SAMPLE,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_ERROR_SAMPLE,
@@ -17,6 +18,16 @@ from .const import (
 def test_connect(connection: Mock) -> None:
     """Ensure simple data can be parsed."""
     connection.recv = Mock(side_effect=[MS_CHANNEL_CONNECT_SAMPLE])
+    tv = SamsungTVWS("127.0.0.1")
+    tv.open()
+    assert tv.token == 123456789
+
+
+def test_connect_with_extra_event(connection: Mock) -> None:
+    """Ensure simple data can be parsed."""
+    connection.recv = Mock(
+        side_effect=[ED_EDENTV_UPDATE_SAMPLE, MS_CHANNEL_CONNECT_SAMPLE]
+    )
     tv = SamsungTVWS("127.0.0.1")
     tv.open()
     assert tv.token == 123456789

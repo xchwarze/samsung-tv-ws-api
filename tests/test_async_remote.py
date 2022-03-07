@@ -42,6 +42,18 @@ async def test_connect(async_connection: Mock) -> None:
 
 
 @pytest.mark.asyncio
+async def test_connect_with_extra_event(async_connection: Mock) -> None:
+    """Ensure simple data can be parsed."""
+    async_connection.recv = Mock(
+        side_effect=[ED_EDENTV_UPDATE_FUTURE, MS_CHANNEL_CONNECT_FUTURE]
+    )
+    async_connection.send = Mock(return_value=NONE_FUTURE)
+    tv = SamsungTVWSAsyncRemote("127.0.0.1")
+    await tv.start_listening()
+    assert tv.token == 123456789
+
+
+@pytest.mark.asyncio
 async def test_connection_failure(async_connection: Mock) -> None:
     """Ensure simple data can be parsed."""
     async_connection.recv = Mock(side_effect=[MS_ERROR_EVENT_FUTURE])
