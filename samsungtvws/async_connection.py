@@ -32,7 +32,7 @@ from websockets.exceptions import ConnectionClosed
 
 from . import connection, exceptions, helper
 from .command import SamsungTVCommand, SamsungTVSleepCommand
-from .event import MS_CHANNEL_CONNECT
+from .event import MS_CHANNEL_CONNECT_EVENT
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         response = helper.process_api_response(await connection.recv())
         self._check_for_token(response)
 
-        if response["event"] != MS_CHANNEL_CONNECT:
+        if response["event"] != MS_CHANNEL_CONNECT_EVENT:
             await self.close()
             raise exceptions.ConnectionFailure(response)
 
