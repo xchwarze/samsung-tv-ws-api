@@ -1,0 +1,7 @@
+{
+  "data": {
+    "token": 123456789
+  },
+  "event": "ms.channel.connect",
+  "from": "host"
+}

@@ -4,6 +4,8 @@ from unittest.mock import Mock, patch
 from samsungtvws.art import SamsungTVArt
 from samsungtvws.remote import SamsungTVWS
 
+from .const import MS_CHANNEL_CONNECT_SAMPLE
+
 
 def test_create_connection_from_remote() -> None:
     connection = Mock()
@@ -11,8 +13,10 @@ def test_create_connection_from_remote() -> None:
         "samsungtvws.connection.websocket.create_connection"
     ) as connection_class:
         connection_class.return_value = connection
-        open_response = '{"data": {"token": 123456789}, "event": "ms.channel.connect", "from": "host"}'
-        connection.recv.side_effect = [open_response, open_response]
+        connection.recv.side_effect = [
+            MS_CHANNEL_CONNECT_SAMPLE,
+            MS_CHANNEL_CONNECT_SAMPLE,
+        ]
 
         tv_art = SamsungTVWS("127.0.0.1").art()
         tv_art.set_artmode("test")
@@ -31,8 +35,10 @@ def test_create_connection_direct() -> None:
         "samsungtvws.connection.websocket.create_connection"
     ) as connection_class:
         connection_class.return_value = connection
-        open_response = '{"data": {"token": 123456789}, "event": "ms.channel.connect", "from": "host"}'
-        connection.recv.side_effect = [open_response, open_response]
+        connection.recv.side_effect = [
+            MS_CHANNEL_CONNECT_SAMPLE,
+            MS_CHANNEL_CONNECT_SAMPLE,
+        ]
 
         tv_art = SamsungTVArt("127.0.0.1")
         tv_art.set_artmode("test")
@@ -51,9 +57,10 @@ def test_set_artmode(connection: Mock) -> None:
         "samsungtvws.art.uuid.uuid4",
         return_value="07e72228-7110-4655-aaa6-d81b5188c219",
     ):
-        open_response = '{"data": {"token": 123456789}, "event": "ms.channel.connect", "from": "host"}'
-
-        connection.recv.side_effect = [open_response, open_response]
+        connection.recv.side_effect = [
+            MS_CHANNEL_CONNECT_SAMPLE,
+            MS_CHANNEL_CONNECT_SAMPLE,
+        ]
         tv_art = SamsungTVArt("127.0.0.1")
         tv_art.set_artmode("test")
 
