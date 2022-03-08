@@ -32,7 +32,7 @@ import websocket
 
 from . import exceptions, helper
 from .command import SamsungTVCommand, SamsungTVSleepCommand
-from .event import ED_EDENTV_UPDATE_EVENT, MS_CHANNEL_CONNECT_EVENT, MS_ERROR_EVENT
+from .event import IGNORE_EVENTS_AT_STARTUP, MS_CHANNEL_CONNECT_EVENT, MS_ERROR_EVENT
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
         )
 
         event: Optional[str] = None
-        while event is None or event == ED_EDENTV_UPDATE_EVENT:
+        while event is None or event in IGNORE_EVENTS_AT_STARTUP:
             data = connection.recv()
             response = helper.process_api_response(data)
             event = response.get("event", "*")

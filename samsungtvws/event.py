@@ -9,6 +9,9 @@ MS_CHANNEL_CONNECT_EVENT = "ms.channel.connect"
 MS_CHANNEL_CLIENT_CONNECT_EVENT = "ms.channel.clientConnect"
 MS_CHANNEL_CLIENT_DISCONNECT_EVENT = "ms.channel.clientDisconnect"
 MS_ERROR_EVENT = "ms.error"
+MS_VOICEAPP_HIDE_EVENT = "ms.voiceApp.hide"
+
+IGNORE_EVENTS_AT_STARTUP = (ED_EDENTV_UPDATE_EVENT, MS_VOICEAPP_HIDE_EVENT)
 
 
 def parse_installed_app(event: Dict[str, Any]) -> List[Dict[str, Any]]:
