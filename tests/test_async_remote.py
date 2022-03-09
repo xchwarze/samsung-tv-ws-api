@@ -14,6 +14,7 @@ from .const import (
     ED_INSTALLED_APP_SAMPLE,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_ERROR_SAMPLE,
+    MS_VOICEAPP_HIDE_SAMPLE,
 )
 
 
@@ -28,6 +29,7 @@ ED_EDENTV_UPDATE_FUTURE = create_future_with_result(ED_EDENTV_UPDATE_SAMPLE)
 ED_INSTALLED_APP_FUTURE = create_future_with_result(ED_INSTALLED_APP_SAMPLE)
 MS_CHANNEL_CONNECT_FUTURE = create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE)
 MS_ERROR_EVENT_FUTURE = create_future_with_result(MS_ERROR_SAMPLE)
+MS_VOICEAPP_HIDE_FUTURE = create_future_with_result(MS_VOICEAPP_HIDE_SAMPLE)
 NONE_FUTURE = create_future_with_result(None)
 
 
@@ -45,7 +47,11 @@ async def test_connect(async_connection: Mock) -> None:
 async def test_connect_with_extra_event(async_connection: Mock) -> None:
     """Ensure simple data can be parsed."""
     async_connection.recv = Mock(
-        side_effect=[ED_EDENTV_UPDATE_FUTURE, MS_CHANNEL_CONNECT_FUTURE]
+        side_effect=[
+            MS_VOICEAPP_HIDE_FUTURE,
+            ED_EDENTV_UPDATE_FUTURE,
+            MS_CHANNEL_CONNECT_FUTURE,
+        ]
     )
     async_connection.send = Mock(return_value=NONE_FUTURE)
     tv = SamsungTVWSAsyncRemote("127.0.0.1")

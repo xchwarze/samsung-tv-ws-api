@@ -32,7 +32,7 @@ from websockets.exceptions import ConnectionClosed
 
 from . import connection, exceptions, helper
 from .command import SamsungTVCommand, SamsungTVSleepCommand
-from .event import ED_EDENTV_UPDATE_EVENT, MS_CHANNEL_CONNECT_EVENT
+from .event import IGNORE_EVENTS_AT_STARTUP, MS_CHANNEL_CONNECT_EVENT
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         connection = await connect(url, open_timeout=self.timeout, **connect_kwargs)
 
         event: Optional[str] = None
-        while event is None or event == ED_EDENTV_UPDATE_EVENT:
+        while event is None or event in IGNORE_EVENTS_AT_STARTUP:
             data = await connection.recv()
             response = helper.process_api_response(data)
             event = response.get("event", "*")
