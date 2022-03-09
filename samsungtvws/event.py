@@ -2,12 +2,14 @@ from typing import Any, Dict, List
 
 from .exceptions import MessageError
 
+D2D_SERVICE_MESSAGE_EVENT = "d2d_service_message"
 ED_APPS_LAUNCH_EVENT = "ed.apps.launch"
 ED_EDENTV_UPDATE_EVENT = "ed.edenTV.update"
 ED_INSTALLED_APP_EVENT = "ed.installedApp.get"
 MS_CHANNEL_CONNECT_EVENT = "ms.channel.connect"
 MS_CHANNEL_CLIENT_CONNECT_EVENT = "ms.channel.clientConnect"
 MS_CHANNEL_CLIENT_DISCONNECT_EVENT = "ms.channel.clientDisconnect"
+MS_CHANNEL_READY_EVENT = "ms.channel.ready"
 MS_ERROR_EVENT = "ms.error"
 
 

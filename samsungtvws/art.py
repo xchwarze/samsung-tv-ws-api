@@ -25,15 +25,35 @@ import json
 import logging
 import random
 import socket
+from typing import Any, Dict, List, Optional, Union
 import uuid
 
-from . import helper
+import websocket
+
+from . import exceptions, helper
+from .command import SamsungTVCommand
 from .connection import SamsungTVWSConnection
+from .event import D2D_SERVICE_MESSAGE_EVENT, MS_CHANNEL_READY_EVENT
 from .rest import SamsungTVRest
 
 _LOGGING = logging.getLogger(__name__)
 
 ART_ENDPOINT = "com.samsung.art-app"
+
+
+class ArtChannelEmitCommand(SamsungTVCommand):
+    def __init__(self, params: Dict[str, Any]) -> None:
+        super().__init__("ms.channel.emit", params)
+
+    @staticmethod
+    def art_app_request(data: Dict[str, Any]) -> "ArtChannelEmitCommand":
+        return ArtChannelEmitCommand(
+            {
+                "event": "art_app_request",
+                "to": "host",
+                "data": json.dumps(data),
+            }
+        )
 
 
 class SamsungTVArt(SamsungTVWSConnection):
@@ -58,40 +78,49 @@ class SamsungTVArt(SamsungTVWSConnection):
             name=name,
         )
         self.art_uuid = str(uuid.uuid4())
-        self.art_connection = None
-        self._rest_api = None
+        self._rest_api: Optional[SamsungTVRest] = None
 
-    def _art_ws_send(self, command):
-        if self.art_connection is None:
-            self.art_connection = self.open()
-            self.art_connection.recv()
+    def open(self) -> websocket.WebSocket:
+        super().open()
 
-        payload = json.dumps(command)
-        self.art_connection.send(payload)
+        # Override base class to wait for MS_CHANNEL_READY_EVENT
+        assert self.connection
+        data = self.connection.recv()
+        response = helper.process_api_response(data)
+        event = response.get("event", "*")
+        self._websocket_event(event, response)
 
-    def _send_art_request(self, data, response=False):
-        data["id"] = self.art_uuid
-        self._art_ws_send(
-            {
-                "method": "ms.channel.emit",
-                "params": {
-                    "event": "art_app_request",
-                    "to": "host",
-                    "data": json.dumps(data),
-                },
-            }
-        )
+        if event != MS_CHANNEL_READY_EVENT:
+            self.close()
+            raise exceptions.ConnectionFailure(response)
 
-        assert self.art_connection
-        if response:
-            return helper.process_api_response(self.art_connection.recv())
+        return self.connection
 
-    def _get_rest_api(self):
+    def _send_art_request(
+        self, request_data: Dict[str, Any], wait_for_event: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        request_data["id"] = self.art_uuid
+        self.send_command(ArtChannelEmitCommand.art_app_request(request_data))
+
+        if not wait_for_event:
+            return None
+
+        assert self.connection
+        event: Optional[str] = None
+        while event != wait_for_event:
+            data = self.connection.recv()
+            response = helper.process_api_response(data)
+            event = response.get("event", "*")
+            assert event
+            self._websocket_event(event, response)
+        return response
+
+    def _get_rest_api(self) -> SamsungTVRest:
         if self._rest_api is None:
             self._rest_api = SamsungTVRest(self.host, self.port, self.timeout)
         return self._rest_api
 
-    def supported(self):
+    def supported(self) -> bool:
         support = None
         data = self._get_rest_api().rest_device_info()
         device = data.get("device")
@@ -101,32 +130,36 @@ class SamsungTVArt(SamsungTVWSConnection):
         return support == "true"
 
     def get_api_version(self):
-        response = self._send_art_request({"request": "get_api_version"}, response=True)
+        response = self._send_art_request(
+            {"request": "get_api_version"}, wait_for_event=D2D_SERVICE_MESSAGE_EVENT
+        )
+        assert response
         data = json.loads(response["data"])
-
+        assert response
         return data["version"]
 
     def get_device_info(self):
-        response = self._send_art_request({"request": "get_device_info"}, response=True)
-
+        response = self._send_art_request(
+            {"request": "get_device_info"}, wait_for_event=D2D_SERVICE_MESSAGE_EVENT
+        )
+        assert response
         return json.loads(response["data"])
 
     def available(self, category=None):
         response = self._send_art_request(
-            {"request": "get_content_list", "category": category}, response=True
+            {"request": "get_content_list", "category": category},
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
+        assert response
         data = json.loads(response["data"])
 
         return json.loads(data["content_list"])
 
     def get_current(self):
         response = self._send_art_request(
-            {
-                "request": "get_current_artwork",
-            },
-            response=True,
+            {"request": "get_current_artwork"}, wait_for_event=D2D_SERVICE_MESSAGE_EVENT
         )
-
+        assert response
         return json.loads(response["data"])
 
     def get_thumbnail(self, content_id):
@@ -140,8 +173,9 @@ class SamsungTVArt(SamsungTVWSConnection):
                     "id": self.art_uuid,
                 },
             },
-            response=True,
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
+        assert response
         data = json.loads(response["data"])
         conn_info = json.loads(data["conn_info"])
 
@@ -181,8 +215,9 @@ class SamsungTVArt(SamsungTVWSConnection):
                 "matte_id": matte,
                 "file_size": file_size,
             },
-            response=True,
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
+        assert response
         data = json.loads(response["data"])
         conn_info = json.loads(data["conn_info"])
 
@@ -204,8 +239,8 @@ class SamsungTVArt(SamsungTVWSConnection):
         art_socket.send(header.encode("ascii"))
         art_socket.send(file)
 
-        assert self.art_connection
-        response = helper.process_api_response(self.art_connection.recv())
+        assert self.connection
+        response = helper.process_api_response(self.connection.recv())
         data = json.loads(response["data"])
 
         return data["content_id"]
@@ -237,8 +272,9 @@ class SamsungTVArt(SamsungTVWSConnection):
             {
                 "request": "get_artmode_status",
             },
-            response=True,
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
+        assert response
         data = json.loads(response["data"])
 
         return data["value"]
@@ -253,8 +289,10 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_photo_filter_list(self):
         response = self._send_art_request(
-            {"request": "get_photo_filter_list"}, response=True
+            {"request": "get_photo_filter_list"},
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
+        assert response
         data = json.loads(response["data"])
 
         return json.loads(data["filter_list"])
