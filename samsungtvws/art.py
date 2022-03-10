@@ -142,7 +142,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_api_version(self):
         response = self._send_art_request(
-            {"request": "get_api_version"}, 
+            {"request": "get_api_version"},
             wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
         assert response
@@ -152,7 +152,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_device_info(self):
         response = self._send_art_request(
-            {"request": "get_device_info"}, 
+            {"request": "get_device_info"},
             wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
         assert response
@@ -170,7 +170,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_current(self):
         response = self._send_art_request(
-            {"request": "get_current_artwork"}, 
+            {"request": "get_current_artwork"},
             wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
         assert response
