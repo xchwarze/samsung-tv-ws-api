@@ -97,7 +97,10 @@ class SamsungTVArt(SamsungTVWSConnection):
         return self.connection
 
     def _send_art_request(
-        self, request_data: Dict[str, Any], wait_for_event: Optional[str] = None
+        self,
+        request_data: Dict[str, Any],
+        wait_for_event: Optional[str] = None,
+        wait_for_sub_event: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         request_data["id"] = self.art_uuid
         self.send_command(ArtChannelEmitCommand.art_app_request(request_data))
@@ -107,12 +110,20 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         assert self.connection
         event: Optional[str] = None
+        sub_event: Optional[str] = None
         while event != wait_for_event:
             data = self.connection.recv()
             response = helper.process_api_response(data)
             event = response.get("event", "*")
             assert event
             self._websocket_event(event, response)
+            if event == wait_for_event and wait_for_sub_event:
+                # Check sub event, reset event if it doesn't match
+                data = json.loads(response["data"])
+                sub_event = data.get("event", "*")
+                if sub_event != wait_for_sub_event:
+                    event = None
+
         return response
 
     def _get_rest_api(self) -> SamsungTVRest:
@@ -131,7 +142,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_api_version(self):
         response = self._send_art_request(
-            {"request": "get_api_version"}, wait_for_event=D2D_SERVICE_MESSAGE_EVENT
+            {"request": "get_api_version"}, wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
         assert response
         data = json.loads(response["data"])
@@ -140,7 +151,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_device_info(self):
         response = self._send_art_request(
-            {"request": "get_device_info"}, wait_for_event=D2D_SERVICE_MESSAGE_EVENT
+            {"request": "get_device_info"}, wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
         assert response
         return json.loads(response["data"])
@@ -157,7 +168,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_current(self):
         response = self._send_art_request(
-            {"request": "get_current_artwork"}, wait_for_event=D2D_SERVICE_MESSAGE_EVENT
+            {"request": "get_current_artwork"}, wait_for_event=D2D_SERVICE_MESSAGE_EVENT, 
         )
         assert response
         return json.loads(response["data"])
@@ -215,7 +226,7 @@ class SamsungTVArt(SamsungTVWSConnection):
                 "matte_id": matte,
                 "file_size": file_size,
             },
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT, wait_for_sub_event="ready_to_use",
         )
         assert response
         data = json.loads(response["data"])
@@ -239,8 +250,26 @@ class SamsungTVArt(SamsungTVWSConnection):
         art_socket.send(header.encode("ascii"))
         art_socket.send(file)
 
+        wait_for_sub_event = "image_added"
+        wait_for_event = "d2d_service_message"
+
         assert self.connection
-        response = helper.process_api_response(self.connection.recv())
+        event: Optional[str] = None
+        sub_event: Optional[str] = None
+
+        while event != wait_for_event:
+            data = self.connection.recv()
+            response = helper.process_api_response(data)
+            event = response.get("event", "*")
+            assert event
+            self._websocket_event(event, response)
+            if event == wait_for_event and wait_for_sub_event:
+                # Check sub event, reset event if it doesn't match
+                data = json.loads(response["data"])
+                sub_event = data.get("event", "*")
+                if sub_event != wait_for_sub_event:
+                    event = None
+
         data = json.loads(response["data"])
 
         return data["content_id"]
