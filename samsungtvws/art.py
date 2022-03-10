@@ -171,7 +171,7 @@ class SamsungTVArt(SamsungTVWSConnection):
     def get_current(self):
         response = self._send_art_request(
             {"request": "get_current_artwork"}, 
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT, 
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
         assert response
         return json.loads(response["data"])
@@ -229,7 +229,7 @@ class SamsungTVArt(SamsungTVWSConnection):
                 "matte_id": matte,
                 "file_size": file_size,
             },
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT, 
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
             wait_for_sub_event="ready_to_use",
         )
         assert response
