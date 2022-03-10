@@ -240,7 +240,13 @@ class SamsungTVArt(SamsungTVWSConnection):
         art_socket.send(file)
 
         assert self.connection
-        response = helper.process_api_response(self.connection.recv())
+        event: Optional[str] = None
+        while event != D2D_SERVICE_MESSAGE_EVENT:
+            data = self.connection.recv()
+            response = helper.process_api_response(data)
+            event = response.get("event", "*")
+            assert event
+            self._websocket_event(event, response)
         data = json.loads(response["data"])
 
         return data["content_id"]
