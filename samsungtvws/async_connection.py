@@ -124,18 +124,6 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         self.connection = None
         _LOGGING.debug("Connection closed.")
 
-    async def _send_command_sequence(
-        self, commands: List[SamsungTVCommand], key_press_delay: float
-    ) -> None:
-        assert self.connection
-        for command in commands:
-            if isinstance(command, SamsungTVSleepCommand):
-                await asyncio.sleep(command.delay)
-            else:
-                payload = command.get_payload()
-                await self.connection.send(payload)
-                await asyncio.sleep(key_press_delay)
-
     async def send_command(
         self,
         command: Union[List[SamsungTVCommand], SamsungTVCommand, Dict[str, Any]],
@@ -147,13 +135,28 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         delay = self.key_press_delay if key_press_delay is None else key_press_delay
 
         if isinstance(command, list):
-            await self._send_command_sequence(command, delay)
+            for sub_command in command:
+                await self._send_command(self.connection, sub_command, delay)
+            return
+
+        await self._send_command(self.connection, command, delay)
+
+    @staticmethod
+    async def _send_command(
+        connection: WebSocketClientProtocol,
+        command: Union[SamsungTVCommand, Dict[str, Any]],
+        delay: float,
+    ) -> None:
+        if isinstance(command, SamsungTVSleepCommand):
+            await asyncio.sleep(command.delay)
             return
 
         if isinstance(command, SamsungTVCommand):
-            await self.connection.send(command.get_payload())
+            payload = command.get_payload()
         else:
-            await self.connection.send(json.dumps(command))
+            payload = json.dumps(command)
+        _LOGGING.debug("SamsungTVWS websocket command: %s", payload)
+        await connection.send(payload)
 
         await asyncio.sleep(delay)
 
