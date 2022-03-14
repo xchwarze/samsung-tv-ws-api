@@ -35,8 +35,8 @@ class SendRemoteKey:
 
 
 class SamsungTVEncryptedWSAsyncRemote:
-    _REST_URL_FORMAT = "http://{host}:{port}/{route}"
-    _URL_FORMAT = "ws://{host}:{port}/socket.io/1/websocket/{app}"
+    REST_URL_FORMAT = "http://{host}:{port}/{route}"
+    URL_FORMAT = "ws://{host}:{port}/socket.io/1/websocket/{app}"
 
     _connection: Optional[WebSocketClientProtocol]
     _recv_loop: Optional["asyncio.Task[None]"]
@@ -58,9 +58,9 @@ class SamsungTVEncryptedWSAsyncRemote:
         self._session: Optional[SamsungTVEncryptedSession] = None
         if token and session_id:
             self._session = SamsungTVEncryptedSession(token, session_id)
+
         self._timeout = None if timeout == 0 else timeout
         self._web_session = web_session
-
         self._connection = None
         self._recv_loop = None
 
@@ -82,7 +82,7 @@ class SamsungTVEncryptedWSAsyncRemote:
             "app": app,
         }
 
-        return self._URL_FORMAT.format(**params)
+        return self.URL_FORMAT.format(**params)
 
     def _format_rest_url(self, route: str = "") -> str:
         params = {
@@ -91,7 +91,7 @@ class SamsungTVEncryptedWSAsyncRemote:
             "route": route,
         }
 
-        return self._REST_URL_FORMAT.format(**params)
+        return self.REST_URL_FORMAT.format(**params)
 
     async def _open(self) -> None:
         if self._connection:
@@ -101,13 +101,14 @@ class SamsungTVEncryptedWSAsyncRemote:
         millis = int(round(time.time() * 1000))
         step4_url = self._format_rest_url(f"socket.io/1/?t={millis}")
         LOGGER.debug("Tx: GET %s", step4_url)
+
         async with self._web_session.get(step4_url) as response:
             LOGGER.debug("Rx: %s", await response.text())
             step4_response = await response.text()
 
         url = self._format_websocket_url(step4_response.split(":")[0])
-
         LOGGER.debug("WS url %s", url)
+
         connection = await connect(url, open_timeout=self._timeout)
         await connection.send("1::/com.samsung.companion")
 
@@ -153,7 +154,6 @@ class SamsungTVEncryptedWSAsyncRemote:
             assert self._connection
 
         delay = self._key_press_delay if key_press_delay is None else key_press_delay
-
         for command in commands:
             await self._send_command(self._connection, command, self._session, delay)
 
@@ -166,6 +166,7 @@ class SamsungTVEncryptedWSAsyncRemote:
     ) -> None:
         LOGGER.debug("SamsungTVEncryptedWS websocket command: %s", command.as_dict())
         payload = session.encrypt_command(command)
+
         LOGGER.debug("SamsungTVEncryptedWS websocket command (encrypted): %s", payload)
         await connection.send(payload)
 
