@@ -51,7 +51,9 @@ class SamsungEncrypted:
         cipher = Cipher(algorithms.AES(bytes.fromhex(self.TRANS_KEY)), modes.ECB())
         encryptor: CipherContext = cipher.encryptor()
 
-        return encryptor.update(data) + encryptor.finalize()  # type:ignore[no-any-return]
+        return (
+             encryptor.update(data) + encryptor.finalize()
+        )  # type:ignore[no-any-return]
 
     def generate_server_hello(self, user_id: str, pin: str) -> Dict[str, bytes]:
         sha1 = hashlib.sha1()
@@ -63,7 +65,9 @@ class SamsungEncrypted:
         iv = b"\x00" * self.BLOCK_SIZE
         cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv))
         encryptor: CipherContext = cipher.encryptor()
-        encrypted = encryptor.update(bytes.fromhex(self.PUBLIC_KEY)) + encryptor.finalize()
+        encrypted = (
+            encryptor.update(bytes.fromhex(self.PUBLIC_KEY)) + encryptor.finalize()
+        )
         LOGGER.debug("AES encrypted: %s", encrypted.hex())
 
         swapped = self._encrypt_parameter_data_with_aes(encrypted)
@@ -84,11 +88,7 @@ class SamsungEncrypted:
             + b"\x00" * 5
         )
 
-        return {
-            "serverHello": server_hello,
-            "hash": data_hash,
-            "AES_key": aes_key
-        }
+        return {"serverHello": server_hello, "hash": data_hash, "AES_key": aes_key}
 
     def parse_client_hello(
         self, client_hello: str, data_hash: bytes, aes_key: bytes, user_id: str
@@ -169,7 +169,11 @@ class SamsungEncrypted:
         LOGGER.debug("dest_hash: %s", dest_hash.hex())
 
         finalBuffer = (
-            userId + user_id.encode("utf-8") + pGx + bytes.fromhex(self.PUBLIC_KEY) + secret
+            userId
+            + user_id.encode("utf-8")
+            + pGx
+            + bytes.fromhex(self.PUBLIC_KEY)
+            + secret
         )
         sha1 = hashlib.sha1()
         sha1.update(finalBuffer)
@@ -181,10 +185,7 @@ class SamsungEncrypted:
         LOGGER.debug("SKPrimeHash: %s", SKPrimeHash.hex())
         ctx = self._apply_samy_go_key_transform(SKPrimeHash[:16])
 
-        return {
-            "ctx": ctx,
-            "SKPrime": SKPrime
-        }
+        return {"ctx": ctx, "SKPrime": SKPrime}
 
     def generate_server_acknowledge(self, skprime: bytes) -> str:
         sha1 = hashlib.sha1()
@@ -197,7 +198,9 @@ class SamsungEncrypted:
         sha1 = hashlib.sha1()
         sha1.update(skprime + b"\x02")
         skprime_hash = sha1.digest()
-        calculate_ack = self.ACK_HEADER_START + skprime_hash.hex().upper() + self.ACK_HEADER_END
+        calculate_ack = (
+            self.ACK_HEADER_START + skprime_hash.hex().upper() + self.ACK_HEADER_END
+        )
 
         return client_ack == calculate_ack
 
@@ -309,7 +312,9 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
 
     async def _acknowledge_exchange(self) -> str:
         assert self._sk_prime
-        server_ack_message = SamsungEncrypted.generate_server_acknowledge(self._sk_prime)
+        server_ack_message = SamsungEncrypted.generate_server_acknowledge(
+            self._sk_prime
+        )
         content = (
             '{"auth_Data":{"auth_type":"SPC","request_id":"0","ServerAckMsg":"'
             + server_ack_message
