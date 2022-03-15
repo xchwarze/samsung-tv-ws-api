@@ -3,7 +3,7 @@ import hashlib
 import logging
 import re
 import struct
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 import aiohttp
 from cryptography.hazmat.primitives.ciphers import (
