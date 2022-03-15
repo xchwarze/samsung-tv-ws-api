@@ -7,13 +7,13 @@ from .command import SamsungTVEncryptedCommand
 
 
 # Padding for the input string --not related to encryption itself.
-class _Padding:
-    _BLOCK_SIZE = 16  # Bytes
+class Padding:
+    BLOCK_SIZE = 16  # Bytes
 
     @staticmethod
     def pad(text: str) -> str:
-        return text + (_Padding._BLOCK_SIZE - len(text) % _Padding._BLOCK_SIZE) * chr(
-            _Padding._BLOCK_SIZE - len(text) % _Padding._BLOCK_SIZE
+        return text + (Padding.BLOCK_SIZE - len(text) % Padding.BLOCK_SIZE) * chr(
+            Padding.BLOCK_SIZE - len(text) % Padding.BLOCK_SIZE
         )
 
     @staticmethod
@@ -29,14 +29,14 @@ class SamsungTVEncryptedSession:
 
     def _decrypt(self, enc: bytes) -> str:
         decryptor = self._cipher.decryptor()
-        return _Padding.unpad(
+        return Padding.unpad(
             decryptor.update(binascii.unhexlify(enc)) + decryptor.finalize()
         )
 
     def _encrypt(self, raw: str) -> bytes:
         encryptor = self._cipher.encryptor()
         return (  # type:ignore[no-any-return]
-            encryptor.update(bytes(_Padding.pad(raw), encoding="utf8"))
+            encryptor.update(bytes(Padding.pad(raw), encoding="utf8"))
             + encryptor.finalize()
         )
 
