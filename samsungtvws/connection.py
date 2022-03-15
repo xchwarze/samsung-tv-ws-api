@@ -123,6 +123,11 @@ class SamsungTVWSBaseConnection:
         """Handle websocket event."""
         if event == MS_ERROR_EVENT:
             _LOGGING.warning("SamsungTVWS websocket error message: %s", response)
+            message = response.get("data", {}).get("message")
+            if message == "unrecognized method value : ms.remote.control":
+                _LOGGING.error(
+                    "Your TV does not seem to support v2 API, please try v1 API"
+                )
         else:
             _LOGGING.debug("SamsungTVWS websocket event: %s", response)
 
