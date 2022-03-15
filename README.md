@@ -16,23 +16,30 @@ Based on https://github.com/marysieek/samsung-tv-api work
 ## Install
 
 ```bash
-$ pip3 install samsungtvws
+$ pip3 install samsungtvws[async,encrypted]
 ```
 
 or
 
 ```bash
-$ pip3 install git+https://github.com/xchwarze/samsung-tv-ws-api.git
+$ pip3 install "git+https://github.com/xchwarze/samsung-tv-ws-api.git#egg=samsungtvws[async,encrypted]"
 ```
 
 or...!
 
 ```bash
 $ git clone https://github.com/xchwarze/samsung-tv-ws-api
-$ pip3 install ./samsung-tv-ws-api
+$ pip3 install "./samsung-tv-ws-api[async,encrypted]"
 ```
 
+### Extras
+
+`async` is required if you wish to use asynchronous I/O for all communications with the TV (`SamsungTVAsyncRest` and `SamsungTVWSAsyncRemote`)
+`encrypted` is required if you wish to communicate with a TV which only support the v1 API (some J and K models) for sending commands (`SamsungTVEncryptedWSAsyncRemote` and `SamsungTVEncryptedWSAsyncAuthenticator`).
+
 ## Usage
+
+### Basic
 
 ```python
 import sys
@@ -92,7 +99,7 @@ logging.info(info)
 
 ```
 
-## Art Mode
+### Art Mode
 
 TVs that support art mode (such as The Frame) can be controlled as follows:
 
@@ -163,6 +170,14 @@ logging.info(info)
 # Apply a filter to a specific piece of art
 tv.art().set_photo_filter('SAM-F0206', 'ink')
 ```
+
+### Async
+
+Examples are available in the examples folder: `async_remote.py`, `async_rest.py`
+
+### Encrypted API
+
+Examples are available in the examples folder: `encrypted_authenticator.py`, `encrypted_remote.py`
 
 ## Supported TVs
 
