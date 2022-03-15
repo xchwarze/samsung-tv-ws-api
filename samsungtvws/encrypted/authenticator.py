@@ -21,8 +21,6 @@ PRIVATE_KEY = "2fd6334713816fae018cdee4656c5033a8d6b00e8eaea07b3624999242e962471
 WB_KEY = "abbb120c09e7114243d1fa0102163b27"
 TRANS_KEY = "6c9474469ddf7578f3e5ad8a4c703d99"
 PRIME = "b361eb0ab01c3439f2c16ffda7b05e3e320701ebee3e249123c3586765fd5bf6c1dfa88bb6bb5da3fde74737cd88b6a26c5ca31d81d18e3515533d08df619317063224cf0943a2f29a5fe60c1c31ddf28334ed76a6478a1122fb24c4a94c8711617ddfe90cf02e643cd82d4748d6d4a7ca2f47d88563aa2baf6482e124acd7dd"
-ACK_HEADER_START = "0104000000000000000014"
-ACK_HEADER_END = "0000000000"
 
 
 def _encrypt_parameter_data_with_aes(data: bytes) -> bytes:
@@ -187,14 +185,14 @@ def _generate_server_acknowledge(skprime: bytes) -> str:
     sha1.update(skprime + b"\x01")
     skprime_hash = sha1.digest()
 
-    return ACK_HEADER_START + skprime_hash.hex().upper() + ACK_HEADER_END
+    return "0103000000000000000014" + skprime_hash.hex().upper() + "0000000000"
 
 
 def _parse_client_acknowledge(client_ack: str, skprime: bytes) -> bool:
     sha1 = hashlib.sha1()
     sha1.update(skprime + b"\x02")
     skprime_hash = sha1.digest()
-    calculate_ack = ACK_HEADER_START + skprime_hash.hex().upper() + ACK_HEADER_END
+    calculate_ack = "0104000000000000000014" + skprime_hash.hex().upper() + "0000000000"
 
     return client_ack == calculate_ack
 
