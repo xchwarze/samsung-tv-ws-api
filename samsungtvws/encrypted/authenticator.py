@@ -31,7 +31,7 @@ def _encrypt_parameter_data_with_aes(data: bytes) -> bytes:
     for num in range(0, 128, 16):
         cipher = Cipher(algorithms.AES(bytes.fromhex(WB_KEY)), modes.CBC(iv))
         encryptor: CipherContext = cipher.encryptor()
-        output += encryptor.update(data[num: num + 16]) + encryptor.finalize()
+        output += encryptor.update(data[num : num + 16]) + encryptor.finalize()
 
     return output
 
@@ -42,7 +42,7 @@ def _decrypt_parameter_data_with_aes(data: bytes) -> bytes:
     for num in range(0, 128, 16):
         cipher = Cipher(algorithms.AES(bytes.fromhex(WB_KEY)), modes.CBC(iv))
         decryptor: CipherContext = cipher.decryptor()
-        output += decryptor.update(data[num: num + 16]) + decryptor.finalize()
+        output += decryptor.update(data[num : num + 16]) + decryptor.finalize()
 
     return output
 
@@ -51,9 +51,7 @@ def _apply_samy_go_key_transform(data: bytes) -> bytes:
     cipher = Cipher(algorithms.AES(bytes.fromhex(TRANS_KEY)), modes.ECB())
     encryptor: CipherContext = cipher.encryptor()
 
-    return (
-        encryptor.update(data) + encryptor.finalize()
-    )  # type:ignore[no-any-return]
+    return encryptor.update(data) + encryptor.finalize()  # type:ignore[no-any-return]
 
 
 def _generate_server_hello(user_id: str, pin: str) -> Dict[str, bytes]:
@@ -66,9 +64,7 @@ def _generate_server_hello(user_id: str, pin: str) -> Dict[str, bytes]:
     iv = b"\x00" * BLOCK_SIZE
     cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv))
     encryptor: CipherContext = cipher.encryptor()
-    encrypted = (
-        encryptor.update(bytes.fromhex(PUBLIC_KEY)) + encryptor.finalize()
-    )
+    encrypted = encryptor.update(bytes.fromhex(PUBLIC_KEY)) + encryptor.finalize()
     LOGGER.debug("AES encrypted: %s", encrypted.hex())
 
     swapped = _encrypt_parameter_data_with_aes(encrypted)
@@ -93,7 +89,7 @@ def _generate_server_hello(user_id: str, pin: str) -> Dict[str, bytes]:
 
 
 def _parse_client_hello(
-        client_hello: str, data_hash: bytes, aes_key: bytes, user_id: str
+    client_hello: str, data_hash: bytes, aes_key: bytes, user_id: str
 ) -> Optional[Dict[str, bytes]]:
     USER_ID_POS = 15
     USER_ID_LEN_POS = 11
@@ -107,13 +103,13 @@ def _parse_client_hello(
     thirdLen = userIdLen + 132
     LOGGER.debug("thirdLen: %s", str(thirdLen))
 
-    dest = data[USER_ID_LEN_POS: thirdLen + USER_ID_LEN_POS] + data_hash
+    dest = data[USER_ID_LEN_POS : thirdLen + USER_ID_LEN_POS] + data_hash
     LOGGER.debug("dest: %s", dest.hex())
 
-    userId = data[USER_ID_POS: userIdLen + USER_ID_POS]
+    userId = data[USER_ID_POS : userIdLen + USER_ID_POS]
     LOGGER.debug("userId: %s", userId.decode("utf-8"))
 
-    pEncWBGx = data[USER_ID_POS + userIdLen: GX_SIZE + USER_ID_POS + userIdLen]
+    pEncWBGx = data[USER_ID_POS + userIdLen : GX_SIZE + USER_ID_POS + userIdLen]
     LOGGER.debug("pEncWBGx: %s", pEncWBGx.hex())
 
     pEncGx = _decrypt_parameter_data_with_aes(pEncWBGx)
@@ -136,7 +132,7 @@ def _parse_client_hello(
     dataHash2 = data[
         USER_ID_POS
         + userIdLen
-        + GX_SIZE: USER_ID_POS
+        + GX_SIZE : USER_ID_POS
         + userIdLen
         + GX_SIZE
         + SHA_DIGEST_LENGTH
@@ -156,12 +152,12 @@ def _parse_client_hello(
 
     LOGGER.info("Pin OK")
     flagPos = userIdLen + USER_ID_POS + GX_SIZE + SHA_DIGEST_LENGTH
-    if ord(data[flagPos: flagPos + 1]):
+    if ord(data[flagPos : flagPos + 1]):
         LOGGER.error("First flag error!!!")
         return None
 
     flagPos = userIdLen + USER_ID_POS + GX_SIZE + SHA_DIGEST_LENGTH
-    if struct.unpack(">I", data[flagPos + 1: flagPos + 5])[0]:
+    if struct.unpack(">I", data[flagPos + 1 : flagPos + 5])[0]:
         LOGGER.error("Second flag error!!!")
         return None
 
@@ -171,11 +167,7 @@ def _parse_client_hello(
     LOGGER.debug("dest_hash: %s", dest_hash.hex())
 
     finalBuffer = (
-        userId
-        + user_id.encode("utf-8")
-        + pGx
-        + bytes.fromhex(PUBLIC_KEY)
-        + secret
+        userId + user_id.encode("utf-8") + pGx + bytes.fromhex(PUBLIC_KEY) + secret
     )
     sha1 = hashlib.sha1()
     sha1.update(finalBuffer)
@@ -202,9 +194,7 @@ def _parse_client_acknowledge(client_ack: str, skprime: bytes) -> bool:
     sha1 = hashlib.sha1()
     sha1.update(skprime + b"\x02")
     skprime_hash = sha1.digest()
-    calculate_ack = (
-        ACK_HEADER_START + skprime_hash.hex().upper() + ACK_HEADER_END
-    )
+    calculate_ack = ACK_HEADER_START + skprime_hash.hex().upper() + ACK_HEADER_END
 
     return client_ack == calculate_ack
 
@@ -275,9 +265,9 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
             return None
 
         content = (
-                '{"auth_Data":{"auth_type":"SPC","GeneratorServerHello":"'
-                + hello_output["serverHello"].hex().upper()
-                + '"}}'
+            '{"auth_Data":{"auth_type":"SPC","GeneratorServerHello":"'
+            + hello_output["serverHello"].hex().upper()
+            + '"}}'
         )
         url = self._get_full_request_url(1)
         LOGGER.debug("Tx: POST %s", url)
@@ -316,13 +306,11 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
 
     async def _acknowledge_exchange(self) -> str:
         assert self._sk_prime
-        server_ack_message = _generate_server_acknowledge(
-            self._sk_prime
-        )
+        server_ack_message = _generate_server_acknowledge(self._sk_prime)
         content = (
-                '{"auth_Data":{"auth_type":"SPC","request_id":"0","ServerAckMsg":"'
-                + server_ack_message
-                + '"}}'
+            '{"auth_Data":{"auth_type":"SPC","request_id":"0","ServerAckMsg":"'
+            + server_ack_message
+            + '"}}'
         )
         url = self._get_full_request_url(2)
         LOGGER.debug("Tx: POST %s", url)
