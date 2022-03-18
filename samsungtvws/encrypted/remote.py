@@ -102,7 +102,7 @@ class SamsungTVEncryptedWSAsyncRemote:
         step4_url = self._format_rest_url(f"socket.io/1/?t={millis}")
         LOGGER.debug("Tx: GET %s", step4_url)
 
-        async with self._web_session.get(step4_url) as response:
+        async with self._web_session.get(step4_url, timeout=self._timeout) as response:
             LOGGER.debug("Rx: %s", await response.text())
             step4_response = await response.text()
 
