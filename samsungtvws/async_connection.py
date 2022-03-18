@@ -25,7 +25,7 @@ import json
 import logging
 import ssl
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Union
 
 from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import ConnectionClosed
@@ -124,9 +124,9 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         self.connection = None
         _LOGGING.debug("Connection closed.")
 
-    async def send_command(
+    async def send_commands(
         self,
-        command: Union[List[SamsungTVCommand], SamsungTVCommand, Dict[str, Any]],
+        commands: Sequence[Union[SamsungTVCommand, Dict[str, Any]]],
         key_press_delay: Optional[float] = None,
     ) -> None:
         if self.connection is None:
@@ -134,12 +134,23 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
         delay = self.key_press_delay if key_press_delay is None else key_press_delay
 
+        for command in commands:
+            await self._send_command(self.connection, command, delay)
+
+    async def send_command(
+        self,
+        command: Union[List[SamsungTVCommand], SamsungTVCommand, Dict[str, Any]],
+        key_press_delay: Optional[float] = None,
+    ) -> None:
         if isinstance(command, list):
-            for sub_command in command:
-                await self._send_command(self.connection, sub_command, delay)
+            _LOGGING.warn(
+                "Using send_command to send multiple commands is deprecated, "
+                "please use send_commands."
+            )
+            await self.send_commands(command, key_press_delay)
             return
 
-        await self._send_command(self.connection, command, delay)
+        await self.send_commands([command], key_press_delay)
 
     @staticmethod
     async def _send_command(
