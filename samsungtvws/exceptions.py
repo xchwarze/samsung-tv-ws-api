@@ -4,6 +4,12 @@ class ConnectionFailure(Exception):
     pass
 
 
+class UnauthorizedError(ConnectionFailure):
+    """Error from ms.channel.unauthorized event."""
+
+    pass
+
+
 class ResponseError(Exception):
     """Error in response."""
 

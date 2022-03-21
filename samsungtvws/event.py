@@ -10,6 +10,7 @@ MS_CHANNEL_CONNECT_EVENT = "ms.channel.connect"
 MS_CHANNEL_CLIENT_CONNECT_EVENT = "ms.channel.clientConnect"
 MS_CHANNEL_CLIENT_DISCONNECT_EVENT = "ms.channel.clientDisconnect"
 MS_CHANNEL_READY_EVENT = "ms.channel.ready"
+MS_CHANNEL_UNAUTHORIZED = "ms.channel.unauthorized"
 MS_ERROR_EVENT = "ms.error"
 MS_VOICEAPP_HIDE_EVENT = "ms.voiceApp.hide"
 
