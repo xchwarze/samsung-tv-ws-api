@@ -32,7 +32,11 @@ from websockets.exceptions import ConnectionClosed
 
 from . import connection, exceptions, helper
 from .command import SamsungTVCommand, SamsungTVSleepCommand
-from .event import IGNORE_EVENTS_AT_STARTUP, MS_CHANNEL_CONNECT_EVENT
+from .event import (
+    IGNORE_EVENTS_AT_STARTUP,
+    MS_CHANNEL_CONNECT_EVENT,
+    MS_CHANNEL_UNAUTHORIZED,
+)
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -76,7 +80,12 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
             assert event
             self._websocket_event(event, response)
 
+        if event == MS_CHANNEL_UNAUTHORIZED:
+            await self.close()
+            raise exceptions.UnauthorizedError(response)
+
         if event != MS_CHANNEL_CONNECT_EVENT:
+            # Unexpected event received during connection routine
             await self.close()
             raise exceptions.ConnectionFailure(response)
 
