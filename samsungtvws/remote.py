@@ -313,7 +313,8 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
         self.run_app("org.tizen.browser", "NATIVE_LAUNCH", url)
 
     def app_list(self) -> Optional[List[Dict[str, Any]]]:
-        _LOGGING.debug("Get app list")
+        _LOGGING.debug("Get app list (not available on all TVs)")
+        # See https://github.com/xchwarze/samsung-tv-ws-api/issues/23
         self._app_list = None
         self._ws_send(ChannelEmitCommand.get_installed_app())
 
