@@ -56,7 +56,8 @@ class SamsungTVWSAsyncRemote(async_connection.SamsungTVWSAsyncConnection):
         self._app_list_futures: Set[Future[Dict[str, Any]]] = set()
 
     async def app_list(self) -> Optional[List[Dict[str, Any]]]:
-        _LOGGING.debug("Get app list")
+        _LOGGING.debug("Get app list (not available on all TVs)")
+        # See https://github.com/xchwarze/samsung-tv-ws-api/issues/23
         app_list_future: Future[Dict[str, Any]] = Future()
         self._app_list_futures.add(app_list_future)
         await self.send_command(remote.ChannelEmitCommand.get_installed_app())
