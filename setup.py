@@ -9,7 +9,7 @@ def readme():
 
 setup(
     name="samsungtvws",
-    version="2.4.0",
+    version="2.5.0",
     description="Samsung Smart TV WS API wrapper",
     long_description=readme(),
     long_description_content_type="text/markdown",
