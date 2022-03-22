@@ -41,7 +41,7 @@ async def test_authenticator(aioresponse: aioresponses) -> None:
     )
     await authenticator.start_pairing()
     token = await authenticator.try_pin("0997")
-    assert token == "037739871315caef138547b03e348b72"
+    assert token == "545a596ab96b289c60896255e8690288"
 
     session_id = await authenticator.get_session_id_and_close()
     assert session_id == "1"

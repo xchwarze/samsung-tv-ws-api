@@ -8,6 +8,7 @@ aiohttp>=3.8.1
 
 # encrypted
 cryptography>=35.0.0
+py3rijndael>=0.3.3
 
 # dev
 black>=22.1
