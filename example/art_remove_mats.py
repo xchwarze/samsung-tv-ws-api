@@ -22,7 +22,7 @@ if not tv.art().supported():
 # List available mats for displaying art
 matte_types = [matte_type for elem in tv.art().get_matte_list() for matte_type in elem.values()]
 if target_matte_type not in matte_types:
-    logging.error('Invalid matte type: {}'.format(target_matte_type))
+    logging.error('Invalid matte type: {}. Supported matte types are: {}'.format(target_matte_type, matte_types))
     sys.exit(1)
 
 # List the art available on the device
@@ -30,5 +30,5 @@ available_art = tv.art().available()
 
 for art in available_art:
     if art['matte_id'] != target_matte_type:
-        logging.info("Setting matte to %s for %s", target_matte_type, art['content_id'])
+        logging.info("Setting matte to {} for {}".format(target_matte_type, art['content_id']))
         tv.art().change_matte(art['content_id'], target_matte_type)

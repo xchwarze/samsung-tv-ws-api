@@ -92,3 +92,21 @@ def test_set_available(connection: Mock) -> None:
         connection.send.assert_called_once_with(
             '{"method": "ms.channel.emit", "params": {"event": "art_app_request", "to": "host", "data": "{\\"request\\": \\"get_content_list\\", \\"category\\": null, \\"id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\"}"}}'
         )
+
+
+def test_change_matte(connection: Mock) -> None:
+    with patch(
+        "samsungtvws.art.uuid.uuid4",
+        return_value="07e72228-7110-4655-aaa6-d81b5188c219",
+    ):
+        connection.recv.side_effect = [
+            MS_CHANNEL_CONNECT_SAMPLE,
+            MS_CHANNEL_READY_SAMPLE,
+            D2D_SERVICE_MESSAGE_AVAILABLE_SAMPLE,
+        ]
+        tv_art = SamsungTVArt("127.0.0.1")
+        tv_art.change_matte("test", "none")
+
+        connection.send.assert_called_once_with(
+            '{"method": "ms.channel.emit", "params": {"event": "art_app_request", "to": "host", "data": "{\\"request\\": \\"change_matte\\", \\"content_id\\": \\"test\\", \\"matte_id\\": \\"none\\", \\"id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\"}"}}'
+        )
