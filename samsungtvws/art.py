@@ -338,3 +338,22 @@ class SamsungTVArt(SamsungTVWSConnection):
                 "filter_id": filter_id,
             }
         )
+
+    def get_matte_list(self):
+        response = self._send_art_request(
+            {"request": "get_matte_list"},
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
+        )
+        assert response
+        data = json.loads(response["data"])
+
+        return json.loads(data["matte_type_list"])
+
+    def change_matte(self, content_id, matte_id):
+        self._send_art_request(
+            {
+                "request": "change_matte",
+                "content_id": content_id,
+                "matte_id": matte_id,
+            }
+        )
