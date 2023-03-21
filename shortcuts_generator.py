@@ -59,7 +59,7 @@ with open(KEYS_FILE, "r") as file:
             if shortcut_name[0] == "_":
                 shortcut_name = shortcut_name[1:]
             print(f"\tdef {shortcut_name}(self):")
-            print(f"\t\tself.remote.send('{command}')\n")
+            print(f"\t\tself.remote.send_key('{command}')\n")
 
     pass
     ...
