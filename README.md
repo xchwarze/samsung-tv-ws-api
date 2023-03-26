@@ -47,7 +47,7 @@ import os
 import logging
 import wakeonlan
 
-sys.path.append('../')
+sys.path.append('src/samsungtvws/samsungtvws/')
 
 from samsungtvws import SamsungTVWS
 

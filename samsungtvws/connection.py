@@ -19,7 +19,6 @@ Copyright (C) 2019 Xchwarze
     Boston, MA  02110-1335  USA
 
 """
-import contextlib
 import json
 import logging
 import ssl
@@ -27,7 +26,6 @@ import threading
 import time
 from types import TracebackType
 from typing import Any, Callable, Dict, List, Optional, Union
-
 import websocket
 
 from . import exceptions, helper

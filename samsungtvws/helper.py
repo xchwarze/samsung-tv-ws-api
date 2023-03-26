@@ -20,6 +20,5 @@ def process_api_response(response: Union[str, bytes]) -> Dict[str, Any]:
     try:
         return json.loads(response)  # type:ignore[no-any-return]
     except json.JSONDecodeError:
-        raise exceptions.ResponseError(
-            "Failed to parse response from TV. Maybe feature not supported on this model"
+        print(f"Failed to parse response from TV, {response=}"
         )

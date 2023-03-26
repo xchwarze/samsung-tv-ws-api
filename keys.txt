@@ -1,0 +1,304 @@
+ Aspect Ratio
+    -------------------------------------------------------------------
+        KEY_ASPECT:                         Aspect Ratio
+        KEY_PICTURE_SIZE:                   Picture Size
+        KEY_4_3:                            Aspect Ratio 4:3
+        KEY_16_9:                           Aspect Ratio 16:9
+        KEY_EXT14:                          Aspect Ratio 3:4 (Alt)
+        KEY_EXT15:                          Aspect Ratio 16:9 (Alt)
+
+    Auto Arc Keys
+    -------------------------------------------------------------------
+        KEY_AUTO_ARC_C_FORCE_AGING
+        KEY_AUTO_ARC_CAPTION_ENG
+        KEY_AUTO_ARC_USBJACK_INSPECT
+        KEY_AUTO_ARC_RESET
+        KEY_AUTO_ARC_LNA_ON
+        KEY_AUTO_ARC_LNA_OFF
+        KEY_AUTO_ARC_ANYNET_MODE_OK
+        KEY_AUTO_ARC_ANYNET_AUTO_START
+        KEY_AUTO_ARC_CAPTION_ON
+        KEY_AUTO_ARC_CAPTION_OFF
+        KEY_AUTO_ARC_PIP_DOUBLE
+        KEY_AUTO_ARC_PIP_LARGE
+        KEY_AUTO_ARC_PIP_LEFT_TOP
+        KEY_AUTO_ARC_PIP_RIGHT_TOP
+        KEY_AUTO_ARC_PIP_LEFT_BOTTOM
+        KEY_AUTO_ARC_PIP_CH_CHANGE
+        KEY_AUTO_ARC_AUTOCOLOR_SUCCESS
+        KEY_AUTO_ARC_AUTOCOLOR_FAIL
+        KEY_AUTO_ARC_JACK_IDENT
+        KEY_AUTO_ARC_CAPTION_KOR
+        KEY_AUTO_ARC_ANTENNA_AIR
+        KEY_AUTO_ARC_ANTENNA_CABLE
+        KEY_AUTO_ARC_ANTENNA_SATELLITE
+
+    Channel Keys
+    -------------------------------------------------------------------
+        KEY_CHUP:                           Channel Up
+        KEY_CHDOWN:                         Channel Down
+        KEY_PRECH:                          Previous Channel
+        KEY_FAVCH:                          Favorite Channels
+        KEY_CH_LIST:                        Channel List
+        KEY_AUTO_PROGRAM:                   Auto Program
+        KEY_MAGIC_CHANNEL:                  Magic Channel
+
+    Color Keys
+    -------------------------------------------------------------------
+        KEY_GREEN:                          Green
+        KEY_YELLOW:                         Yellow
+        KEY_CYAN:                           Cyan
+        KEY_RED:                            Red
+
+    Direction Keys
+    -------------------------------------------------------------------
+        KEY_UP:                             Navigation Up
+        KEY_DOWN:                           Navigation Down
+        KEY_LEFT:                           Navigation Left
+        KEY_RIGHT:                          Navigation Right
+        KEY_RETURN:                         Navigation Return/Back
+        KEY_ENTER:                          Navigation Enter
+
+    Extended Keys
+    -------------------------------------------------------------------
+        KEY_EXT1
+        KEY_EXT2
+        KEY_EXT3
+        KEY_EXT4
+        KEY_EXT5
+        KEY_EXT6
+        KEY_EXT7
+        KEY_EXT8
+        KEY_EXT11
+        KEY_EXT12
+        KEY_EXT13
+        KEY_EXT16
+        KEY_EXT17
+        KEY_EXT18
+        KEY_EXT19
+        KEY_EXT20
+        KEY_EXT21
+        KEY_EXT22
+        KEY_EXT23
+        KEY_EXT24
+        KEY_EXT25
+        KEY_EXT26
+        KEY_EXT27
+        KEY_EXT28
+        KEY_EXT29
+        KEY_EXT30
+        KEY_EXT31
+        KEY_EXT32
+        KEY_EXT33
+        KEY_EXT34
+        KEY_EXT35
+        KEY_EXT36
+        KEY_EXT37
+        KEY_EXT38
+        KEY_EXT39
+        KEY_EXT40
+        KEY_EXT41
+
+    Input Keys
+    -------------------------------------------------------------------
+        KEY_SOURCE:                         Source
+        KEY_COMPONENT1:                     Component 1
+        KEY_COMPONENT2:                     Component 2
+        KEY_AV1:                            AV 1
+        KEY_AV2:                            AV 2
+        KEY_AV3:                            AV 3
+        KEY_SVIDEO1:                        S Video 1
+        KEY_SVIDEO2:                        S Video 2
+        KEY_SVIDEO3:                        S Video 3
+        KEY_HDMI:                           HDMI
+        KEY_HDMI1:                          HDMI 1
+        KEY_HDMI2:                          HDMI 2
+        KEY_HDMI3:                          HDMI 3
+        KEY_HDMI4:                          HDMI 4
+        KEY_FM_RADIO:                       FM Radio
+        KEY_DVI:                            DVI
+        KEY_DVR:                            DVR
+        KEY_TV:                             TV
+        KEY_ANTENA:                         Analog TV
+        KEY_DTV:                            Digital TV
+
+    Media Keys
+    -------------------------------------------------------------------
+        KEY_REWIND:                         Rewind
+        KEY_STOP:                           Stop
+        KEY_PLAY:                           Play
+        KEY_FF:                             Fast Forward
+        KEY_REC:                            Record
+        KEY_PAUSE:                          Pause
+        KEY_LIVE:                           Live
+        KEY_QUICK_REPLAY:                   fnKEY_QUICK_REPLAY
+        KEY_STILL_PICTURE:                  fnKEY_STILL_PICTURE
+        KEY_INSTANT_REPLAY:                 fnKEY_INSTANT_REPLAY
+
+    Menus
+    -------------------------------------------------------------------
+        KEY_MENU:                           Menu
+        KEY_TOPMENU:                        Top Menu
+        KEY_TOOLS:                          Tools
+        KEY_HOME:                           Home
+        KEY_CONTENTS:                       Contents
+        KEY_GUIDE:                          Guide
+        KEY_DISC_MENU:                      Disc Menu
+        KEY_DVR_MENU:                       DVR Menu
+        KEY_HELP:                           Help
+
+    Misc Keys
+    -------------------------------------------------------------------
+        KEY_PANNEL_CHDOWN:                  3D
+        KEY_ANYNET:                         AnyNet+
+        KEY_ESAVING:                        Energy Saving
+        KEY_SLEEP:                          Sleep Timer
+        KEY_DTV_SIGNAL:                     DTV Signal
+
+    Modes
+    -------------------------------------------------------------------
+        KEY_VCR_MODE:                       VCR Mode
+        KEY_CATV_MODE:                      CATV Mode
+        KEY_DSS_MODE:                       DSS Mode
+        KEY_TV_MODE:                        TV Mode
+        KEY_DVD_MODE:                       DVD Mode
+        KEY_STB_MODE:                       STB Mode
+        KEY_PCMODE:                         PC Mode
+
+    Number Keys
+    -------------------------------------------------------------------
+        KEY_1:                              Key1
+        KEY_2:                              Key2
+        KEY_3:                              Key3
+        KEY_4:                              Key4
+        KEY_5:                              Key5
+        KEY_6:                              Key6
+        KEY_7:                              Key7
+        KEY_8:                              Key8
+        KEY_9:                              Key9
+        KEY_0:                              Key0
+
+    OSD
+    -------------------------------------------------------------------
+        KEY_INFO:                           Info
+        KEY_CAPTION:                        Caption
+        KEY_CLOCK_DISPLAY:                  ClockDisplay
+        KEY_SETUP_CLOCK_TIMER:              Setup Clock
+        KEY_SUB_TITLE:                      Subtitle
+
+    Other Keys
+    -------------------------------------------------------------------
+        KEY_WHEEL_LEFT:                     Wheel Left
+        KEY_WHEEL_RIGHT:                    Wheel Right
+        KEY_ADDDEL:                         Add/Del
+        KEY_PLUS100:                        Plus 100
+        KEY_AD:                             AD
+        KEY_LINK:                           Link
+        KEY_TURBO:                          Turbo
+        KEY_CONVERGENCE:                    Convergence
+        KEY_DEVICE_CONNECT:                 Device Connect
+        KEY_11:                             Key 11
+        KEY_12:                             Key 12
+        KEY_FACTORY:                        Key Factory
+        KEY_3SPEED:                         Key 3SPEED
+        KEY_RSURF:                          Key RSURF
+        KEY_FF_:                            FF_
+        KEY_REWIND_:                        REWIND_
+        KEY_ANGLE:                          Angle
+        KEY_RESERVED1:                      Reserved 1
+        KEY_PROGRAM:                        Program
+        KEY_BOOKMARK:                       Bookmark
+        KEY_PRINT:                          Print
+        KEY_CLEAR:                          Clear
+        KEY_VCHIP:                          V Chip
+        KEY_REPEAT:                         Repeat
+        KEY_DOOR:                           Door
+        KEY_OPEN:                           Open
+        KEY_DMA:                            DMA
+        KEY_MTS:                            MTS
+        KEY_DNIe:                           DNIe
+        KEY_SRS:                            SRS
+        KEY_CONVERT_AUDIO_MAINSUB:          Convert Audio Main/Sub
+        KEY_MDC:                            MDC
+        KEY_SEFFECT:                        Sound Effect
+        KEY_PERPECT_FOCUS:                  PERPECT Focus
+        KEY_CALLER_ID:                      Caller ID
+        KEY_SCALE:                          Scale
+        KEY_MAGIC_BRIGHT:                   Magic Bright
+        KEY_W_LINK:                         W Link
+        KEY_DTV_LINK:                       DTV Link
+        KEY_APP_LIST:                       Application List
+        KEY_BACK_MHP:                       Back MHP
+        KEY_ALT_MHP:                        Alternate MHP
+        KEY_DNSe:                           DNSe
+        KEY_RSS:                            RSS
+        KEY_ENTERTAINMENT:                  Entertainment
+        KEY_ID_INPUT:                       ID Input
+        KEY_ID_SETUP:                       ID Setup
+        KEY_ANYVIEW:                        Any View
+        KEY_MS:                             MS
+        KEY_MORE
+        KEY_MIC
+        KEY_NINE_SEPERATE
+        KEY_AUTO_FORMAT:                    Auto Format
+        KEY_DNET:                           DNET
+
+    Panel Keys
+    -------------------------------------------------------------------
+        KEY_PANNEL_POWER
+        KEY_PANNEL_CHUP
+        KEY_PANNEL_VOLUP
+        KEY_PANNEL_VOLDOW
+        KEY_PANNEL_ENTER
+        KEY_PANNEL_MENU
+        KEY_PANNEL_SOURCE
+
+    Picture Mode
+    -------------------------------------------------------------------
+        KEY_PMODE:                          Picture Mode
+        KEY_PANORAMA:                       Picture Mode Panorama
+        KEY_DYNAMIC:                        Picture Mode Dynamic
+        KEY_STANDARD:                       Picture Mode Standard
+        KEY_MOVIE1:                         Picture Mode Movie
+        KEY_GAME:                           Picture Mode Game
+        KEY_CUSTOM:                         Picture Mode Custom
+        KEY_EXT9:                           Picture Mode Movie (Alt)
+        KEY_EXT10:                          Picture Mode Standard (Alt)
+
+    Picture in Picture
+    -------------------------------------------------------------------
+        KEY_PIP_ONOFF:                      PIP On/Off
+        KEY_PIP_SWAP:                       PIP Swap
+        KEY_PIP_SIZE:                       PIP Size
+        KEY_PIP_CHUP:                       PIP Channel Up
+        KEY_PIP_CHDOWN:                     PIP Channel Down
+        KEY_AUTO_ARC_PIP_SMALL:             PIP Small
+        KEY_AUTO_ARC_PIP_WIDE:              PIP Wide
+        KEY_AUTO_ARC_PIP_RIGHT_BOTTOM:      PIP Bottom Right
+        KEY_AUTO_ARC_PIP_SOURCE_CHANGE:     PIP Source Change
+        KEY_PIP_SCAN:                       PIP Scan
+
+    Power Keys
+    -------------------------------------------------------------------
+        KEY_POWEROFF:                       Power OFF
+        KEY_POWERON:                        Power On
+        KEY_POWER:                          Power Toggle
+
+    Teletext
+    -------------------------------------------------------------------
+        KEY_TTX_MIX:                        Teletext Mix
+        KEY_TTX_SUBFACE:                    Teletext Subface
+
+    Volume Keys
+    -------------------------------------------------------------------
+        KEY_VOLUP:                          Volume Up
+        KEY_VOLDOWN:                        Volume Down
+        KEY_MUTE:                           Mute
+
+    Zoom
+    -------------------------------------------------------------------
+        KEY_ZOOM_MOVE:                      Zoom Move
+        KEY_ZOOM_IN:                        Zoom In
+        KEY_ZOOM_OUT:                       Zoom Out
+        KEY_ZOOM1:                          Zoom 1
+        KEY_ZOOM2:                          Zoom 2
