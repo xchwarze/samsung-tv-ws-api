@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 
 def readme():
-    with open("README.md") as readme_file:
+    with open("src/samsungtvws/README.md") as readme_file:
         return readme_file.read()
 
 

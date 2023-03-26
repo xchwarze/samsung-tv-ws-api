@@ -57,18 +57,26 @@ class ChannelEmitCommand(SamsungTVCommand):
         app_id: str, app_type: str = "DEEP_LINK", meta_tag: str = ""
     ) -> "ChannelEmitCommand":
         return ChannelEmitCommand(
-            {
-                "event": "ed.apps.launch",
-                "to": "host",
-                "data": {
-                    # action_type: NATIVE_LAUNCH / DEEP_LINK
-                    # app_type == 2 ? 'DEEP_LINK' : 'NATIVE_LAUNCH',
-                    "action_type": app_type,
-                    "appId": app_id,
-                    "metaTag": meta_tag,
-                },
-            }
+                {
+                    "component": "main",
+                    "capability": "custom.launchapp",
+                    "command": "launchApp",
+                    "arguments": {"AppId": app_id},
+                }
         )
+        # return ChannelEmitCommand(
+        #     {
+        #         "event": "ed.apps.launch",
+        #         "to": "host",
+        #         "data": {
+        #             # action_type: NATIVE_LAUNCH / DEEP_LINK
+        #             # app_type == 2 ? 'DEEP_LINK' : 'NATIVE_LAUNCH',
+        #             "action_type": app_type,
+        #             "appId": app_id,
+        #             "metaTag": meta_tag,
+        #         },
+        #     }
+        # )
 
 
 class SendRemoteKey(RemoteControlCommand):

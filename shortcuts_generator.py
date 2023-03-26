@@ -24,7 +24,7 @@ HEADER = (
     "\t\tself.remote = remote\n"
 )
 
-KEYS_FILE = os.path.join(os.path.dirname(__file__), "keys.txt")
+KEYS_FILE = os.path.join(os.path.dirname(__file__), "src/samsungtvws/keys.txt")
 
 print(HEADER)
 with open(KEYS_FILE, "r") as file:
