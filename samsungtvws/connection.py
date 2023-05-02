@@ -138,7 +138,6 @@ class SamsungTVWSBaseConnection:
 
 
 class SamsungTVWSConnection(SamsungTVWSBaseConnection):
-
     connection: Optional[websocket.WebSocket]
     _recv_loop: Optional[threading.Thread]
 

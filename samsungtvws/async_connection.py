@@ -42,7 +42,6 @@ _LOGGING = logging.getLogger(__name__)
 
 
 class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
-
     connection: Optional[WebSocketClientProtocol]
     _recv_loop: Optional["asyncio.Task[None]"]
 
