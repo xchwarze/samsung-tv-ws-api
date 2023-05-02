@@ -121,6 +121,11 @@ class SamsungTVArt(SamsungTVWSConnection):
                 # Check sub event, reset event if it doesn't match
                 data = json.loads(response["data"])
                 sub_event = data.get("event", "*")
+                if sub_event == "error":
+                    raise exceptions.ResponseError(
+                        f"`{request_data['request']}` request failed "
+                        f"with error number {data['error_code']}"
+                    )
                 if sub_event != wait_for_sub_event:
                     event = None
 
