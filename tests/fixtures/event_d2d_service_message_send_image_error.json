@@ -1,0 +1,5 @@
+{
+  "data": "{\"id\":\"3d99854f-a8cf-4971-afd6-058b7151da16\",\"event\":\"error\",\"request_data\":\"{\\\"request\\\": \\\"send_image\\\", \\\"file_type\\\": \\\"png\\\", \\\"conn_info\\\": {\\\"d2d_mode\\\": \\\"socket\\\", \\\"connection_id\\\": 2825700145, \\\"id\\\": \\\"3d99854f-a8cf-4971-afd6-058b7151da16\\\"}, \\\"image_date\\\": \\\"2022:04:06 08:52:23\\\", \\\"matte_id\\\": \\\"modern_apricot\\\", \\\"file_size\\\": 16123877, \\\"id\\\": \\\"3d99854f-a8cf-4971-afd6-058b7151da16\\\"}\",\"error_code\":\"-1\",\"target_client_id\":\"ada14710-7e2e-47bb-885b-1715512a2d40\"}",
+  "event": "d2d_service_message",
+  "from": "77151bce-7dd2-4c4c-9b78-4d33b16fb1b"
+}
