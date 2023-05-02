@@ -37,6 +37,7 @@ from .event import (
     MS_CHANNEL_CONNECT_EVENT,
     MS_CHANNEL_UNAUTHORIZED,
 )
+from .helper import get_ssl_context
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -66,9 +67,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         _LOGGING.debug("WS url %s", url)
         connect_kwargs: Dict[str, Any] = {}
         if self._is_ssl_connection():
-            ssl_context = ssl.SSLContext()
-            ssl_context.verify_mode = ssl.CERT_NONE
-            connect_kwargs["ssl"] = ssl_context
+            connect_kwargs["ssl"] = get_ssl_context()
         connection = await connect(url, open_timeout=self.timeout, **connect_kwargs)
 
         event: Optional[str] = None
