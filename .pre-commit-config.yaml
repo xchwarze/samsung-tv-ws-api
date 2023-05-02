@@ -30,7 +30,7 @@ repos:
       - id: mypy
         additional_dependencies: [types-requests==2.27.11]
         exclude: setup|docs/|example/|tests/
-  - repo: https://gitlab.com/pycqa/flake8
+  - repo: https://github.com/pycqa/flake8
     rev: 4.0.1
     hooks:
       - id: flake8
