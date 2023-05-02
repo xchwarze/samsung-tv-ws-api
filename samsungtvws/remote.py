@@ -118,6 +118,7 @@ class SendRemoteKey(RemoteControlCommand):
         warnings.warn(
             "SendRemoteKey.hold_key is deprecated, please use SendRemoteKey.hold instead",
             DeprecationWarning,
+            stacklevel=2,
         )
         return SendRemoteKey.hold(key, seconds)
 

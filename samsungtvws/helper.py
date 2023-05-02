@@ -19,7 +19,7 @@ def process_api_response(response: Union[str, bytes]) -> Dict[str, Any]:
     _LOGGING.debug("Processing API response: %s", response)
     try:
         return json.loads(response)  # type:ignore[no-any-return]
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as err:
         raise exceptions.ResponseError(
             "Failed to parse response from TV. Maybe feature not supported on this model"
-        )
+        ) from err

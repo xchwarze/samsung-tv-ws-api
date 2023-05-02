@@ -55,10 +55,10 @@ class SamsungTVRest(connection.SamsungTVWSBaseConnection):
             else:
                 response = requests.get(url, timeout=self.timeout, verify=False)
             return helper.process_api_response(response.text)
-        except requests.ConnectionError:
+        except requests.ConnectionError as err:
             raise exceptions.HttpApiError(
                 "TV unreachable or feature not supported on this model."
-            )
+            ) from err
 
     def rest_device_info(self) -> Dict[str, Any]:
         _LOGGING.debug("Get device info via rest api")
