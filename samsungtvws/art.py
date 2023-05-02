@@ -352,7 +352,10 @@ class SamsungTVArt(SamsungTVWSConnection):
         assert response
         data = json.loads(response["data"])
 
-        return json.loads(data["matte_type_list"])
+        if "matte_type_list" in data:
+            return json.loads(data["matte_type_list"])
+        else "matte_list" in data:
+            return json.loads(data["matte_list"])
 
     def change_matte(self, content_id, matte_id):
         self._send_art_request(
