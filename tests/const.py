@@ -2,6 +2,8 @@
 
 with open("tests/fixtures/event_d2d_service_message_available.json") as file:
     D2D_SERVICE_MESSAGE_AVAILABLE_SAMPLE = file.read()
+with open("tests/fixtures/event_d2d_service_message_send_image_error.json") as file:
+    D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR = file.read()
 with open("tests/fixtures/event_ms_channel_connect.json") as file:
     MS_CHANNEL_CONNECT_SAMPLE = file.read()
 with open("tests/fixtures/event_ms_channel_disconnect.json") as file:
