@@ -11,6 +11,25 @@ forced_separate = [
 ]
 combine_as_imports = true
 
+[tool.ruff]
+ignore = [
+    "E501",
+    "F401",
+    "F403",
+]
+line-length = 79
+select = [
+    "B",
+    "B9",
+    "C",
+    "E",
+    "F",
+    "W",
+]
+
+[tool.ruff.mccabe]
+max-complexity = 18
+
 [tool.mypy]
 python_version = "3.6"
 check_untyped_defs = true
