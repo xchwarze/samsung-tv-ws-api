@@ -24,11 +24,11 @@ setup(
         "encrypted": ["cryptography>=35.0.0", "py3rijndael>=0.3.3"],
     },
     include_package_data=True,
-    license="MIT",
+    license="GPL-2.0",
     classifiers=[
         "Programming Language :: Python :: 3",
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GPL-2.0 License",
     ],
 )
