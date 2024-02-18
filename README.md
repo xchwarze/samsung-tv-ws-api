@@ -195,4 +195,4 @@ For complete list https://developer.samsung.com/smarttv/develop/specifications/t
 
 ## License
 
-GPL-2.0
+LGPL-3.0
