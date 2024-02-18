@@ -210,6 +210,10 @@ class SendRemoteKey(RemoteControlCommand):
     def blue() -> "SendRemoteKey":
         return SendRemoteKey.click("KEY_BLUE")
 
+    @staticmethod
+    def factory() -> "SendRemoteKey":
+        return SendRemoteKey.click("KEY_FACTORY")
+
 
 class SamsungTVWS(connection.SamsungTVWSConnection):
     def __init__(
