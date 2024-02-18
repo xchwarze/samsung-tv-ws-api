@@ -1,4 +1,5 @@
 """SamsungTV Encrypted."""
+
 import hashlib
 import logging
 import re

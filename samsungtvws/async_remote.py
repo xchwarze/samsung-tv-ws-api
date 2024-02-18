@@ -5,6 +5,7 @@ Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 
 SPDX-License-Identifier: LGPL-3.0
 """
+
 from asyncio import Future, TimeoutError as AsyncioTimeoutError
 import logging
 from typing import Any, Dict, List, Optional, Set

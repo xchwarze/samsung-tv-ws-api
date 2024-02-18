@@ -1,4 +1,5 @@
 """SamsungTV Encrypted."""
+
 import binascii
 
 from samsungtvws.encrypted.command import SamsungTVEncryptedCommand

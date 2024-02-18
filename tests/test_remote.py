@@ -1,4 +1,5 @@
 """Tests for remote module."""
+
 from unittest.mock import Mock, call, patch
 
 import pytest

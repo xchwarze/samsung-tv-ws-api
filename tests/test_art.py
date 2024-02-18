@@ -1,4 +1,5 @@
 """Tests for art module."""
+
 from unittest.mock import Mock, patch
 
 import pytest

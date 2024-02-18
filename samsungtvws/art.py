@@ -6,6 +6,7 @@ Copyright (C) 2021 Matthew Garrett <mjg59@srcf.ucam.org>
 
 SPDX-License-Identifier: LGPL-3.0
 """
+
 from datetime import datetime
 import json
 import logging

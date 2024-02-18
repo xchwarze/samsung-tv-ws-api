@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <service
-	xmlns="urn:dial-multiscreen-org:schemas:dial"
-	xmlns:atom="http://www.w3.org/2005/Atom">
-	<name>CloudPINPage</name>
-	<options allowStop="true"/>
-	<state>stopped</state>
-	<atom:link rel="run" href="run"/>
+        xmlns="urn:dial-multiscreen-org:schemas:dial"
+        xmlns:atom="http://www.w3.org/2005/Atom">
+    <name>CloudPINPage</name>
+    <options allowStop="true"/>
+    <state>stopped</state>
+    <atom:link rel="run" href="run"/>
 </service>

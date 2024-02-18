@@ -1,4 +1,5 @@
 """SamsungTV Encrypted."""
+
 import asyncio
 import contextlib
 import logging

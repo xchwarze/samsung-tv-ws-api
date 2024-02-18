@@ -5,6 +5,7 @@ Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 
 SPDX-License-Identifier: LGPL-3.0
 """
+
 import logging
 import time
 from typing import Any, Dict, List, Optional, Union

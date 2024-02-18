@@ -1,4 +1,5 @@
 """Tests for remote module."""
+
 import asyncio
 from unittest.mock import Mock, call, patch
 

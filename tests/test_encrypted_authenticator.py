@@ -1,4 +1,5 @@
 """SamsungTV Encrypted."""
+
 import aiohttp
 from aioresponses import aioresponses
 import pytest

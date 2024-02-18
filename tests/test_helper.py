@@ -1,4 +1,5 @@
 """Tests for helper module."""
+
 from samsungtvws.helper import process_api_response
 
 from .const import ED_APPS_LAUNCH_SAMPLE

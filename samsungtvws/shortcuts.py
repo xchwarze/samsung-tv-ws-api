@@ -5,6 +5,8 @@ Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 
 SPDX-License-Identifier: LGPL-3.0
 """
+
+
 class SamsungTVShortcuts:
     def __init__(self, remote):
         self.remote = remote
