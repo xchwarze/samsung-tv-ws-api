@@ -127,6 +127,33 @@ class SamsungTVWSBaseConnection:
 class SamsungTVWSConnection(SamsungTVWSBaseConnection):
     connection: Optional[websocket.WebSocket]
     _recv_loop: Optional[threading.Thread]
+    _keep_alive_thread: Optional[threading.Thread]
+    _keep_alive_interval: int = 300
+
+    def __init__(
+        self,
+        host: str,
+        *,
+        endpoint: str,
+        token: Optional[str] = None,
+        token_file: Optional[str] = None,
+        port: int = 8001,
+        timeout: Optional[float] = None,
+        key_press_delay: float = 1,
+        name: str = "SamsungTvRemote",
+    ):
+        super().__init__(
+            host,
+            null,
+            endpoint,
+            token,
+            token_file,
+            port,
+            timeout,
+            key_press_delay,
+            name,
+        )
+        self._should_keep_alive = True
 
     def __enter__(self) -> "SamsungTVWSConnection":
         return self
@@ -137,6 +164,7 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
+        self._should_keep_alive = False
         self.close()
 
     def open(self) -> websocket.WebSocket:
@@ -145,11 +173,12 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
             return self.connection
 
         url = self._format_websocket_url(self.endpoint)
-        sslopt = {"cert_reqs": ssl.CERT_NONE} if self._is_ssl_connection() else {}
-
         _LOGGING.debug("WS url %s", url)
+
         # Only for debug use!
         # websocket.enableTrace(True)
+
+        sslopt = {"cert_reqs": ssl.CERT_NONE} if self._is_ssl_connection() else {}
         connection = websocket.create_connection(
             url,
             self.timeout,
@@ -177,8 +206,9 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
             raise exceptions.ConnectionFailure(response)
 
         self._check_for_token(response)
-
         self.connection = connection
+        self.start_keep_alive()
+
         return connection
 
     def start_listening(
@@ -189,7 +219,6 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
             raise exceptions.ConnectionFailure("Connection already exists")
 
         self.connection = self.open()
-
         self._recv_loop = threading.Thread(
             target=self._do_start_listening, args=(callback, self.connection)
         )
@@ -205,6 +234,7 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
             data = connection.recv()
             if not data:
                 return
+
             response = helper.process_api_response(data)
             event = response.get("event", "*")
             self._websocket_event(event, response)
@@ -212,14 +242,39 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
                 callback(event, response)
 
     def close(self) -> None:
+        """Stops the keepalive thread and closes the connection."""
         if self.connection:
             self.connection.close()
+
             if self._recv_loop:
                 self._recv_loop.join()
                 self._recv_loop = None
 
+        self._should_keep_alive = False
         self.connection = None
         _LOGGING.debug("Connection closed.")
+
+    def start_keep_alive(self):
+        """Starts a thread to send keepalive messages."""
+        if not self._keep_alive_thread or not self._keep_alive_thread.is_alive():
+            self._keep_alive_thread = threading.Thread(
+                target=self._send_keep_alive, daemon=True
+            )
+            self._keep_alive_thread.start()
+
+    def _send_keep_alive(self):
+        """Sends keepalive messages periodically."""
+        while self._should_keep_alive and self.connection:
+            try:
+                _LOGGING.debug("Sending keepalive message.")
+                self.connection.ping("keepalive")
+                time.sleep(self._keep_alive_interval)
+            except websocket.WebSocketException as error:
+                _LOGGING.debug(f"Failed to send keepalive: {error}")
+            except Exception as error:
+                _LOGGING.debug(f"Unexpected exception in keepalive: {error}")
+                self.close()
+                break
 
     def send_command(
         self,
