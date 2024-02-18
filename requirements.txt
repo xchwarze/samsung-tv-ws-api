@@ -5,6 +5,7 @@ requests>=2.21.0
 # async
 websockets>=10.2
 aiohttp>=3.8.1
+async_timeout>=4.0.3
 
 # encrypted
 cryptography>=35.0.0
