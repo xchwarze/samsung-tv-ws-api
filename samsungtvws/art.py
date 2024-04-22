@@ -238,7 +238,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         assert response
         return json.loads(response["data"])
 
-    def get_color_temperature(self, value):
+    def set_color_temperature(self, value):
         response = self._send_art_request(
             {"request": "set_color_temperature", "value": value},
             wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
