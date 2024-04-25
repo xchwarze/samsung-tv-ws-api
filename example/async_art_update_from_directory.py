@@ -175,7 +175,6 @@ class monitor_and_display:
                     self.files_changed = False
             except Exception as e:
                 self.log.warning("error in select_artwork: {}".format(e))
-                self.log.exception(e)
                 self.files_changed = False
             await asyncio.sleep(self.period)
             
