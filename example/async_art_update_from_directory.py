@@ -169,12 +169,13 @@ class monitor_and_display:
             try:
                 if self.files_changed and self.tv.art_mode and self.uploaded_files.keys():
                     self.start = time.time()
-                    content_id = random.choice([v['content_id'] for v in self.uploaded_files.values()].extend(self.fav))
+                    content_id = random.choice([v['content_id'] for v in self.uploaded_files.values()] + [f['content_id'] for f in self.fav])
                     self.log.info('selecting tv art: content_id: {}'.format(content_id))
                     await self.tv.select_image(content_id)
                     self.files_changed = False
             except Exception as e:
                 self.log.warning("error in select_artwork: {}".format(e))
+                self.log.exception(e)
                 self.files_changed = False
             await asyncio.sleep(self.period)
             
