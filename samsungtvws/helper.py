@@ -38,6 +38,7 @@ def process_api_response(response: Union[str, bytes]) -> Dict[str, Any]:
 def get_ssl_context() -> ssl.SSLContext:
     global _SSL_CONTEXT
     if not _SSL_CONTEXT:
-        _SSL_CONTEXT = ssl.SSLContext()
+        _SSL_CONTEXT = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        _SSL_CONTEXT.check_hostname = False
         _SSL_CONTEXT.verify_mode = ssl.CERT_NONE
     return _SSL_CONTEXT

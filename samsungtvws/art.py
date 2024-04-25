@@ -12,7 +12,6 @@ import json
 import logging
 import random
 import socket
-import ssl
 from typing import Any, Dict, List, Optional, Union
 import uuid
 
@@ -23,6 +22,7 @@ from .command import SamsungTVCommand
 from .connection import SamsungTVWSConnection
 from .event import D2D_SERVICE_MESSAGE_EVENT, MS_CHANNEL_READY_EVENT
 from .rest import SamsungTVRest
+from .helper import get_ssl_context
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -265,20 +265,8 @@ class SamsungTVArt(SamsungTVWSConnection):
         assert response
         data = json.loads(response["data"])
         conn_info = json.loads(data["conn_info"])
-        secure = conn_info.get('secured', False)
-
         art_socket_raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if secure:
-            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
-            ssl_context.options = ssl.OP_IGNORE_UNEXPECTED_EOF  #avoids unexpected EOF error in handshake
-            ssl_context.maximum_version = ssl.TLSVersion.TLSv1_2
-            ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-            ssl_context.set_ciphers('ALL')
-            art_socket = ssl_context.wrap_socket(art_socket_raw)
-        else:
-            art_socket = art_socket_raw
+        art_socket = get_ssl_context().wrap_socket(art_socket_raw) if conn_info.get('secured', False) else art_socket_raw
         art_socket.connect((conn_info["ip"], int(conn_info["port"])))
         total_num_thumbnails = 1
         current_thumb = -1
@@ -358,8 +346,6 @@ class SamsungTVArt(SamsungTVWSConnection):
         assert response
         data = json.loads(response["data"])
         conn_info = json.loads(data["conn_info"])
-        secure = conn_info.get('secured', False)
-
         header = json.dumps(
             {
                 "num": 0,
@@ -373,18 +359,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
 
         art_socket_raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if secure:
-            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
-            ssl_context.options = ssl.OP_IGNORE_UNEXPECTED_EOF  #avoids unexpected EOF error in handshake
-            ssl_context.maximum_version = ssl.TLSVersion.TLSv1_2
-            ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-            ssl_context.set_ciphers('ALL')
-            art_socket = ssl_context.wrap_socket(art_socket_raw)
-        else:
-            art_socket = art_socket_raw
-            
+        art_socket = get_ssl_context().wrap_socket(art_socket_raw) if conn_info.get('secured', False) else art_socket_raw  
         art_socket.connect((conn_info["ip"], int(conn_info["port"])))
         art_socket.send(len(header).to_bytes(4, "big"))
         art_socket.send(header.encode("ascii"))
