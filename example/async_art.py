@@ -109,7 +109,7 @@ async def main():
             '''
             await asyncio.sleep(15)
         except exceptions.ResponseError as e:
-           logging.warning('ERROR: {}'.format(e)) 
+            logging.warning('ERROR: {}'.format(e)) 
 
     await tv.close()
 
