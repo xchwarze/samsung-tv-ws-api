@@ -138,3 +138,7 @@ dmypy.json
 .idea/
 .vscode/
 _development/
+
+# examples
+example/uploaded_files.json
+example/images/

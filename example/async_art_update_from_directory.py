@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 # fully async example program to monitor a folder and upload/display on Frame TV
+# NOTE: install Pillow (pip install Pillow) to automatically syncronize art on TV wth uploaded_files.json.
 
 import sys
 import logging
 import os
+import io
 import random
 import json
 import asyncio
 import time
 import argparse
+HAVE_PIL = False
+try:
+    from PIL import Image, ImageFilter, ImageChops
+    HAVE_PIL=True
+except ImportError:
+    pass
 
 from samsungtvws.async_art import SamsungTVAsyncArt
 
@@ -22,15 +30,17 @@ def parseargs():
     # Add command line argument parsing
     parser = argparse.ArgumentParser(description='Async Upload images to Samsung TV.')
     parser.add_argument('ip', action="store", type=str, default=None, help='ip address of TV (default: %(default)s))')
-    parser.add_argument('--folder', action="store", type=str, default="./images", help='folder to load images from (default: %(default)s))')
-    parser.add_argument('--update', action="store", type=int, default=0, help='random update period (mins) 0=off (default: %(default)s))')
+    parser.add_argument('-f','--folder', action="store", type=str, default="./images", help='folder to load images from (default: %(default)s))')
+    parser.add_argument('-u','--update', action="store", type=int, default=0, help='random update period (mins) 0=off (default: %(default)s))')
+    parser.add_argument('-c','--check', action="store", type=int, default=5, help='how often to check for new art (default: %(default)s))')
+    parser.add_argument('-s','--sync', action='store_false', default=True, help='automatically syncronize (needs Pil library) (default: %(default)s))')
     parser.add_argument('-F','--favourite', action='store_true', default=False, help='include favourites in rotation (default: %(default)s))')
     parser.add_argument('-D','--debug', action='store_true', default=False, help='Debug mode (default: %(default)s))')
     return parser.parse_args()
     
 class monitor_and_display:
     
-    def __init__(self, ip, folder, period=5, random_update=1440, include_fav=False):
+    def __init__(self, ip, folder, period=5, random_update=1440, include_fav=False, sync=True):
         self.log = logging.getLogger('Main.'+__class__.__name__)
         self.debug = self.log.getEffectiveLevel() <= logging.DEBUG
         self.ip = ip
@@ -38,9 +48,11 @@ class monitor_and_display:
         self.period = period
         self.random_update = random_update*60   #minutes
         self.include_fav = include_fav
+        self.sync = sync
         self.upload_list_path = './uploaded_files.json'
         self.uploaded_files = {}
         self.fav = []
+        self.api_version = 0
         self._exit = False
         self.start = time.time()
         self.files_changed = False
@@ -60,8 +72,75 @@ class monitor_and_display:
         self.log.info('SIGINT/SIGTERM received, exiting')
         os._exit(1)
         
+    def update_uploaded_files(self, filename, content_id):
+        self.uploaded_files[filename] = {'content_id': content_id, 'modified':self.get_last_updated(filename)}
+        
+    async def get_api_version(self):
+        api_version = await self.tv.get_api_version()
+        self.api_version = 0 if int(api_version.replace('.','')) < 4000 else 1
+        
+    async def get_thumbnails(self, content_ids):
+        thumbnails = {}
+        if self.api_version == 0:
+            thumbnails = {content_id:await self.tv.get_thumbnail(content_id) for content_id in content_ids}
+        elif self.api_version == 1:
+            thumbnails = {os.path.splitext(k)[0]:v for k,v in (await self.tv.get_thumbnail_list(content_ids)).items()}
+        self.log.info('got {} thumbnails'.format(len(thumbnails)))
+        return thumbnails
+        
+    def load_files(self):
+        files = [f for f in os.listdir(self.folder) if os.path.isfile(os.path.join(self.folder, f))]
+        self.log.info('loading files: {}'.format(files))
+        files_images = {file:Image.open(os.path.join(self.folder, file)) for file in files}
+        return files_images
+        
+    def are_images_equal(self, img1, img2):
+        '''
+        rough check if images are similar (avoid numpy which is faster)
+        '''
+        img1 = img1.convert('L').resize((384, 216)).filter(ImageFilter.GaussianBlur(radius=2))
+        img2 = img2.convert('L').resize((384, 216)).filter(ImageFilter.GaussianBlur(radius=2))
+        img3 = ImageChops.subtract(img1, img2)
+        diff = sum(list(img3.getdata()))/(384*216)  #normalize
+        equal_content = diff <= 0.2                 #pick a threshhold
+        self.log.debug('equal_content: {}, diff: {}'.format(equal_content, diff))
+        return equal_content
+        
+    async def initialize(self):
+        await self.get_api_version()
+        self.uploaded_files = self.read_upload_list()
+        if HAVE_PIL and self.sync:
+            self.log.info('reinitializing uploaded files list using PIL')
+            files_images = self.load_files()
+            if files_images:
+                self.uploaded_files = {}
+                self.log.info('downloading My Photos thumbnails')
+                my_photos = [v['content_id'] for v in await self.tv.available('MY-C0002')]
+                my_photos_thumbnails = await self.get_thumbnails(my_photos)
+                self.log.info('checking thumbnails against {} files, please wait...'.format(len(files_images)))
+                count = 0
+                for filename, file_data in files_images.items():
+                    for i, (my_content_id, my_data) in enumerate(my_photos_thumbnails.items()):
+                        percent = (count*100)//(len(files_images)*len(my_photos_thumbnails))
+                        if count % 10 == 0:
+                            self.log.info('{}% complete'.format(percent))
+                        self.log.debug('checking: {} against {}, thumbnail: {} bytes'.format(filename, my_content_id, len(my_data)))
+                        if self.are_images_equal(Image.open(io.BytesIO(my_data)), file_data):
+                            self.log.info('found uploaded file: {} as {}'.format(filename, my_content_id))
+                            self.update_uploaded_files(filename, my_content_id)
+                            count+=len(my_photos_thumbnails)-i
+                            break
+                        count+=1
+                self.log.info('100% complete')
+                self.write_upload_list()
+            else:
+                self.log.info('no files, using origional uploaded files list')
+        else:
+            self.log.warning('No PIL library, or syncing disabled, not reinitializing uploaded files list')
+        
+        
     async def do_random_update(self):
-        if self.random_update > 0 and len(self.uploaded_files.keys()) > 1 and time.time() - self.start > self.random_update:
+        if self.random_update > 0 and (len(self.uploaded_files.keys()) > 1 or self.include_fav) and time.time() - self.start > self.random_update:
             self.log.info('doing random update, after {} minutes'.format(self.random_update//60))
             if self.include_fav:
                 self.log.info('updating favourites')
@@ -96,15 +175,15 @@ class monitor_and_display:
             file_data, file_type = self.read_file(path)
             if file_data and self.tv.art_mode:
                 self.log.info('uploading : {} to tv'.format(filename))
-                self.uploaded_files[filename] = {'content_id': await self.tv.upload(file_data, file_type=file_type), 'modified': self.get_last_updated(filename)}
+                self.update_uploaded_files(filename, await self.tv.upload(file_data, file_type=file_type))
                 self.log.info('uploaded : {} to tv as {}'.format(filename, self.uploaded_files[filename]['content_id']))
                 self.write_upload_list()
             
-    async def delete_files_from_tv(self, files):
+    async def delete_files_from_tv(self, content_ids):
         if self.tv.art_mode:
-            self.log.info('removing files from tv : {}'.format(files))
-            await self.tv.delete_list(files)
-            self.uploaded_files = {k:v for k, v in self.uploaded_files.items() if v.get('content_id') is not None and v.get('content_id') not in files}
+            self.log.info('removing files from tv : {}'.format(content_ids))
+            await self.tv.delete_list(content_ids)
+            self.uploaded_files = {k:v for k, v in self.uploaded_files.items() if v.get('content_id') is not None and v.get('content_id') not in content_ids}
             self.write_upload_list()
         
     def get_last_updated(self, filename):
@@ -112,10 +191,10 @@ class monitor_and_display:
         
     async def remove_files(self, files):
         TV_files = [f['content_id'] for f in await self.tv.available('MY-C0002')]
-        files_removed = [v.get('content_id') for k, v in self.uploaded_files.items() if (v.get('content_id') is not None and k not in files)]
+        content_ids_removed = [v.get('content_id') for k, v in self.uploaded_files.items() if (v.get('content_id') is not None and k not in files)]
         #delete images from tv
-        if files_removed:
-            await self.delete_files_from_tv(files_removed)
+        if content_ids_removed:
+            await self.delete_files_from_tv(content_ids_removed)
             self.files_changed = True
             
     async def add_files(self, files):
@@ -163,13 +242,13 @@ class monitor_and_display:
             await asyncio.sleep(self.period)
 
     async def select_artwork(self):
-        self.uploaded_files = self.read_upload_list()
+        await self.initialize()
         asyncio.create_task(self.monitor_dir())
         while not self._exit:
             try:
-                if self.files_changed and self.tv.art_mode and self.uploaded_files.keys():
+                if self.files_changed and self.tv.art_mode and (self.uploaded_files.keys() or self.include_fav):
                     self.start = time.time()
-                    content_id = random.choice([v['content_id'] for v in self.uploaded_files.values()] + [f['content_id'] for f in self.fav])
+                    content_id = random.choice(list({v['content_id'] for v in self.uploaded_files.values()}.union({f['content_id'] for f in self.fav})))
                     self.log.info('selecting tv art: content_id: {}'.format(content_id))
                     await self.tv.select_image(content_id)
                     self.files_changed = False
@@ -186,7 +265,12 @@ async def main():
         log.setLevel(logging.DEBUG)
         log.info('Debug mode')
     
-    mon = monitor_and_display(args.ip, os.path.normpath(args.folder), period=5, random_update=args.update, include_fav=args.favourite)
+    mon = monitor_and_display(  args.ip,
+                                os.path.normpath(args.folder),
+                                period=args.check,
+                                random_update=args.update,
+                                include_fav=args.favourite,
+                                sync=args.sync)
     await mon.start_monitoring()
 
 

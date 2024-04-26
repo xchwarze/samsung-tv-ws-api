@@ -61,7 +61,7 @@ async def main():
                 if thumbs:                                          #dictionary of content_id (with file type extension) and binary data
                     thumb = list(thumbs.values())[0]
                     content_id = list(thumbs.keys())[0]
-            logging.info('got thumbnail for {} binary data length: {}'.format(content_id, len(thumb)))    
+            logging.info('got thumbnail for {} binary data length: {}'.format(content_id, len(thumb)))
 
             # Turn on art mode (FrameTV)
             #await tv.set_artmode('on')
