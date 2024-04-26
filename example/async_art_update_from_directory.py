@@ -136,8 +136,7 @@ class monitor_and_display:
             else:
                 self.log.info('no files, using origional uploaded files list')
         else:
-            self.log.warning('No PIL library, or syncing disabled, not reinitializing uploaded files list')
-        
+            self.log.warning('No PIL library, or syncing disabled, not reinitializing uploaded files list')  
         
     async def do_random_update(self):
         if self.random_update > 0 and (len(self.uploaded_files.keys()) > 1 or self.include_fav) and time.time() - self.start > self.random_update:
