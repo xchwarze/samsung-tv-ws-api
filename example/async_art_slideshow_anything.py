@@ -7,7 +7,7 @@ Start the program with tv ip and -u set to however many minutes you want for the
 A 'slideshow' folder will be created, whith two sub folders 'my_photos' and 'favourites'
 The 'my_photos' and 'favourites' will be syncronized with the TV folders every 60 seconds.
 Do not put any other files in these folders, as they will be deleted. Add or remove from them using the smarthings app,
-and wait for the folder to syncronisze.
+and wait for the folder to syncronize.
 The 'slideshow' folder will initially be populated with the contents of the 'favourites' folder on first run, or if you delete all the files.
 
 To choose what artwork to be displayed in the slideshow, COPY files from 'favourites' or 'my_photos' to 'slideshow'
