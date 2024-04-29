@@ -326,7 +326,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         writer.close()
         return thumbnail_data_dict
 
-    async def get_thumbnail(self, content_id):
+    async def get_thumbnail(self, content_id, as_dict = False):
         data = await self._send_art_request(
             {
                 "request": "get_thumbnail",
@@ -346,7 +346,8 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         thumbnail_data_len = int(header["fileLength"])
         thumbnail_data = await reader.readexactly(thumbnail_data_len)
         writer.close()
-        return thumbnail_data
+        filename = "{}.{}".format(header["fileID"], header["fileType"])
+        return {filename: thumbnail_data} if as_dict else thumbnail_data
 
     async def upload(self, file, matte="shadowbox_polar", portrait_matte="shadowbox_polar", file_type="png", date=None):
         '''
