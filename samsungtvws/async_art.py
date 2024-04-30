@@ -120,14 +120,15 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
 
     async def _send_art_request(
         self,
-        request_data: Dict[str, Any]
+        request_data: Dict[str, Any],
+        wait_for_event: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         if not request_data.get("id"):
             request_data["id"] = self.get_uuid()            #old api
         request_data["request_id"] = request_data["id"]     #new api
-        self.pending_requests[request_data["id"]] = asyncio.Future()
+        self.pending_requests[wait_for_event or request_data["id"]] = asyncio.Future()
         await self.send_command(ArtChannelEmitCommand.art_app_request(request_data))
-        return await self.wait_for_response(request_data["id"])
+        return await self.wait_for_response(wait_for_event or request_data["id"])
         
     async def process_event(self, event=None, response=None):
         if event == D2D_SERVICE_MESSAGE_EVENT:
@@ -141,7 +142,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
                 self.art_mode = False
             elif 'wakeup' in sub_event:
                 asyncio.create_task(self.get_artmode())
-    
+                
             request_id = data.get('request_id', data.get('id'))
             try:
                 if request_id in self.pending_requests.keys():
@@ -218,6 +219,28 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         )
         assert data
         return data
+        
+    async def set_favourite(self, content_id, status='on'):
+        data = await self._send_art_request(
+            {   "request": "change_favorite",
+                "content_id": content_id,
+                "status": status},
+            wait_for_event = "favorite_changed"
+        )
+        assert data
+        return data
+        
+    async def get_artmode_settings(self, setting=''):
+        '''
+        setting can be any of 'brightness', 'color_temperature', 'motion_sensitivity',
+        'motion_timer', or 'brightness_sensor_setting'
+        '''
+        data = await self._send_art_request(
+            {"request": "get_artmode_settings"}
+        )
+        assert data
+        data = json.loads(data['data'])
+        return next(iter(item for item in data if item['item'] == setting), data)
 
     async def get_auto_rotation_status(self):
         data = await self._send_art_request(
@@ -269,6 +292,8 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         data = await self._send_art_request(
             {"request": "get_brightness"}
         )
+        if not data:
+            data = await self.get_artmode_settings('brightness')
         assert data
         return data
 
@@ -283,6 +308,8 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         data = await self._send_art_request(
             {"request": "get_color_temperature"}
         )
+        if not data:
+            data = await self.get_artmode_settings('color_temperature')
         assert data
         return data
 

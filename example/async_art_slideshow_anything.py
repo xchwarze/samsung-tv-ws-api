@@ -206,7 +206,8 @@ class slideshow:
                     self.log.info('artmode or tv is off')
             except Exception as e:
                 self.log.warning("error in select_artwork: {}".format(e))
-                self.log.exception(e)
+                if self.debug:
+                    self.log.exception(e)
             await asyncio.sleep(60)
             
 async def main():

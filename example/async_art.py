@@ -101,12 +101,28 @@ async def main():
                 logging.info('deleted from tv: {}'.format([content_id]))
             '''
             
-            #monitor armode status
+            #set favourite.  NOTE on 2022+ TV's you can only set favourites on artstore artwork
+            '''
+            info = await tv.set_favourite("SAM-S10000925", "off")
+            logging.info('current favourite status: {}'.format(info))
+            await asyncio.sleep(5)
+            info = await tv.set_favourite("SAM-S10000925", "on")
+            logging.info('current favourite status: {}'.format(info))
+            '''
+            
+            #get artmode settings (brigtness, colour temperature, sensor settings etc)
+            info = await tv.get_artmode_settings('brightness')
+            logging.info('current brightness setting: {}'.format(info))
+            info = await tv.get_artmode_settings()
+            logging.info('current artmode settings: {}'.format(info))
+            
+            #monitor artmode status
             '''
             while True:
                 logging.info('art mode is on: {}'.format(tv.art_mode))
                 await asyncio.sleep(5)
             '''
+            
             await asyncio.sleep(15)
         except exceptions.ResponseError as e:
             logging.warning('ERROR: {}'.format(e)) 
