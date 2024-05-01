@@ -16,16 +16,13 @@ If you delete files from your TV, or un-favourite them, the corresponding files 
 
 Only artwork in the 'slideshow' folder will be shown on the TV.
 
-The sequence is random, and the time period starts over, everytime you start the program, so leave it running!
+The sequence is random, and the time period will resume automatically when the program is restarted
 '''
 
-import sys
 import logging
 import os
 import shutil
-import io
 import random
-import json
 import asyncio
 import time
 import argparse
@@ -113,9 +110,28 @@ class slideshow:
             self.log.info('initializing slideshow from favourites')
             for file in self.get_files('favourites'):
                 shutil.copy2(os.path.join(self.categories['favourites']['dir'], file), self.folder)
+        await self.set_start()
+                
+    async def set_start(self):
+        content_id = (await self.tv.get_current()).get('content_id')
+        self.log.debug('got current artwork: {}'.format(content_id))
+        self.start = max(time.time() - self.random_update*60, self.get_last_updated(self.get_filename(content_id)))
               
     def get_files(self, cat):
         return self.get_file_set(self.folder if cat=='slideshow' else self.categories[cat]['dir'])
+        
+    def get_filename(self, content_id, cat='favourites'):
+        return next(iter(f for f in self.get_files(cat) if self.get_content_ids(f) == content_id), None)
+        
+    def get_last_updated(self, filename):
+        if filename:
+            return os.path.getmtime(os.path.join(self.folder, filename))
+        return time.time()
+        
+    def set_last_updated(self, filename):
+        if filename:
+            path = os.path.join(self.folder, filename)
+            os.utime(path, (os.path.getctime(path), time.time()))
         
     async def update_thmbnails(self, cat):
         self.log.info('checking thumbnails {}'.format(cat))
@@ -163,6 +179,7 @@ class slideshow:
             if slideshow_files:
                 content_id = random.choice(slideshow_files)
                 self.log.info('selecting tv art: content_id: {}'.format(content_id))
+                self.set_last_updated(self.get_filename(content_id))
                 await self.tv.select_image(content_id)
             return True
         return False
