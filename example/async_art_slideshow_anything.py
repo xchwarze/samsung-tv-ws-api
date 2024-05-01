@@ -194,7 +194,7 @@ class slideshow:
         start = True
         while not self._exit:
             try:
-                if not self.tv.connection.open:
+                if not self.tv.is_alive():
                     self.log.warning('reconnecting websocket')
                     await self.tv.start_listening()
                 if self.tv.art_mode:
@@ -216,7 +216,7 @@ async def main():
     args = parseargs()
     if args.debug:
         log.setLevel(logging.DEBUG)
-        log.info('Debug mode')
+    log.debug('Debug mode')
     
     mon = slideshow(args.ip,
                     os.path.normpath(args.folder),
@@ -225,7 +225,6 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):

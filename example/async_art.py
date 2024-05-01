@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE old api is 2021 and earlier Frame TV's, new api is 2022+ Frame TV's
 
 import os
 import asyncio
@@ -15,6 +16,9 @@ def parseargs():
     parser = argparse.ArgumentParser(description='Example async art Samsung Frame TV.')
     parser.add_argument('ip', action="store", type=str, default=None, help='ip address of TV (default: %(default)s))')
     return parser.parse_args()
+    
+async def image_callback(event, response):
+    logging.info('CALLBACK: image callback: {}, {}'.format(event, response))
 
 async def main():
     args = parseargs()
@@ -27,24 +31,30 @@ async def main():
     
     if supported:
         try:
-            #is tv on
+            #is tv on (calls tv rest api)
             tv_on = await tv.on()
             logging.info('tv is on: {}'.format(tv_on))
             
             #is art mode on
-            #art_mode = await tv.get_artmode()
-            art_mode = tv.art_mode
+            #art_mode = await tv.get_artmode()                  #calls websocket command to determine status
+            art_mode = tv.art_mode                              #passive, listens for websocket messgages to determine art mode status
             logging.info('art mode is on: {}'.format(art_mode))
             
-            #check both with one call
+            #check both with one call (calls tv rest api)
             logging.info('tv is on and in art mode: {}'.format(await tv.is_artmode()))
             
             #get api version 4.3.4.0 is new api, 2.03 is old api
             api_version = await tv.get_api_version()
             logging.info('api version: {}'.format(api_version))
             
-            # Request all art
+            #example callbacks
+            tv.set_callback('slideshow_image_changed', image_callback)      #new api
+            tv.set_callback('auto_rotation_image_changed', image_callback)  #old api
+            tv.set_callback('image_selected', image_callback)
+            
+            # Request list of all art
             info = await tv.available()
+            #info = await tv.available('MY-C0002')                  #gets list of uploaded art, MY-C0004 is favourites
             logging.info('artwork available on tv: {}'.format(info))
 
             # Request current art
@@ -55,16 +65,19 @@ async def main():
             #get thumbnail for current artwork
             thumb = b''
             if int(api_version.replace('.','')) < 4000:             #check api version number, and use correct api call
-                thumb = await tv.get_thumbnail(content_id)
+                #thumb = await tv.get_thumbnail(content_id)         #old api, just gets binary data
+                thumbs = await tv.get_thumbnail(content_id, True)   #old api, gets thumbs in same format as new api
             else:
                 thumbs = await tv.get_thumbnail_list(content_id)    #list of content_id's or single content_id
-                if thumbs:                                          #dictionary of content_id (with file type extension) and binary data
-                    thumb = list(thumbs.values())[0]
-                    content_id = list(thumbs.keys())[0]
+            if thumbs:                                              #dictionary of content_id (with file type extension) and binary data
+                thumb = list(thumbs.values())[0]
+                content_id = list(thumbs.keys())[0]
             logging.info('got thumbnail for {} binary data length: {}'.format(content_id, len(thumb)))
 
-            # Turn on art mode (FrameTV)
+            # Turn on art mode
             #await tv.set_artmode('on')
+            # Turn of art mode (tv ON and playing)
+            #await tv.set_artmode('off')
             
             #get slideshow status, try new api, fall back to old
             '''
@@ -111,7 +124,8 @@ async def main():
             '''
             
             #get artmode settings (brigtness, colour temperature, sensor settings etc)
-            info = await tv.get_artmode_settings('brightness')
+            info = await tv.get_artmode_settings('brightness')              #new api
+            #info = tv.get_brightness()                                     #old api
             logging.info('current brightness setting: {}'.format(info))
             info = await tv.get_artmode_settings()
             logging.info('current artmode settings: {}'.format(info))

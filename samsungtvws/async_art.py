@@ -70,6 +70,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         self.art_mode = None
         self.session = None
         self.pending_requests = {}
+        self.callbacks = {}
 
     async def open(self):
         await super().open()
@@ -143,6 +144,11 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
             elif 'wakeup' in sub_event:
                 asyncio.create_task(self.get_artmode())
                 
+            if sub_event in self.callbacks.keys():
+                awaitable = self.callbacks[sub_event](event, response)
+                if awaitable:
+                    asyncio.create_task(awaitable)
+                
             request_id = data.get('request_id', data.get('id'))
             try:
                 if request_id in self.pending_requests.keys():
@@ -151,6 +157,12 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
                     self.pending_requests[sub_event].set_result(response)
             except asyncio.exceptions.InvalidStateError:    #already completed
                 pass
+                
+    def set_callback(self, trigger, callback=None):
+        if not callback:
+            self.callbacks.pop(trigger, None)
+        else:
+            self.callbacks[trigger] = callback
             
     def get_session(self):
         if self.session is None or self.session.closed:
