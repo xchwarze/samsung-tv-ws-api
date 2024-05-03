@@ -365,28 +365,33 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         writer.close()
         return thumbnail_data_dict
 
-    async def get_thumbnail(self, content_id, as_dict = False):
-        data = await self._send_art_request(
-            {
-                "request": "get_thumbnail",
-                "content_id": content_id,
-                "conn_info": {
-                    "d2d_mode": "socket",
-                    "connection_id": random.randrange(4 * 1024 * 1024 * 1024),
-                    "id": self.get_uuid()
+    async def get_thumbnail(self, content_id_list=[], as_dict = False):
+        if isinstance(content_id_list, str):
+            content_id_list=[content_id_list]
+        thumbnail_data_dict = {}
+        for content_id in content_id_list:
+            data = await self._send_art_request(
+                {
+                    "request": "get_thumbnail",
+                    "content_id": content_id,
+                    "conn_info": {
+                        "d2d_mode": "socket",
+                        "connection_id": random.randrange(4 * 1024 * 1024 * 1024),
+                        "id": self.get_uuid()
+                    }
                 }
-            }
-        )
-        assert data
-        conn_info = json.loads(data["conn_info"])
-        reader, writer = await asyncio.open_connection(conn_info['ip'], int(conn_info['port']))
-        header_len = int.from_bytes(await reader.readexactly(4), "big")
-        header = json.loads(await reader.readexactly(header_len))
-        thumbnail_data_len = int(header["fileLength"])
-        thumbnail_data = await reader.readexactly(thumbnail_data_len)
-        writer.close()
-        filename = "{}.{}".format(header["fileID"], header["fileType"])
-        return {filename: thumbnail_data} if as_dict else thumbnail_data
+            )
+            assert data
+            conn_info = json.loads(data["conn_info"])
+            reader, writer = await asyncio.open_connection(conn_info['ip'], int(conn_info['port']))
+            header_len = int.from_bytes(await reader.readexactly(4), "big")
+            header = json.loads(await reader.readexactly(header_len))
+            thumbnail_data_len = int(header["fileLength"])
+            thumbnail_data = await reader.readexactly(thumbnail_data_len)
+            writer.close()
+            filename = "{}.{}".format(header["fileID"], header["fileType"])
+            thumbnail_data_dict[filename] = thumbnail_data
+        return thumbnail_data_dict if as_dict else thumbnail_data
 
     async def upload(self, file, matte="shadowbox_polar", portrait_matte="shadowbox_polar", file_type="png", date=None):
         '''

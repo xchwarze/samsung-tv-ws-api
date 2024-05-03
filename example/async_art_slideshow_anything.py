@@ -105,7 +105,9 @@ class slideshow:
     async def get_thumbnails(self, content_ids):
         thumbnails = {}
         if self.api_version == 0:
-            thumbnails = {k:v for k,v in self.tv.get_thumbnail(content_id, True).items() for content_id in content_ids}
+            if len(content_ids) > 10:
+                self.log.info('This may take a few minutes...')
+            thumbnails = await self.tv.get_thumbnail(content_ids, True)
         elif self.api_version == 1:
             thumbnails = await self.tv.get_thumbnail_list(content_ids)
         self.log.info('got {} thumbnails'.format(len(thumbnails)))
