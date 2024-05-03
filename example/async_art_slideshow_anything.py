@@ -27,6 +27,7 @@ import asyncio
 import time
 import argparse
 from signal import SIGTERM, SIGINT
+from dataclasses import dataclass
 from enum import Enum
 
 from samsungtvws.async_art import SamsungTVAsyncArt
@@ -43,30 +44,33 @@ def parseargs():
     parser.add_argument('-D','--debug', action='store_true', default=False, help='Debug mode (default: %(default)s))')
     return parser.parse_args()
     
-class category(Enum):
-    MY_PHOTOS  = 'my_photos'
-    FAVOURITES = 'favourites'
-    SLIDESHOW  = 'slideshow'
+@dataclass
+class artDataMixin:
+    dir_name:str
+    category_id: str
+    dir: str
+    tv_files: set()
     
 class slideshow:
 
-    categories = {  category.MY_PHOTOS :{'category_id':'MY-C0002',
-                                         'dir'        :None,
-                                         'tv_files'   :set()},
-                    category.FAVOURITES:{'category_id':'MY-C0004',
-                                         'dir'        :None,
-                                         'tv_files'   :set()}
-                 }
+    category = Enum(
+        value="categories",
+        names=[ ("MY_PHOTOS",  ('my_photos', 'MY-C0002', None, set())),
+                ("FAVOURITES", ('favourites', 'MY-C0004', None, set())),
+                ("SLIDESHOW",  ('slideshow', None, None, set())),
+              ],
+        type=artDataMixin,
+    )
     
     def __init__(self, ip, folder, random_update=1440):
         self.log = logging.getLogger('Main.'+__class__.__name__)
         self.debug = self.log.getEffectiveLevel() <= logging.DEBUG
         self.ip = ip
-        self.folder = folder
         self.random_update = max(2,random_update)*60   #minutes
         self.period = 60
-        self.categories[category.MY_PHOTOS]['dir']  = os.path.join(self.folder, category.MY_PHOTOS.value)
-        self.categories[category.FAVOURITES]['dir'] = os.path.join(self.folder, category.FAVOURITES.value)
+        self.category.SLIDESHOW.dir = folder
+        self.category.MY_PHOTOS.dir = os.path.join(folder, self.category.MY_PHOTOS.dir_name)
+        self.category.FAVOURITES.dir = os.path.join(folder, self.category.FAVOURITES.dir_name)
         self.api_version = 1
         self._exit = False
         self.start = time.time()
@@ -108,57 +112,57 @@ class slideshow:
         return thumbnails
         
     async def initialize(self):
-        for v in self.categories.values():
-            self.make_directory(v['dir'])
+        for cat in self.category:
+            self.make_directory(cat.dir)
         await self.get_api_version()
         await self.download_thmbnails()
-        if not self.get_files(category.SLIDESHOW):
+        if not self.get_files(self.category.SLIDESHOW):
             self.log.info('initializing slideshow from favourites')
-            for file in self.get_files(category.FAVOURITES):
-                shutil.copy2(os.path.join(self.categories[category.FAVOURITES]['dir'], file), self.folder)
+            for file in self.get_files(self.category.FAVOURITES):
+                shutil.copy2(os.path.join(self.category.FAVOURITES.dir, file), self.category.SLIDESHOW.dir)
         await self.set_start()
                 
     async def set_start(self):
         content_id = (await self.tv.get_current()).get('content_id')
         self.log.debug('got current artwork: {}'.format(content_id))
-        self.start = max(time.time() - self.random_update*60, self.get_last_updated(self.get_filename(content_id)))
+        self.start = max(time.time() - self.random_update*60, self.get_last_updated(self.get_filename(content_id, self.category.SLIDESHOW)))
               
     def get_files(self, cat):
-        return self.get_file_set(self.folder if cat==category.SLIDESHOW else self.categories[cat]['dir'])
+        return self.get_file_set(cat.dir)
         
-    def get_filename(self, content_id, cat=category.FAVOURITES):
+    def get_filename(self, content_id, cat):
         return next(iter(f for f in self.get_files(cat) if self.get_content_ids(f) == content_id), None)
         
     def get_last_updated(self, filename):
         if filename:
-            return os.path.getmtime(os.path.join(self.folder, filename))
+            return os.path.getmtime(os.path.join(self.category.SLIDESHOW.dir, filename))
         return time.time()
         
     def set_last_updated(self, filename):
         if filename:
-            path = os.path.join(self.folder, filename)
+            path = os.path.join(self.category.SLIDESHOW.dir, filename)
             os.utime(path, (os.path.getctime(path), time.time()))
         
     async def update_thmbnails(self, cat):
-        self.log.info('checking thumbnails {}'.format(cat.value))
+        self.log.info('checking thumbnails {}'.format(cat.name))
         files = self.get_files(cat)
-        self.categories[cat]['tv_files'] = {v['content_id'] for v in await self.tv.available(self.categories[cat]['category_id'])}
-        self.log.debug('got content list: {}'.format(self.categories[cat]['tv_files']))
-        new_thumbnails = self.categories[cat]['tv_files'].difference(self.get_content_ids(files))
+        cat.tv_files = {v['content_id'] for v in await self.tv.available(cat.category_id)}
+        self.log.debug('got content list: {}'.format(cat.tv_files))
+        new_thumbnails = cat.tv_files.difference(self.get_content_ids(files))
         self.log.info('downloading {} thumbnails'.format(len(new_thumbnails)))
         if new_thumbnails:
             photos_thumbnails = await self.get_thumbnails(new_thumbnails)
             new_thumbnails = {k:v for k,v  in photos_thumbnails.items() if k not in files}
-            self.write_thumbnails(self.categories[cat]['dir'], new_thumbnails) 
+            self.write_thumbnails(cat.dir, new_thumbnails) 
             
-    def remove_files(self, cat=category.SLIDESHOW):
-        self.log.info('checking for deleted files in {}'.format(cat.value))
+    def remove_files(self, cat):
+        self.log.info('checking for deleted files in {}'.format(cat.dir))
         files = self.get_files(cat)
-        if cat == category.SLIDESHOW:
-            my_files_remove = self.get_content_ids(files).difference(self.categories[category.MY_PHOTOS]['tv_files'].union(self.categories[category.FAVOURITES]['tv_files']))
+        if cat == self.category.SLIDESHOW:
+            my_files_remove = self.get_content_ids(files).difference(self.category.MY_PHOTOS.tv_files.union(self.category.FAVOURITES.tv_files))
         else:
-            my_files_remove = self.get_content_ids(files).difference(self.categories[cat]['tv_files'])
-        remove_files = [os.path.join(self.folder if cat == category.SLIDESHOW else self.categories[cat]['dir'], f) for f in files if self.get_content_ids(f) in my_files_remove]
+            my_files_remove = self.get_content_ids(files).difference(cat.tv_files)
+        remove_files = [os.path.join(cat.dir, f) for f in files if self.get_content_ids(f) in my_files_remove]
         self.log.debug('photos to remove: {}'.format(my_files_remove))
         self.log.info('removing: {}'.format(remove_files))
         for path in remove_files:
@@ -170,22 +174,22 @@ class slideshow:
         self.log.info('done checking for deleted files')
         
     async def download_thmbnails(self):
-        await self.update_thmbnails(category.MY_PHOTOS)
-        await self.update_thmbnails(category.FAVOURITES)
-        self.remove_files(category.MY_PHOTOS)
-        self.remove_files(category.FAVOURITES)
-        self.remove_files(category.SLIDESHOW)
+        await self.update_thmbnails(self.category.MY_PHOTOS)
+        await self.update_thmbnails(self.category.FAVOURITES)
+        self.remove_files(self.category.MY_PHOTOS)
+        self.remove_files(self.category.FAVOURITES)
+        self.remove_files(self.category.SLIDESHOW)
         
     async def do_random_update(self):
         if time.time() - self.start > self.random_update:
             self.log.info('doing random update, after {} minutes'.format(self.random_update//60))
             self.start = time.time()
             await self.download_thmbnails()
-            slideshow_files = list(self.get_content_ids(self.get_files(category.SLIDESHOW)))
+            slideshow_files = list(self.get_content_ids(self.get_files(self.category.SLIDESHOW)))
             if slideshow_files:
                 content_id = random.choice(slideshow_files)
                 self.log.info('selecting tv art: content_id: {}'.format(content_id))
-                self.set_last_updated(self.get_filename(content_id))
+                self.set_last_updated(self.get_filename(content_id, self.category.SLIDESHOW))
                 await self.tv.select_image(content_id)
             return True
         return False
