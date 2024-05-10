@@ -11,9 +11,34 @@ This project is a library for remote controlling Samsung televisions via a TCP/I
 
 It currently supports modern (post-2016) TVs with Ethernet or Wi-Fi connectivity. They should be all models with TizenOs.
 
-Based on https://github.com/marysieek/samsung-tv-api work
+This fork is based on https://github.com/xchwarze/samsung-tv-ws-api work
+
+Origionally Based on https://github.com/marysieek/samsung-tv-api work
 
 ## Install
+
+### Install This Fork
+
+This fork is intened to provide extended support to Frame TV's.
+
+First clone this repository to your local drive (make sure you have git installed):
+```
+git clone https://github.com/NickWaterton/samsung-tv-ws-api.git
+```
+
+Then change to the `samsung-tv-ws-api` directory:
+
+```
+cd samsung-tv-ws-api
+```
+
+Now run install:
+
+```
+python ./setup.py install
+```
+
+### Install Origional
 
 ```bash
 $ pip3 install samsungtvws[async,encrypted]
