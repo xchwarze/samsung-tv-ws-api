@@ -8,6 +8,7 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 from datetime import datetime
+import os
 import json
 import logging
 import random
@@ -161,8 +162,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
         assert response
         data = json.loads(response["data"])
-
-        return json.loads(data["content_list"])
+        return [ v for v in json.loads(data["content_list"]) if v['category_id'] == category] if category else json.loads(data["content_list"])
 
     def get_current(self):
         response = self._send_art_request(
@@ -171,6 +171,34 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
         assert response
         return json.loads(response["data"])
+        
+    def set_favourite(self, content_id, status='on'):
+        response = self._send_art_request(
+            {   "request": "change_favorite",
+                "content_id": content_id,
+                "status": status},
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
+            wait_for_sub_event = "favorite_changed"
+        )
+        assert response
+        return json.loads(response["data"])
+        
+    def get_artmode_settings(self, setting=''):
+        '''
+        setting can be any of 'brightness', 'color_temperature', 'motion_sensitivity',
+        'motion_timer', or 'brightness_sensor_setting'
+        '''
+        response = self._send_art_request(
+            {"request": "get_artmode_settings"},
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT
+        )
+        assert response
+        data = json.loads(response["data"])
+        assert data
+        if 'data' in data.keys():
+            data = json.loads(data["data"])
+            return next(iter(item for item in data if item['item'] == setting), data)
+        return data
 
     def get_auto_rotation_status(self):
         response = self._send_art_request(
@@ -217,10 +245,10 @@ class SamsungTVArt(SamsungTVWSConnection):
     def get_brightness(self):
         response = self._send_art_request(
             {"request": "get_brightness"},
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
+        response = self.get_artmode_settings('brightness')
         assert response
-        return json.loads(response["data"])
+        return response
 
     def set_brightness(self, value):
         response = self._send_art_request(
@@ -233,10 +261,10 @@ class SamsungTVArt(SamsungTVWSConnection):
     def get_color_temperature(self):
         response = self._send_art_request(
             {"request": "get_color_temperature"},
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
+        response = self.get_artmode_settings('color_temperature')
         assert response
-        return json.loads(response["data"])
+        return response
 
     def set_color_temperature(self, value):
         response = self._send_art_request(
@@ -285,39 +313,50 @@ class SamsungTVArt(SamsungTVWSConnection):
             thumbnail_data_dict[filename]=thumbnail_data
         return thumbnail_data_dict
 
-    def get_thumbnail(self, content_id):
-        response = self._send_art_request(
-            {
-                "request": "get_thumbnail",
-                "content_id": content_id,
-                "conn_info": {
-                    "d2d_mode": "socket",
-                    "connection_id": random.randrange(4 * 1024 * 1024 * 1024),
-                    "id": self.art_uuid,
+    def get_thumbnail(self, content_id_list=[], as_dict=False):
+        if isinstance(content_id_list, str):
+            content_id_list=[content_id_list]
+        thumbnail_data_dict = {}
+        for content_id in content_id_list:
+            response = self._send_art_request(
+                {
+                    "request": "get_thumbnail",
+                    "content_id": content_id,
+                    "conn_info": {
+                        "d2d_mode": "socket",
+                        "connection_id": random.randrange(4 * 1024 * 1024 * 1024),
+                        "id": self.art_uuid,
+                    },
                 },
-            },
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
-        )
-        assert response
-        data = json.loads(response["data"])
-        conn_info = json.loads(data["conn_info"])
+                wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
+            )
+            assert response
+            data = json.loads(response["data"])
+            conn_info = json.loads(data["conn_info"])
 
-        art_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        art_socket.connect((conn_info["ip"], int(conn_info["port"])))
-        header_len = int.from_bytes(art_socket.recv(4), "big")
-        header = json.loads(art_socket.recv(header_len))
+            art_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            art_socket.connect((conn_info["ip"], int(conn_info["port"])))
+            header_len = int.from_bytes(art_socket.recv(4), "big")
+            header = json.loads(art_socket.recv(header_len))
 
-        thumbnail_data_len = int(header["fileLength"])
-        thumbnail_data = bytearray()
-        while len(thumbnail_data) < thumbnail_data_len:
-            packet = art_socket.recv(thumbnail_data_len - len(thumbnail_data))
-            thumbnail_data.extend(packet)
+            thumbnail_data_len = int(header["fileLength"])
+            thumbnail_data = bytearray()
+            while len(thumbnail_data) < thumbnail_data_len:
+                packet = art_socket.recv(thumbnail_data_len - len(thumbnail_data))
+                thumbnail_data.extend(packet)
+            filename = "{}.{}".format(header["fileID"], header["fileType"])
+            thumbnail_data_dict[filename] = thumbnail_data
 
-        return thumbnail_data
+        return thumbnail_data_dict if as_dict else list(thumbnail_data_dict.values()) if len(content_id_list) > 1 else thumbnail_data
 
     def upload(self, file, matte="shadowbox_polar", portrait_matte="shadowbox_polar", file_type="png", date=None):
+        if isinstance(file, str):
+            file_name, file_extension = os.path.splitext(file)
+            file_type = file_extension[1:]
+            with open(file, 'rb') as f:
+                file = f.read()
+                
         file_size = len(file)
-
         file_type = file_type.lower()
         if file_type == "jpeg":
             file_type = "jpg"

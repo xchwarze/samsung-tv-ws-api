@@ -9,6 +9,7 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 from datetime import datetime
+import os
 import json
 import logging
 import random
@@ -365,7 +366,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         writer.close()
         return thumbnail_data_dict
 
-    async def get_thumbnail(self, content_id_list=[], as_dict = False):
+    async def get_thumbnail(self, content_id_list=[], as_dict=False):
         if isinstance(content_id_list, str):
             content_id_list=[content_id_list]
         thumbnail_data_dict = {}
@@ -391,16 +392,23 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
             writer.close()
             filename = "{}.{}".format(header["fileID"], header["fileType"])
             thumbnail_data_dict[filename] = thumbnail_data
-        return thumbnail_data_dict if as_dict else thumbnail_data
+        return thumbnail_data_dict if as_dict else list(thumbnail_data_dict.values()) if len(content_id_list) > 1 else thumbnail_data
 
     async def upload(self, file, matte="shadowbox_polar", portrait_matte="shadowbox_polar", file_type="png", date=None):
         '''
         NOTE: both id's and request_id have to be the same
         '''
+        if isinstance(file, str):
+            file_name, file_extension = os.path.splitext(file)
+            file_type = file_extension[1:]
+            with open(file, 'rb') as f:
+                file = f.read()
+                
         file_size = len(file)
         file_type = file_type.lower()
         if file_type == "jpeg":
             file_type = "jpg"
+            
         if date is None:
             date = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
         data = await self._send_art_request(
