@@ -63,16 +63,19 @@ async def main():
             content_id = info['content_id']                         #example to get current content_id
             
             #get thumbnail for current artwork
-            thumb = b''
-            if int(api_version.replace('.','')) < 4000:             #check api version number, and use correct api call
-                #thumb = await tv.get_thumbnail(content_id)         #old api, just gets binary data
-                thumbs = await tv.get_thumbnail(content_id, True)   #old api, gets thumbs in same format as new api
-            else:
-                thumbs = await tv.get_thumbnail_list(content_id)    #list of content_id's or single content_id
-            if thumbs:                                              #dictionary of content_id (with file type extension) and binary data
-                thumb = list(thumbs.values())[0]
-                content_id = list(thumbs.keys())[0]
-            logging.info('got thumbnail for {} binary data length: {}'.format(content_id, len(thumb)))
+            try:
+                thumb = b''
+                if int(api_version.replace('.','')) < 4000:             #check api version number, and use correct api call
+                    #thumb = await tv.get_thumbnail(content_id)         #old api, just gets binary data
+                    thumbs = await tv.get_thumbnail(content_id, True)   #old api, gets thumbs in same format as new api
+                else:
+                    thumbs = await tv.get_thumbnail_list(content_id)    #list of content_id's or single content_id
+                if thumbs:                                              #dictionary of content_id (with file type extension) and binary data
+                    thumb = list(thumbs.values())[0]
+                    content_id = list(thumbs.keys())[0]
+                logging.info('got thumbnail for {} binary data length: {}'.format(content_id, len(thumb)))
+            except asyncio.exceptions.IncompleteReadError as e:
+                logging.error('FAILED to get thumbnail for {}: {}'.format(content_id, e))
 
             # Turn on art mode
             #await tv.set_artmode('on')
@@ -129,6 +132,10 @@ async def main():
             logging.info('current brightness setting: {}'.format(info))
             info = await tv.get_artmode_settings()
             logging.info('current artmode settings: {}'.format(info))
+            
+            #get rotation (landscape or portrait)
+            rot = await tv.get_rotation()
+            logging.info('Current Orientation: {} ({})'.format('Landscape' if rot==1 else 'Portrait' if rot==2 else 'Unknown', rot))
             
             #monitor artmode status
             '''

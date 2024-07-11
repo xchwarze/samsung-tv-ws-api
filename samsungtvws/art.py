@@ -469,6 +469,16 @@ class SamsungTVArt(SamsungTVWSConnection):
                 "value": mode,
             }
         )
+        
+    def get_rotation(self):
+        response = self._send_art_request(
+            {"request": "get_current_rotation"},
+            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
+        )
+        assert response
+        data = json.loads(response["data"])
+        
+        return data.get("current_rotation_status",0)
 
     def get_photo_filter_list(self):
         response = self._send_art_request(

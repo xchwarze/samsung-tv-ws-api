@@ -3,7 +3,7 @@ SamsungTVWS - Samsung Smart TV WS API wrapper
 
 Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 Copyright (C) 2021 Matthew Garrett <mjg59@srcf.ucam.org>
-Copyright (C) 2024 Nick Waterton <n.waterton@ooutlook.com>
+Copyright (C) 2024 Nick Waterton <n.waterton@outlook.com>
 
 SPDX-License-Identifier: LGPL-3.0
 """
@@ -489,6 +489,13 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
                 "value": mode,
             }
         )
+        
+    async def get_rotation(self):
+        data = await self._send_art_request(
+            {"request": "get_current_rotation"}
+        )
+        assert data
+        return data.get("current_rotation_status",0)
 
     async def get_photo_filter_list(self):
         data = await self._send_art_request(
