@@ -53,8 +53,11 @@ async def main():
             tv.set_callback('image_selected', image_callback)
             
             # Request list of all art
-            info = await tv.available()
-            #info = await tv.available('MY-C0002')                  #gets list of uploaded art, MY-C0004 is favourites
+            try:
+                info = await tv.available()
+                #info = await tv.available('MY-C0002')              #gets list of uploaded art, MY-C0004 is favourites
+            except AssertionError:
+                info='None'
             logging.info('artwork available on tv: {}'.format(info))
 
             # Request current art

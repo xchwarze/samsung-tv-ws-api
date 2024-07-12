@@ -51,7 +51,7 @@ class monitor_and_display:
         self.sync = sync
         self.upload_list_path = './uploaded_files.json'
         self.uploaded_files = {}
-        self.fav = []
+        self.fav = set()
         self.api_version = 0
         self._exit = False
         self.start = time.time()
@@ -79,12 +79,21 @@ class monitor_and_display:
         api_version = await self.tv.get_api_version()
         self.api_version = 0 if int(api_version.replace('.','')) < 4000 else 1
         
+    async def get_tv_content(self, category='MY-C0002'):
+        result = []
+        try:
+            result = [v['content_id'] for v in await self.tv.available(category)]
+        except AssertionError:
+            pass
+        return result
+        
     async def get_thumbnails(self, content_ids):
         thumbnails = {}
-        if self.api_version == 0:
-            thumbnails = {content_id:await self.tv.get_thumbnail(content_id) for content_id in content_ids}
-        elif self.api_version == 1:
-            thumbnails = {os.path.splitext(k)[0]:v for k,v in (await self.tv.get_thumbnail_list(content_ids)).items()}
+        if content_ids:
+            if self.api_version == 0:
+                thumbnails = {content_id:await self.tv.get_thumbnail(content_id) for content_id in content_ids}
+            elif self.api_version == 1:
+                thumbnails = {os.path.splitext(k)[0]:v for k,v in (await self.tv.get_thumbnail_list(content_ids)).items()}
         self.log.info('got {} thumbnails'.format(len(thumbnails)))
         return thumbnails
         
@@ -115,24 +124,25 @@ class monitor_and_display:
             if files_images:
                 self.uploaded_files = {}
                 self.log.info('downloading My Photos thumbnails')
-                my_photos = [v['content_id'] for v in await self.tv.available('MY-C0002')]
-                my_photos_thumbnails = await self.get_thumbnails(my_photos)
-                self.log.info('checking thumbnails against {} files, please wait...'.format(len(files_images)))
-                count = 0
-                for filename, file_data in files_images.items():
-                    for i, (my_content_id, my_data) in enumerate(my_photos_thumbnails.items()):
-                        percent = (count*100)//(len(files_images)*len(my_photos_thumbnails))
-                        if count % 10 == 0:
-                            self.log.info('{}% complete'.format(percent))
-                        self.log.debug('checking: {} against {}, thumbnail: {} bytes'.format(filename, my_content_id, len(my_data)))
-                        if self.are_images_equal(Image.open(io.BytesIO(my_data)), file_data):
-                            self.log.info('found uploaded file: {} as {}'.format(filename, my_content_id))
-                            self.update_uploaded_files(filename, my_content_id)
-                            count+=len(my_photos_thumbnails)-i
-                            break
-                        count+=1
-                self.log.info('100% complete')
-                self.write_upload_list()
+                my_photos = await self.get_tv_content('MY-C0002')
+                if my_photos:
+                    my_photos_thumbnails = await self.get_thumbnails(my_photos)
+                    self.log.info('checking thumbnails against {} files, please wait...'.format(len(files_images)))
+                    count = 0
+                    for filename, file_data in files_images.items():
+                        for i, (my_content_id, my_data) in enumerate(my_photos_thumbnails.items()):
+                            percent = (count*100)//(len(files_images)*len(my_photos_thumbnails))
+                            if count % 10 == 0:
+                                self.log.info('{}% complete'.format(percent))
+                            self.log.debug('checking: {} against {}, thumbnail: {} bytes'.format(filename, my_content_id, len(my_data)))
+                            if self.are_images_equal(Image.open(io.BytesIO(my_data)), file_data):
+                                self.log.info('found uploaded file: {} as {}'.format(filename, my_content_id))
+                                self.update_uploaded_files(filename, my_content_id)
+                                count+=len(my_photos_thumbnails)-i
+                                break
+                            count+=1
+                    self.log.info('100% complete')
+                    self.write_upload_list()
             else:
                 self.log.info('no files, using origional uploaded files list')
         else:
@@ -143,7 +153,7 @@ class monitor_and_display:
             self.log.info('doing random update, after {} minutes'.format(self.random_update//60))
             if self.include_fav:
                 self.log.info('updating favourites')
-                self.fav = await self.tv.available('MY-C0004')
+                self.fav = set(await self.get_tv_content('MY-C0004'))
             self.files_changed = True
    
     def read_upload_list(self):
@@ -189,7 +199,7 @@ class monitor_and_display:
         return os.path.getmtime(os.path.join(self.folder, filename))
         
     async def remove_files(self, files):
-        TV_files = [f['content_id'] for f in await self.tv.available('MY-C0002')]
+        #TV_files = await self.get_tv_content('MY-C0002')
         content_ids_removed = [v.get('content_id') for k, v in self.uploaded_files.items() if (v.get('content_id') is not None and k not in files)]
         #delete images from tv
         if content_ids_removed:
@@ -247,7 +257,7 @@ class monitor_and_display:
             try:
                 if self.files_changed and self.tv.art_mode and (self.uploaded_files.keys() or self.include_fav):
                     self.start = time.time()
-                    content_id = random.choice(list({v['content_id'] for v in self.uploaded_files.values()}.union({f['content_id'] for f in self.fav})))
+                    content_id = random.choice(list({v['content_id'] for v in self.uploaded_files.values()}.union(self.fav)))
                     self.log.info('selecting tv art: content_id: {}'.format(content_id))
                     await self.tv.select_image(content_id)
                     self.files_changed = False

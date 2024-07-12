@@ -102,6 +102,14 @@ class slideshow:
         api_version = await self.tv.get_api_version()
         self.api_version = 0 if int(api_version.replace('.','')) < 4000 else 1
         
+    async def get_tv_content(self, category='MY-C0002'):
+        result = []
+        try:
+            result = [v['content_id'] for v in await self.tv.available(category)]
+        except AssertionError:
+            pass
+        return result
+        
     async def get_thumbnails(self, content_ids):
         thumbnails = {}
         if self.api_version == 0:
@@ -148,7 +156,7 @@ class slideshow:
     async def update_thmbnails(self, cat):
         self.log.info('checking thumbnails {}'.format(cat.name))
         files = self.get_files(cat)
-        cat.tv_files = {v['content_id'] for v in await self.tv.available(cat.category_id)}
+        cat.tv_files = set(await self.get_tv_content(cat.category_id))
         self.log.debug('got content list: {}'.format(cat.tv_files))
         new_thumbnails = cat.tv_files.difference(self.get_content_ids(files))
         self.log.info('downloading {} thumbnails'.format(len(new_thumbnails)))
