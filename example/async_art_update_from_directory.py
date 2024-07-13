@@ -33,8 +33,9 @@ def parseargs():
     parser.add_argument('-f','--folder', action="store", type=str, default="./images", help='folder to load images from (default: %(default)s))')
     parser.add_argument('-m','--matte', action="store", type=str, default="none", help='default matte to use (default: %(default)s))')
     parser.add_argument('-u','--update', action="store", type=int, default=0, help='random update period (mins) 0=off (default: %(default)s))')
-    parser.add_argument('-c','--check', action="store", type=int, default=5, help='how often to check for new art (default: %(default)s))')
+    parser.add_argument('-c','--check', action="store", type=int, default=5, help='how often to check for new art 0=run once (default: %(default)s))')
     parser.add_argument('-s','--sync', action='store_false', default=True, help='automatically syncronize (needs Pil library) (default: %(default)s))')
+    parser.add_argument('-O','--on', action='store_true', default=False, help='exit if TV is off (default: %(default)s))')
     parser.add_argument('-F','--favourite', action='store_true', default=False, help='include favourites in rotation (default: %(default)s))')
     parser.add_argument('-D','--debug', action='store_true', default=False, help='Debug mode (default: %(default)s))')
     return parser.parse_args()
@@ -43,7 +44,7 @@ class monitor_and_display:
     
     allowed_ext = ['jpg', 'jpeg', 'png', 'bmp', 'tif']
     
-    def __init__(self, ip, folder, period=5, random_update=1440, include_fav=False, sync=True, matte='none'):
+    def __init__(self, ip, folder, period=5, random_update=1440, include_fav=False, sync=True, matte='none', on=False):
         self.log = logging.getLogger('Main.'+__class__.__name__)
         self.debug = self.log.getEffectiveLevel() <= logging.DEBUG
         self.ip = ip
@@ -53,6 +54,7 @@ class monitor_and_display:
         self.include_fav = include_fav
         self.sync = sync
         self.matte = matte
+        self.on = on
         self.upload_list_path = './uploaded_files.json'
         self.uploaded_files = {}
         self.fav = set()
@@ -69,15 +71,19 @@ class monitor_and_display:
             pass
         
     async def start_monitoring(self):
-        self.log.info('Start Monitoring')
-        try:
-            await self.tv.start_listening()
-        except Exception as e:
-            self.log.error('failed to connect with TV: {}'.format(e))
-            os._exit(1)
-        self.log.info('Started')
-        await self.check_matte()
-        await self.select_artwork()
+        if self.on and not await self.tv.on():
+            self.log.info('TV is off, exiting')
+        else:
+            self.log.info('Start Monitoring')
+            try:
+                await self.tv.start_listening()
+            except Exception as e:
+                self.log.error('failed to connect with TV: {}'.format(e))
+                os._exit(1)
+            self.log.info('Started')
+            await self.check_matte()
+            await self.select_artwork()
+        await self.tv.close()
         
     def close(self):
         self.log.info('SIGINT/SIGTERM received, exiting')
@@ -164,10 +170,9 @@ class monitor_and_display:
         await self.get_api_version()
         self.uploaded_files = self.read_upload_list()
         if HAVE_PIL and self.sync:
-            self.log.info('reinitializing uploaded files list using PIL')
+            self.log.info('Checking uploaded files list using PIL')
             files_images = self.load_files()
             if files_images:
-                self.uploaded_files = {}
                 self.log.info('downloading My Photos thumbnails')
                 my_photos = await self.get_tv_content('MY-C0002')
                 if my_photos:
@@ -182,7 +187,8 @@ class monitor_and_display:
                             self.log.debug('checking: {} against {}, thumbnail: {} bytes'.format(filename, my_content_id, len(my_data)))
                             if self.are_images_equal(Image.open(io.BytesIO(my_data)), file_data):
                                 self.log.info('found uploaded file: {} as {}'.format(filename, my_content_id))
-                                self.update_uploaded_files(filename, my_content_id)
+                                if filename not in self.uploaded_files.keys():
+                                    self.update_uploaded_files(filename, my_content_id)
                                 count+=len(my_photos_thumbnails)-i
                                 break
                             count+=1
@@ -314,11 +320,15 @@ class monitor_and_display:
                     self.log.info('artmode or tv is off')
             except Exception as e:
                 self.log.warning("error in monitor_dir: {}".format(e))
-            await asyncio.sleep(self.period)
+            await self.sleep()
 
     async def select_artwork(self):
         await self.initialize()
-        asyncio.create_task(self.monitor_dir())
+        if self.period > 0:
+            asyncio.create_task(self.monitor_dir())
+        else:
+            await self.monitor_dir()
+            self._exit = False
         while not self._exit:
             try:
                 if self.files_changed and self.tv.art_mode and (self.uploaded_files.keys() or self.include_fav):
@@ -330,28 +340,35 @@ class monitor_and_display:
             except Exception as e:
                 self.log.warning("error in select_artwork: {}".format(e))
                 self.files_changed = False
-            await asyncio.sleep(self.period)
+            await self.sleep()
+            
+    async def sleep(self):
+        if self.period == 0:
+            self._exit = True
+            return
+        await asyncio.sleep(self.period)
             
 async def main():
     global log
     log = logging.getLogger('Main')
     args = parseargs()
+    log.info('Program Started')
     if args.debug:
         log.setLevel(logging.DEBUG)
         log.info('Debug mode')
     
     mon = monitor_and_display(  args.ip,
                                 os.path.normpath(args.folder),
-                                period=args.check,
-                                random_update=args.update,
-                                include_fav=args.favourite,
-                                sync=args.sync,
-                                matte=args.matte)
+                                period          = args.check,
+                                random_update   =args.update,
+                                include_fav     =args.favourite,
+                                sync            =args.sync,
+                                matte           =args.matte,
+                                on              =args.on)
     await mon.start_monitoring()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
