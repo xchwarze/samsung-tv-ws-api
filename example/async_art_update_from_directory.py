@@ -31,6 +31,7 @@ def parseargs():
     parser = argparse.ArgumentParser(description='Async Upload images to Samsung TV.')
     parser.add_argument('ip', action="store", type=str, default=None, help='ip address of TV (default: %(default)s))')
     parser.add_argument('-f','--folder', action="store", type=str, default="./images", help='folder to load images from (default: %(default)s))')
+    parser.add_argument('-m','--matte', action="store", type=str, default="none", help='default matte to use (default: %(default)s))')
     parser.add_argument('-u','--update', action="store", type=int, default=0, help='random update period (mins) 0=off (default: %(default)s))')
     parser.add_argument('-c','--check', action="store", type=int, default=5, help='how often to check for new art (default: %(default)s))')
     parser.add_argument('-s','--sync', action='store_false', default=True, help='automatically syncronize (needs Pil library) (default: %(default)s))')
@@ -40,7 +41,9 @@ def parseargs():
     
 class monitor_and_display:
     
-    def __init__(self, ip, folder, period=5, random_update=1440, include_fav=False, sync=True):
+    allowed_ext = ['jpg', 'jpeg', 'png', 'bmp', 'tif']
+    
+    def __init__(self, ip, folder, period=5, random_update=1440, include_fav=False, sync=True, matte='none'):
         self.log = logging.getLogger('Main.'+__class__.__name__)
         self.debug = self.log.getEffectiveLevel() <= logging.DEBUG
         self.ip = ip
@@ -49,6 +52,7 @@ class monitor_and_display:
         self.random_update = random_update*60   #minutes
         self.include_fav = include_fav
         self.sync = sync
+        self.matte = matte
         self.upload_list_path = './uploaded_files.json'
         self.uploaded_files = {}
         self.fav = set()
@@ -56,7 +60,13 @@ class monitor_and_display:
         self._exit = False
         self.start = time.time()
         self.files_changed = False
-        self.tv = SamsungTVAsyncArt(host=self.ip, port=8002)
+        try:
+            self.log.info('connecting to TV')
+            self.tv = SamsungTVAsyncArt(host=self.ip, port=8002)
+            self.log.info('connected to TV')
+        except Exception as e:
+            self.log.info('failed to connect to TV: {]'.format(e))
+            sys.exit(1)
         try:
             #doesn't work in Windows
             asyncio.get_running_loop().add_signal_handler(SIGINT, self.close)
@@ -73,7 +83,9 @@ class monitor_and_display:
         os._exit(1)
         
     def update_uploaded_files(self, filename, content_id):
-        self.uploaded_files[filename] = {'content_id': content_id, 'modified':self.get_last_updated(filename)}
+        self.uploaded_files.pop(filename, None)
+        if content_id:
+            self.uploaded_files[filename] = {'content_id': content_id, 'modified':self.get_last_updated(filename)}
         
     async def get_api_version(self):
         api_version = await self.tv.get_api_version()
@@ -98,9 +110,26 @@ class monitor_and_display:
         return thumbnails
         
     def load_files(self):
-        files = [f for f in os.listdir(self.folder) if os.path.isfile(os.path.join(self.folder, f))]
+        files = self.get_folder_files()
         self.log.info('loading files: {}'.format(files))
-        files_images = {file:Image.open(os.path.join(self.folder, file)) for file in files}
+        files_images = self.get_files_dict(files)
+        self.log.info('loaded: {}'.format(files_images.keys()))
+        return files_images
+        
+    def get_folder_files(self):
+        return [f for f in os.listdir(self.folder) if os.path.isfile(os.path.join(self.folder, f)) and self.get_file_type(os.path.join(self.folder, f)) in self.allowed_ext]
+        
+    def get_files_dict(self, files):
+        files_images = {}
+        for file in files:
+            try:
+                data = Image.open(os.path.join(self.folder, file))
+                format = self.get_file_type(os.path.join(self.folder, file), data)
+                if not (file.lower().endswith(format) or (format=='jpeg' and file.lower().endswith('jpg'))):
+                    self.log.warning('file: {} is of type {}, the extension is wrong! please fix this'.format(file, format))
+                files_images[file] = data
+            except Exception as e:
+                self.log.warning('Error loading: {}, {}'.format(file, e))
         return files_images
         
     def are_images_equal(self, img1, img2):
@@ -143,6 +172,8 @@ class monitor_and_display:
                             count+=1
                     self.log.info('100% complete')
                     self.write_upload_list()
+                else:
+                    self.log.info('no thubnails found')
             else:
                 self.log.info('no files, using origional uploaded files list')
         else:
@@ -172,11 +203,27 @@ class monitor_and_display:
         try:
             with open(filename, 'rb') as f:
                 file_data = f.read()
-            file_type = os.path.splitext(filename)[1][1:] 
+            file_type = self.get_file_type(filename)
             return file_data, file_type
         except Exception as e:
-            self.log.error('error reading file: {}, {}'.format(filename, e))
+            self.log.error('Error reading file: {}, {}'.format(filename, e))
         return None, None
+        
+    def get_file_type(self, filename, image_data=None):
+        try:
+            file_type = os.path.splitext(filename)[1][1:].lower()
+            file_type = file_type.lower() if file_type else None
+            if HAVE_PIL and file_type:
+                org = file_type
+                file_type = Image.open(filename).format.lower() if not image_data else image_data.format.lower()
+                if file_type in['jpg', 'jpeg', 'mpo']:
+                    file_type = 'jpeg'
+                if not (org == file_type or (org == 'jpg' and file_type == 'jpeg')):
+                    self.log.warning('file {} type changed from {} to {}'.format(filename, org, file_type))
+            return file_type
+        except Exception as e:
+            self.log.error('Error reading file: {}, {}'.format(filename, e))
+        return None
         
     async def upload_files(self, filenames):
         for filename in filenames:
@@ -184,8 +231,11 @@ class monitor_and_display:
             file_data, file_type = self.read_file(path)
             if file_data and self.tv.art_mode:
                 self.log.info('uploading : {} to tv'.format(filename))
-                self.update_uploaded_files(filename, await self.tv.upload(file_data, file_type=file_type))
-                self.log.info('uploaded : {} to tv as {}'.format(filename, self.uploaded_files[filename]['content_id']))
+                self.update_uploaded_files(filename, await self.tv.upload(file_data, file_type=file_type, matte=self.matte, portrait_matte=self.matte))
+                if self.uploaded_files.get(filename, {}).get('content_id'):
+                    self.log.info('uploaded : {} to tv as {}'.format(filename, self.uploaded_files[filename]['content_id']))
+                else:
+                    self.log.warning('file: {} failed to upload'.format(filename))
                 self.write_upload_list()
             
     async def delete_files_from_tv(self, content_ids):
@@ -235,7 +285,7 @@ class monitor_and_display:
                     self.log.warning('folder {} does not exist'.format(self.folder))
                 elif self.tv.art_mode:
                     self.log.info('checking directory: {}'.format(self.folder))
-                    files = [f for f in os.listdir(self.folder) if os.path.isfile(os.path.join(self.folder, f))]
+                    files = self.get_folder_files()
                     #delete images from tv
                     await self.remove_files(files)
                     #upload new files
@@ -279,7 +329,8 @@ async def main():
                                 period=args.check,
                                 random_update=args.update,
                                 include_fav=args.favourite,
-                                sync=args.sync)
+                                sync=args.sync,
+                                matte=args.matte)
     await mon.start_monitoring()
 
 
