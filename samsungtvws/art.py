@@ -375,8 +375,8 @@ class SamsungTVArt(SamsungTVWSConnection):
                     "id": self.art_uuid,
                 },
                 "image_date": date,
-                "matte_id": matte,
-                "portrait_matte_id": portrait_matte,
+                "matte_id": matte or 'none',
+                "portrait_matte_id": portrait_matte or 'none',
                 "file_size": file_size,
             },
             wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
@@ -509,7 +509,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         return (json.loads(data["matte_type_list"]), json.loads(data.get("matte_color_list"))) if include_colour else json.loads(data["matte_type_list"])
 
-    def change_matte(self, content_id, matte_id, portrait_matte=None):
+    def change_matte(self, content_id, matte_id=None, portrait_matte=None):
         '''
         matte is name_color eg flexible_polar or none
         NOTE: Not all mattes can be set for all image sizes!
@@ -517,7 +517,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         art_request = {
                         "request": "change_matte",
                         "content_id": content_id,
-                        "matte_id": matte_id,
+                        "matte_id": matte_id or 'none',
                       }
         if portrait_matte:
             art_request["portrait_matte_id"] = portrait_matte
