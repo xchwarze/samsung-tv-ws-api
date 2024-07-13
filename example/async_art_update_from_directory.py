@@ -103,8 +103,8 @@ class monitor_and_display:
                     self.log.info('using matte: {}'.format(self.matte))
                     return
                 else:
-                    self.log.info('valid mattes and colors: {}'.format(mattes)) 
-            self.log.warning('Invalid matte selected: {}, using none'.format(self.matte))
+                    self.log.info('Valid mattes and colors: {}'.format(mattes))
+            self.log.warning('Invalid matte selected: {}. A valid matte would be shadowbox_polar for eample, using none'.format(self.matte))
             self.matte = 'none'
         
     async def get_tv_content(self, category='MY-C0002'):
