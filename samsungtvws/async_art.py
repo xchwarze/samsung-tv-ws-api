@@ -370,6 +370,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         if isinstance(content_id_list, str):
             content_id_list=[content_id_list]
         thumbnail_data_dict = {}
+        thumbnail_data = None
         for content_id in content_id_list:
             data = await self._send_art_request(
                 {
