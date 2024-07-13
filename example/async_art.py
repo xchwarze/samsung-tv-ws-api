@@ -140,6 +140,12 @@ async def main():
             rot = await tv.get_rotation()
             logging.info('Current Orientation: {} ({})'.format('Landscape' if rot==1 else 'Portrait' if rot==2 else 'Unknown', rot))
             
+            #get matte list with color
+            '''
+            info = await tv.get_matte_list(True)
+            logging.info('matte list: {}'.format(info))
+            '''
+            
             #monitor artmode status
             '''
             while True:

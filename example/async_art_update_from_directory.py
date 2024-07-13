@@ -60,13 +60,7 @@ class monitor_and_display:
         self._exit = False
         self.start = time.time()
         self.files_changed = False
-        try:
-            self.log.info('connecting to TV')
-            self.tv = SamsungTVAsyncArt(host=self.ip, port=8002)
-            self.log.info('connected to TV')
-        except Exception as e:
-            self.log.info('failed to connect to TV: {]'.format(e))
-            sys.exit(1)
+        self.tv = SamsungTVAsyncArt(host=self.ip, port=8002)
         try:
             #doesn't work in Windows
             asyncio.get_running_loop().add_signal_handler(SIGINT, self.close)
@@ -75,7 +69,14 @@ class monitor_and_display:
             pass
         
     async def start_monitoring(self):
-        await self.tv.start_listening()
+        self.log.info('Start Monitoring')
+        try:
+            await self.tv.start_listening()
+        except Exception as e:
+            self.log.error('failed to connect with TV: {}'.format(e))
+            os._exit(1)
+        self.log.info('Started')
+        await self.check_matte()
         await self.select_artwork()
         
     def close(self):
@@ -90,6 +91,21 @@ class monitor_and_display:
     async def get_api_version(self):
         api_version = await self.tv.get_api_version()
         self.api_version = 0 if int(api_version.replace('.','')) < 4000 else 1
+        
+    async def check_matte(self):
+        if self.matte != 'none':
+            matte = self.matte.split('_')
+            mattes = await self.tv.get_matte_list(True)
+            if mattes and len(matte) == 2:
+                matte_types = [m['matte_type'] for m in mattes[0]]
+                matte_colors = [m['color'] for m in mattes[1]]
+                if matte[0] in matte_types and matte[1] in matte_colors:
+                    self.log.info('using matte: {}'.format(self.matte))
+                    return
+                else:
+                    self.log.info('valid mattes and colors: {}'.format(mattes)) 
+            self.log.warning('Invalid matte selected: {}, using none'.format(self.matte))
+            self.matte = 'none'
         
     async def get_tv_content(self, category='MY-C0002'):
         result = []
@@ -113,7 +129,7 @@ class monitor_and_display:
         files = self.get_folder_files()
         self.log.info('loading files: {}'.format(files))
         files_images = self.get_files_dict(files)
-        self.log.info('loaded: {}'.format(files_images.keys()))
+        self.log.info('loaded: {}'.format(list(files_images.keys())))
         return files_images
         
     def get_folder_files(self):
