@@ -197,7 +197,12 @@ class monitor_and_display:
             else:
                 self.log.info('no files, using origional uploaded files list')
         else:
-            self.log.warning('No PIL library, or syncing disabled, not updating uploaded files list')  
+            self.log.warning('No PIL library, or syncing disabled, not updating uploaded files list')
+            
+    async def sync_file_list(self, files=None):
+        my_photos = await self.get_tv_content('MY-C0002')
+        self.uploaded_files = {k:v for k,v in self.uploaded_files.items() if v['content_id'] in my_photos and (k in files if files else True)}
+        self.write_program_data()
         
     async def do_random_update(self):
         if self.random_update > 0 and (len(self.uploaded_files.keys()) > 1 or self.include_fav):
@@ -312,6 +317,7 @@ class monitor_and_display:
             elif self.tv.art_mode:
                 self.log.info('checking directory: {}{}'.format(self.folder, ' every {}'.format(datetime.timedelta(seconds = self.period)) if self.period else ''))
                 files = self.get_folder_files()
+                await self.sync_file_list()
                 #delete images from tv
                 await self.remove_files(files)
                 #upload new files
