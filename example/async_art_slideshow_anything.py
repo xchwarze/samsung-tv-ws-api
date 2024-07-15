@@ -26,6 +26,7 @@ import random
 import asyncio
 import time
 import argparse
+import datetime
 from signal import SIGTERM, SIGINT
 from dataclasses import dataclass
 from enum import Enum
@@ -40,7 +41,8 @@ def parseargs():
     parser = argparse.ArgumentParser(description='Async Slideshow Any art on Samsung TV.')
     parser.add_argument('ip', action="store", type=str, default=None, help='ip address of TV (default: %(default)s))')
     parser.add_argument('-f','--folder', action="store", type=str, default="./slideshow", help='folder to store images in (default: %(default)s))')
-    parser.add_argument('-u','--update', action="store", type=int, default=2, help='random update period (mins) 0=off (default: %(default)s))')
+    parser.add_argument('-c','--check', action="store", type=int, default=60, help='how often to check for new art 0=run once (default: %(default)s))')
+    parser.add_argument('-u','--update', action="store", type=float, default=2, help='random update period (mins) 0.25 minnimum (default: %(default)s))')
     parser.add_argument('-D','--debug', action='store_true', default=False, help='Debug mode (default: %(default)s))')
     return parser.parse_args()
     
@@ -62,21 +64,20 @@ class slideshow:
         type=artDataMixin,
     )
     
-    def __init__(self, ip, folder, random_update=1440):
+    def __init__(self, ip, folder, period=60, random_update=1440):
         self.log = logging.getLogger('Main.'+__class__.__name__)
         self.debug = self.log.getEffectiveLevel() <= logging.DEBUG
         self.ip = ip
-        self.random_update = max(2,random_update)*60   #minutes
-        self.period = 60
+        self.random_update = max(0.25, random_update)*60   #convert minutes to seconds
+        self.period = int(min(60, self.random_update)) if period else 0
         self.category.SLIDESHOW.dir = folder
         self.category.MY_PHOTOS.dir = os.path.join(folder, self.category.MY_PHOTOS.dir_name)
         self.category.FAVOURITES.dir = os.path.join(folder, self.category.FAVOURITES.dir_name)
         self.api_version = 1
-        self._exit = False
         self.start = time.time()
         self.tv = SamsungTVAsyncArt(host=self.ip, port=8002)
         
-        self.log.info('check thumbnails every: {}s, slideshow rotation every: {} minutes'.format(self.period, self.random_update//60))
+        self.log.info('check thumbnails {}, slideshow rotation every: {}'.format('every {}s'.format(self.period) if self.period else 'once', datetime.timedelta(seconds = self.random_update)))
         try:
             #doesn't work in Windows
             asyncio.get_running_loop().add_signal_handler(SIGINT, self.close)
@@ -87,6 +88,7 @@ class slideshow:
     async def start_slideshow(self):
         await self.tv.start_listening()
         await self.select_artwork()
+        await self.tv.close()
         
     def close(self):
         self.log.info('SIGINT/SIGTERM received, exiting')
@@ -193,7 +195,7 @@ class slideshow:
         
     async def do_random_update(self):
         if time.time() - self.start > self.random_update:
-            self.log.info('doing random update, after {} minutes'.format(self.random_update//60))
+            self.log.info('doing random update, after {}'.format(datetime.timedelta(seconds = self.random_update)))
             self.start = time.time()
             await self.download_thmbnails()
             slideshow_files = list(self.get_content_ids(self.get_files(self.category.SLIDESHOW)))
@@ -225,18 +227,18 @@ class slideshow:
         return {os.path.splitext(v)[0] for v in filenames}
         
     def get_countdown(self):
-        return round(max(0,(self.random_update - (time.time() - self.start))/60), 0)
+        return datetime.timedelta(seconds = max(0, (self.random_update - (time.time() - self.start))))
 
     async def select_artwork(self):
         await self.initialize()
         start = True
-        while not self._exit:
+        while True:
             try:
                 if not self.tv.is_alive():
                     self.log.warning('reconnecting websocket')
                     await self.tv.start_listening()
-                if self.tv.art_mode:
-                    self.log.info('time to next rotation: {} mins'.format(self.get_countdown()))
+                if await self.tv.is_artmode():
+                    self.log.info('time to next rotation: {}'.format(self.get_countdown()))
                     if not await self.do_random_update() and not start:
                         await self.download_thmbnails()
                     start = False
@@ -246,7 +248,9 @@ class slideshow:
                 self.log.warning("error in select_artwork: {}".format(e))
                 if self.debug:
                     self.log.exception(e)
-            await asyncio.sleep(60)
+            if self.period == 0:
+                break
+            await asyncio.sleep(self.period)
             
 async def main():
     global log
@@ -254,11 +258,13 @@ async def main():
     args = parseargs()
     if args.debug:
         log.setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.DEBUG)
     log.debug('Debug mode')
     
     mon = slideshow(args.ip,
                     os.path.normpath(args.folder),
-                    random_update=args.update)
+                    period          = args.check,
+                    random_update   = args.update)
     await mon.start_slideshow()
 
 

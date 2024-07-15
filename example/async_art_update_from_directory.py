@@ -10,7 +10,9 @@ import random
 import json
 import asyncio
 import time
+import datetime
 import argparse
+from signal import SIGTERM, SIGINT
 HAVE_PIL = False
 try:
     from PIL import Image, ImageFilter, ImageChops
@@ -19,9 +21,6 @@ except ImportError:
     pass
 
 from samsungtvws.async_art import SamsungTVAsyncArt
-
-SIGINT = 2
-SIGTERM = 15
 
 logging.basicConfig(level=logging.INFO)
 
@@ -49,17 +48,16 @@ class monitor_and_display:
         self.debug = self.log.getEffectiveLevel() <= logging.DEBUG
         self.ip = ip
         self.folder = folder
-        self.period = period
-        self.random_update = random_update*60   #minutes
+        self.random_update = random_update*60   #convert minutes to seconds
+        self.period = min(period, self.random_update) if self.random_update > 0 else period
         self.include_fav = include_fav
         self.sync = sync
         self.matte = matte
         self.on = on
-        self.upload_list_path = './uploaded_files.json'
+        self.program_data_path = './uploaded_files.json'
         self.uploaded_files = {}
         self.fav = set()
         self.api_version = 0
-        self._exit = False
         self.start = time.time()
         self.files_changed = False
         self.tv = SamsungTVAsyncArt(host=self.ip, port=8002)
@@ -77,12 +75,12 @@ class monitor_and_display:
             self.log.info('Start Monitoring')
             try:
                 await self.tv.start_listening()
+                self.log.info('Started')
             except Exception as e:
                 self.log.error('failed to connect with TV: {}'.format(e))
-                os._exit(1)
-            self.log.info('Started')
-            await self.check_matte()
-            await self.select_artwork()
+            if self.tv.is_alive():
+                await self.check_matte()
+                await self.select_artwork()
         await self.tv.close()
         
     def close(self):
@@ -168,7 +166,7 @@ class monitor_and_display:
         
     async def initialize(self):
         await self.get_api_version()
-        self.uploaded_files = self.read_upload_list()
+        self.load_program_data()
         if HAVE_PIL and self.sync:
             self.log.info('Checking uploaded files list using PIL')
             files_images = self.load_files()
@@ -193,33 +191,41 @@ class monitor_and_display:
                                 break
                             count+=1
                     self.log.info('100% complete')
-                    self.write_upload_list()
+                    self.write_program_data()
                 else:
                     self.log.info('no thubnails found')
             else:
                 self.log.info('no files, using origional uploaded files list')
         else:
-            self.log.warning('No PIL library, or syncing disabled, not reinitializing uploaded files list')  
+            self.log.warning('No PIL library, or syncing disabled, not updating uploaded files list')  
         
     async def do_random_update(self):
-        if self.random_update > 0 and (len(self.uploaded_files.keys()) > 1 or self.include_fav) and time.time() - self.start > self.random_update:
-            self.log.info('doing random update, after {} minutes'.format(self.random_update//60))
-            if self.include_fav:
-                self.log.info('updating favourites')
-                self.fav = set(await self.get_tv_content('MY-C0004'))
-            self.files_changed = True
+        if self.random_update > 0 and (len(self.uploaded_files.keys()) > 1 or self.include_fav):
+            if time.time() - self.start >= self.random_update:
+                self.log.info('doing random update, after {} minutes'.format(self.random_update//60))
+                self.start = time.time()
+                self.write_program_data()
+                if self.include_fav:
+                    self.log.info('updating favourites')
+                    self.fav = set(await self.get_tv_content('MY-C0004'))
+                self.files_changed = True
+            else:
+                self.log.info('next random update in {}'.format(datetime.timedelta(seconds = (self.random_update - (time.time() - self.start)))))
    
-    def read_upload_list(self):
-        if os.path.isfile(self.upload_list_path):
-            with open(self.upload_list_path, 'r') as f:
-                uploaded_files = json.load(f)
+    def load_program_data(self):
+        if os.path.isfile(self.program_data_path):
+            with open(self.program_data_path, 'r') as f:
+                program_data = json.load(f)
+                self.uploaded_files = program_data.get('uploaded_files', program_data)
+                self.start = program_data.get('last_update', time.time())
         else:
-            uploaded_files = {}
-        return uploaded_files
+            self.uploaded_files = {}
+            self.start = time.time()
         
-    def write_upload_list(self):
-        with open(self.upload_list_path, 'w') as f:
-            json.dump(self.uploaded_files, f)
+    def write_program_data(self):
+        with open(self.program_data_path, 'w') as f:
+            program_data = {'last_update': self.start, 'uploaded_files': self.uploaded_files}
+            json.dump(program_data, f)
             
     def read_file(self, filename):
         try:
@@ -258,20 +264,19 @@ class monitor_and_display:
                     self.log.info('uploaded : {} to tv as {}'.format(filename, self.uploaded_files[filename]['content_id']))
                 else:
                     self.log.warning('file: {} failed to upload'.format(filename))
-                self.write_upload_list()
+                self.write_program_data()
             
     async def delete_files_from_tv(self, content_ids):
         if self.tv.art_mode:
             self.log.info('removing files from tv : {}'.format(content_ids))
             await self.tv.delete_list(content_ids)
             self.uploaded_files = {k:v for k, v in self.uploaded_files.items() if v.get('content_id') is not None and v.get('content_id') not in content_ids}
-            self.write_upload_list()
+            self.write_program_data()
         
     def get_last_updated(self, filename):
         return os.path.getmtime(os.path.join(self.folder, filename))
         
     async def remove_files(self, files):
-        #TV_files = await self.get_tv_content('MY-C0002')
         content_ids_removed = [v.get('content_id') for k, v in self.uploaded_files.items() if (v.get('content_id') is not None and k not in files)]
         #delete images from tv
         if content_ids_removed:
@@ -300,39 +305,34 @@ class monitor_and_display:
             await self.upload_files(modified_files)
             self.files_changed = True 
     
-    async def monitor_dir(self):
-        while not self._exit:
-            try:
-                if not os.path.exists(self.folder):
-                    self.log.warning('folder {} does not exist'.format(self.folder))
-                elif self.tv.art_mode:
-                    self.log.info('checking directory: {}'.format(self.folder))
-                    files = self.get_folder_files()
-                    #delete images from tv
-                    await self.remove_files(files)
-                    #upload new files
-                    await self.add_files(files)
-                    #check for modified files
-                    await self.update_files(files)
-                    #random update if enabled
-                    await self.do_random_update()
-                else:
-                    self.log.info('artmode or tv is off')
-            except Exception as e:
-                self.log.warning("error in monitor_dir: {}".format(e))
-            await self.sleep()
+    async def check_dir(self):
+        try:
+            if not os.path.exists(self.folder):
+                self.log.warning('folder {} does not exist'.format(self.folder))
+            elif self.tv.art_mode:
+                self.log.info('checking directory: {}{}'.format(self.folder, ' every {}'.format(datetime.timedelta(seconds = self.period)) if self.period else ''))
+                files = self.get_folder_files()
+                #delete images from tv
+                await self.remove_files(files)
+                #upload new files
+                await self.add_files(files)
+                #check for modified files
+                await self.update_files(files)
+                #random update if enabled
+                await self.do_random_update()
+                if not self.files_changed:
+                    self.log.info('no changes')
+            else:
+                self.log.info('artmode or tv is off')
+        except Exception as e:
+            self.log.warning("error in check_dir: {}".format(e))
 
     async def select_artwork(self):
         await self.initialize()
-        if self.period > 0:
-            asyncio.create_task(self.monitor_dir())
-        else:
-            await self.monitor_dir()
-            self._exit = False
-        while not self._exit:
+        while True:
             try:
+                await self.check_dir()
                 if self.files_changed and self.tv.art_mode and (self.uploaded_files.keys() or self.include_fav):
-                    self.start = time.time()
                     content_id = random.choice(list({v['content_id'] for v in self.uploaded_files.values()}.union(self.fav)))
                     self.log.info('selecting tv art: content_id: {}'.format(content_id))
                     await self.tv.select_image(content_id)
@@ -340,13 +340,9 @@ class monitor_and_display:
             except Exception as e:
                 self.log.warning("error in select_artwork: {}".format(e))
                 self.files_changed = False
-            await self.sleep()
-            
-    async def sleep(self):
-        if self.period == 0:
-            self._exit = True
-            return
-        await asyncio.sleep(self.period)
+            if self.period == 0:
+                break
+            await asyncio.sleep(self.period)
             
 async def main():
     global log
@@ -355,16 +351,17 @@ async def main():
     log.info('Program Started')
     if args.debug:
         log.setLevel(logging.DEBUG)
-        log.info('Debug mode')
+        logging.getLogger().setLevel(logging.DEBUG)
+    log.debug('Debug mode')
     
     mon = monitor_and_display(  args.ip,
                                 os.path.normpath(args.folder),
                                 period          = args.check,
-                                random_update   =args.update,
-                                include_fav     =args.favourite,
-                                sync            =args.sync,
-                                matte           =args.matte,
-                                on              =args.on)
+                                random_update   = args.update,
+                                include_fav     = args.favourite,
+                                sync            = args.sync,
+                                matte           = args.matte,
+                                on              = args.on)
     await mon.start_monitoring()
 
 
