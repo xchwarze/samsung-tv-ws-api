@@ -2,6 +2,51 @@
 # fully async example program to monitor a folder and upload/display on Frame TV
 # NOTE: install Pillow (pip install Pillow) to automatically syncronize art on TV wth uploaded_files.json.
 
+'''
+This program will read the files in a designated folder (with allowed extensions) and upload them to your TV. It keeps track of which files correspond to what
+content_id on your TV by saving the data in a file called uploaded_files.json. it also keeps track of when the selected artwork was last changed.
+
+It monitors the folder for changes every check seconds (5 by default), new files are uploaded to the TV, removed files are deleted from the TV, and if a file
+is changed, the old content is removed from the TV and the new content uploaded to the TV. Content is only changed if the TV is in art mode.
+
+if check is set to 0 seconds, the program will run once and exit. You can then run it periodically (say with a cron job).
+
+if there is more than one file in the folder, the current artword displayed is changed every update minutes (0) by default (which means do not select any artwork),
+otherwise the single file in the folder is selected to be displayed. this also only happens when the TV is in art mode.
+
+If you have PIL installed, the initial syncronization is automatic, the first time the program is run.
+
+If the on (-O) option is selected, the program wil exit if the TV is not on (TV or art mode).
+If the sequential (-S) option is selected, then the slideshow is sequential, not random (random is the default)
+
+Example:
+    1) Your TV is used to display one image, that changes every day, you have a program that grabs the image and puts it in a folder. The image always has the same name.
+       run ./async_art_update_from_folder.py <tv_ip> -f <folder_path> -c 0
+       to update the image on the Tv after the script that grabs the file runs
+       If you are unsure if the TV will be on when you run the program
+       run ./async_art_update_from_folder.py <tv_ip> -f <folder_path> -c 0 -O
+       or
+       run ./async_art_update_from_folder.py <tv_ip> -f <folder_path> -c 60
+       and leave it running
+       
+    2) You use your TV to display your own artwork, you want a slideshow that displays a random artwork every minute, but want to add/remove art from a network share
+       run ./async_art_update_from_folder.py <tv_ip> -f <folder_path_to_share> -c 60 -u 1
+       and leave it running. Add/remove art from the network share folder to include it/remove it from the slideshow.
+       If you want an update every 15 seconds
+       run ./async_art_update_from_folder.py <tv_ip> -f <folder_path_to_share> -c 15 -u 0.25
+       
+    3) you have artwork on the TV marked as "favourites", but want to inclue your own artwork from a folder in a random slideshow that updates once a day
+       run ./async_art_update_from_folder.py <tv_ip> -f <folder_path> -c 3600 -u 1440 -F
+       and leave it running. Add/remove art from the folder to include it/remove it from the slideshow.
+       
+    4) You have some standard art uploaded to your TV, that you slideshow from the TV, but want to add seasonal artworks to the slideshow that you change from time to time.
+       run ./async_art_update_from_folder.py <tv_ip> -f <folder_path> -c 3600
+       and leave it running. Add/remove art from the folder to include it/remove it from the slideshow.
+       or
+       run ./async_art_update_from_folder.py <tv_ip> -f <folder_path> -c 0 -O
+       after updating the files in the folder
+'''
+
 import sys
 import logging
 import os
@@ -31,9 +76,10 @@ def parseargs():
     parser.add_argument('ip', action="store", type=str, default=None, help='ip address of TV (default: %(default)s))')
     parser.add_argument('-f','--folder', action="store", type=str, default="./images", help='folder to load images from (default: %(default)s))')
     parser.add_argument('-m','--matte', action="store", type=str, default="none", help='default matte to use (default: %(default)s))')
-    parser.add_argument('-u','--update', action="store", type=int, default=0, help='random update period (mins) 0=off (default: %(default)s))')
+    parser.add_argument('-u','--update', action="store", type=float, default=0, help='random update period (mins) 0=off (default: %(default)s))')
     parser.add_argument('-c','--check', action="store", type=int, default=5, help='how often to check for new art 0=run once (default: %(default)s))')
     parser.add_argument('-s','--sync', action='store_false', default=True, help='automatically syncronize (needs Pil library) (default: %(default)s))')
+    parser.add_argument('-S','--sequential', action='store_true', default=False, help='sequential slide show (default: %(default)s))')
     parser.add_argument('-O','--on', action='store_true', default=False, help='exit if TV is off (default: %(default)s))')
     parser.add_argument('-F','--favourite', action='store_true', default=False, help='include favourites in rotation (default: %(default)s))')
     parser.add_argument('-D','--debug', action='store_true', default=False, help='Debug mode (default: %(default)s))')
@@ -43,16 +89,17 @@ class monitor_and_display:
     
     allowed_ext = ['jpg', 'jpeg', 'png', 'bmp', 'tif']
     
-    def __init__(self, ip, folder, period=5, random_update=1440, include_fav=False, sync=True, matte='none', on=False):
+    def __init__(self, ip, folder, period=5, random_update=1440, include_fav=False, sync=True, matte='none', sequential=False, on=False):
         self.log = logging.getLogger('Main.'+__class__.__name__)
         self.debug = self.log.getEffectiveLevel() <= logging.DEBUG
         self.ip = ip
         self.folder = folder
-        self.random_update = random_update*60   #convert minutes to seconds
-        self.period = min(period, self.random_update) if self.random_update > 0 else period
+        self.random_update = int(max(0, random_update*60))   #convert minutes to seconds
+        self.period = min(max(5, period), self.random_update) if self.random_update > 0 else period
         self.include_fav = include_fav
         self.sync = sync
         self.matte = matte
+        self.sequential = sequential
         self.on = on
         self.program_data_path = './uploaded_files.json'
         self.uploaded_files = {}
@@ -60,6 +107,7 @@ class monitor_and_display:
         self.api_version = 0
         self.start = time.time()
         self.files_changed = False
+        self.current_content_id = None
         self.tv = SamsungTVAsyncArt(host=self.ip, port=8002)
         try:
             #doesn't work in Windows
@@ -164,8 +212,17 @@ class monitor_and_display:
         self.log.debug('equal_content: {}, diff: {}'.format(equal_content, diff))
         return equal_content
         
+    async def get_current_artwork(self):
+        try:
+            content_id = (await self.tv.get_current()).get('content_id')
+        except Exception:
+            content_id = None
+        return content_id
+        
     async def initialize(self):
         await self.get_api_version()
+        self.current_content_id = await self.get_current_artwork()
+        self.log.info('Current artwork is: {}'.format(self.current_content_id))
         self.load_program_data()
         if HAVE_PIL and self.sync:
             self.log.info('Checking uploaded files list using PIL')
@@ -207,7 +264,7 @@ class monitor_and_display:
     async def do_random_update(self):
         if self.random_update > 0 and (len(self.uploaded_files.keys()) > 1 or self.include_fav):
             if time.time() - self.start >= self.random_update:
-                self.log.info('doing random update, after {} minutes'.format(self.random_update//60))
+                self.log.info('doing random update, after {}'.format(datetime.timedelta(seconds = self.random_update)))
                 self.start = time.time()
                 self.write_program_data()
                 if self.include_fav:
@@ -275,14 +332,13 @@ class monitor_and_display:
         if self.tv.art_mode:
             self.log.info('removing files from tv : {}'.format(content_ids))
             await self.tv.delete_list(content_ids)
-            self.uploaded_files = {k:v for k, v in self.uploaded_files.items() if v.get('content_id') is not None and v.get('content_id') not in content_ids}
-            self.write_program_data()
-        
+            await self.sync_file_list()
+
     def get_last_updated(self, filename):
         return os.path.getmtime(os.path.join(self.folder, filename))
         
     async def remove_files(self, files):
-        content_ids_removed = [v.get('content_id') for k, v in self.uploaded_files.items() if (v.get('content_id') is not None and k not in files)]
+        content_ids_removed = [v['content_id'] for k, v in self.uploaded_files.items() if k not in files]
         #delete images from tv
         if content_ids_removed:
             await self.delete_files_from_tv(content_ids_removed)
@@ -293,22 +349,40 @@ class monitor_and_display:
         #upload new files
         if new_files:
             self.log.info('adding files to tv : {}'.format(new_files))
-            #wait for files to arrive
-            await asyncio.sleep(5 * len(new_files))
+            await self.wait_for_files(new_files)
             await self.upload_files(new_files)
             self.files_changed = True
             
     async def update_files(self, files):
-        modified_files = [f for f in files if f in self.uploaded_files.keys() and self.uploaded_files.get(f, {}).get('modified') != self.get_last_updated(f)]
+        modified_files = [f for f in files if f in self.uploaded_files.keys() and self.uploaded_files[f].get('modified') != self.get_last_updated(f)]
         #delete old file and upload new:
         if modified_files:
             self.log.info('updating files on tv : {}'.format(modified_files))
-            #wait for files to arrive
-            await asyncio.sleep(5 * len(modified_files))
-            files_to_delete = [v.get('content_id') for k, v in self.uploaded_files.items() if (k in modified_files and v.get('content_id') is not None)]
+            await self.wait_for_files(modified_files)
+            files_to_delete = [v['content_id'] for k, v in self.uploaded_files.items() if k in modified_files]
             await self.delete_files_from_tv(files_to_delete)
             await self.upload_files(modified_files)
-            self.files_changed = True 
+            self.files_changed = True
+            
+    async def wait_for_files(self, files):
+        #wait for files to arrive
+        await asyncio.sleep(min(10, 5 * len(files)))
+        
+    def get_next_art(self):
+        content_id = None
+        content_ids = list({v['content_id'] for v in self.uploaded_files.values()}.union(self.fav))
+        if content_ids:
+            if self.sequential:
+                try:
+                    thiselem = content_ids.index(self.current_content_id)
+                    idx = (thiselem + 1) % len(content_ids)
+                    content_id = content_ids[idx]
+                except Exception:
+                    content_id = content_ids[0]
+            else:
+                content_id = random.choice(content_ids)
+            self.current_content_id = content_id
+        return content_id
     
     async def check_dir(self):
         try:
@@ -338,10 +412,11 @@ class monitor_and_display:
         while True:
             try:
                 await self.check_dir()
-                if self.files_changed and self.tv.art_mode and (self.uploaded_files.keys() or self.include_fav):
-                    content_id = random.choice(list({v['content_id'] for v in self.uploaded_files.values()}.union(self.fav)))
-                    self.log.info('selecting tv art: content_id: {}'.format(content_id))
-                    await self.tv.select_image(content_id)
+                if self.files_changed and self.tv.art_mode and (self.uploaded_files.keys() or self.include_fav) and (self.random_update > 0 or len(self.uploaded_files.keys()) == 1):
+                    content_id = self.get_next_art()
+                    if content_id:
+                        self.log.info('selecting tv art: content_id: {}'.format(content_id))
+                        await self.tv.select_image(content_id)
                     self.files_changed = False
             except Exception as e:
                 self.log.warning("error in select_artwork: {}".format(e))
@@ -367,6 +442,7 @@ async def main():
                                 include_fav     = args.favourite,
                                 sync            = args.sync,
                                 matte           = args.matte,
+                                sequential      = args.sequential,
                                 on              = args.on)
     await mon.start_monitoring()
 
