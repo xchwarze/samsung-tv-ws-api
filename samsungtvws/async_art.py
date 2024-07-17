@@ -97,7 +97,10 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
     async def start_listening(self) -> None:
         # Override base class to process events
         await super().start_listening(self.process_event)
-        await self.get_artmode()
+        try:
+            await self.get_artmode()
+        except AssertionError:
+            pass
             
     def get_uuid(self):
         self.art_uuid = str(uuid.uuid4())
