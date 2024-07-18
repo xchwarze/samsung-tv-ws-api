@@ -143,3 +143,6 @@ _development/
 example/uploaded_files.json
 example/images/
 example/slideshow/
+example/test.py
+example/*.jpg
+example/*.png

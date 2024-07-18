@@ -107,7 +107,7 @@ class PIL_methods:
         if files_images:
             self.log.info('getting My Photos list')
             my_photos = await self.mon.get_tv_content('MY-C0002')
-            if my_photos:
+            if my_photos is not None and len(my_photos) > 0:
                 await self.check_thumbnails(files_images, my_photos)
             else:
                 self.log.info('no photos found on tv')
@@ -324,11 +324,11 @@ class monitor_and_display:
         '''
         gets content_id list of category - either My Photos (MY-C0002) or Favourites (MY-C0004) from tv
         '''
-        result = []
         try:
             result = [v['content_id'] for v in await self.tv.available(category)]
         except AssertionError:
-            pass
+            self.log.warning('failed to get contents from TV')
+            result = None
         return result
         
     def get_folder_files(self):
@@ -352,8 +352,9 @@ class monitor_and_display:
         if art has been deleted on tv, resyncronises uploaded_files with tv
         '''
         my_photos = await self.get_tv_content('MY-C0002')
-        self.uploaded_files = {k:v for k,v in self.uploaded_files.items() if v['content_id'] in my_photos}
-        self.write_program_data()
+        if my_photos is not None:
+            self.uploaded_files = {k:v for k,v in self.uploaded_files.items() if v['content_id'] in my_photos}
+            self.write_program_data()
         
     def get_time(self, sec):
         '''
@@ -507,7 +508,8 @@ class monitor_and_display:
                 self.write_program_data()
                 if self.include_fav:
                     self.log.info('updating favourites')
-                    self.fav = set(await self.get_tv_content('MY-C0004'))
+                    fav = await self.get_tv_content('MY-C0004')
+                    self.fav = set(fav) if fav is not None else self.fav
                 await self.change_art()
             else:
                 self.log.info('next {} update in {}'.format('sequential' if self.sequential else 'random', self.get_time(self.update_time - (time.time() - self.start))))
