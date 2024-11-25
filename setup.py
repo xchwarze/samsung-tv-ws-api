@@ -20,7 +20,7 @@ setup(
     packages=find_packages(exclude=("tests",)),
     install_requires=["websocket-client>=0.57.0", "requests>=2.21.0"],
     extras_require={
-        "async": ["aiohttp>=3.8.1", "websockets>=10.2"],
+        "async": ["aiohttp>=3.8.1", "websockets>=13"],
         "encrypted": ["cryptography>=35.0.0", "py3rijndael>=0.3.3"],
     },
     include_package_data=True,

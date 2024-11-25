@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 from aioresponses import aioresponses
 import pytest
-from websockets.client import WebSocketClientProtocol
+from websockets.asyncio.client import ClientConnection
 
 
 @pytest.fixture(autouse=True)
@@ -40,7 +40,7 @@ def override_asyncio_sleep():
 @pytest.fixture(name="async_connection")
 def get_async_connection():
     """Open a websockets connection."""
-    connection = Mock(WebSocketClientProtocol)
+    connection = Mock(ClientConnection)
     with patch(
         "samsungtvws.async_connection.connect", return_value=asyncio.Future()
     ) as connection_class:

@@ -23,7 +23,7 @@ from typing import (
     Union,
 )
 
-from websockets.client import WebSocketClientProtocol, connect
+from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed
 
 from . import connection, exceptions, helper
@@ -39,7 +39,7 @@ _LOGGING = logging.getLogger(__name__)
 
 
 class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
-    connection: Optional[WebSocketClientProtocol]
+    connection: Optional[ClientConnection]
     _recv_loop: Optional["asyncio.Task[None]"]
 
     async def __aenter__(self) -> "SamsungTVWSAsyncConnection":
@@ -53,7 +53,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
     ) -> None:
         await self.close()
 
-    async def open(self) -> WebSocketClientProtocol:
+    async def open(self) -> ClientConnection:
         if self.connection:
             # someone else already created a new connection
             return self.connection
@@ -104,7 +104,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
     async def _do_start_listening(
         self,
         callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]],
-        connection: WebSocketClientProtocol,
+        connection: ClientConnection,
     ) -> None:
         """Do start listening."""
         with contextlib.suppress(ConnectionClosed):
@@ -146,7 +146,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         key_press_delay: Optional[float] = None,
     ) -> None:
         if isinstance(command, list):
-            _LOGGING.warn(
+            _LOGGING.warning(
                 "Using send_command to send multiple commands is deprecated, "
                 "please use send_commands."
             )
@@ -157,7 +157,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     @staticmethod
     async def _send_command(
-        connection: WebSocketClientProtocol,
+        connection: ClientConnection,
         command: Union[SamsungTVCommand, Dict[str, Any]],
         delay: float,
     ) -> None:
