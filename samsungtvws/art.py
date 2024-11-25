@@ -12,7 +12,7 @@ import json
 import logging
 import random
 import socket
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 import uuid
 
 import websocket
