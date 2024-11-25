@@ -420,7 +420,7 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
         session_id = output.group(2)
         LOGGER.info("Got sessionId: %s", session_id)
 
-        return session_id  # type:ignore[no-any-return]
+        return session_id
 
     async def _close_pin_page_on_tv(self) -> None:
         url = self._get_full_url("ws/apps/CloudPINPage/run")
