@@ -219,7 +219,7 @@ def _parse_client_hello(
         + userIdLen
         + GX_SIZE
         + SHA_DIGEST_LENGTH
-    ]
+    ]  # fmt: skip
     LOGGER.debug("hash2: %s", dataHash2.hex())
 
     secret2 = userId + secret
