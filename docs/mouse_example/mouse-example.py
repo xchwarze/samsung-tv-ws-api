@@ -20,13 +20,13 @@ executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
 
 def move_tv_cursor(move_event):
-    print("moving: {}".format(move_event))
+    print(f"moving: {move_event}")
     tv.move_cursor(move_event["x"], move_event["y"])
 
 
 def send_click_to_tv(event):
     key = event["key"]
-    print("Clicked {}".format(key))
+    print(f"Clicked {key}")
     tv.send_key(key)
 
 

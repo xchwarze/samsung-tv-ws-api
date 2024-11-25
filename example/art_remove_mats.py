@@ -26,9 +26,7 @@ matte_types = [
 
 if target_matte_type not in matte_types:
     logging.error(
-        "Invalid matte type: {}. Supported matte types are: {}".format(
-            target_matte_type, matte_types
-        )
+        f"Invalid matte type: {target_matte_type}. Supported matte types are: {matte_types}"
     )
     sys.exit(1)
 
