@@ -10,7 +10,6 @@ import asyncio
 import contextlib
 import json
 import logging
-import ssl
 from types import TracebackType
 from typing import (
     Any,
