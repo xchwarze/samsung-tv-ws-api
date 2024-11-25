@@ -12,22 +12,26 @@ forced_separate = [
 combine_as_imports = true
 
 [tool.ruff]
+line-length = 79
+target-version = "py38"
+
+[tool.ruff.lint]
 ignore = [
     "E501",
     "F401",
     "F403",
 ]
-line-length = 79
 select = [
     "B",
     "B9",
     "C",
     "E",
     "F",
+    "UP", # pyupgrade
     "W",
 ]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 18
 
 [tool.mypy]
