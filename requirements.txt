@@ -12,7 +12,6 @@ cryptography>=35.0.0
 py3rijndael>=0.3.3
 
 # dev
-black>=24.8
 mypy>=1.13
 pre-commit>=3.5
 pytest>=8.3.3
