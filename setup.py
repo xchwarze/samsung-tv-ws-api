@@ -29,6 +29,6 @@ setup(
         "Programming Language :: Python :: 3",
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: LGPL-3.0 License",
+        "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
     ],
 )
