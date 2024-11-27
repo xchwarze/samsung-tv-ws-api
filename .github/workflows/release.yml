@@ -5,8 +5,8 @@ name: Publish Python distribution to PyPI
 # yamllint disable-line rule:truthy
 on:
   push:
-    branches:
-      - master
+    tags:
+      - '*'
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
