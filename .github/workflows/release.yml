@@ -6,7 +6,7 @@ name: Publish Python distribution to PyPI
 on:
   push:
     tags:
-      - '*'
+      - "*"
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
@@ -97,7 +97,12 @@ jobs:
           gh release create
           '${{ github.ref_name }}'
           --repo '${{ github.repository }}'
-          --notes ""
+          --notes "
+          ## Release ${{ github.ref_name }}
+
+          - New updates and improvements.
+          - Includes source (.tar.gz) and binary (.whl) distributions.
+          "
 
       - name: Upload artifact signatures to GitHub Release
         env:
