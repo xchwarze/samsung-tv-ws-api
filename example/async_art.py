@@ -137,6 +137,7 @@ async def main():
             logging.info('current artmode settings: {}'.format(info))
             
             #get rotation (landscape or portrait)
+            #NOTE: to toggle rotation, on 2023 and earlier TV's send a long press of KEY_MUTI_VIEW, for 2024 TV's send a long press of KEY_HOME
             rot = await tv.get_rotation()
             logging.info('Current Orientation: {} ({})'.format('Landscape' if rot==1 else 'Portrait' if rot==2 else 'Unknown', rot))
             
