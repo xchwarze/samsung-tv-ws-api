@@ -60,7 +60,10 @@ exclude = [
 ]
 
 [[tool.mypy.overrides]]
-module = 'websocket.*'
+module = [
+    'py3rijndael.*',
+    'websocket.*',
+]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
