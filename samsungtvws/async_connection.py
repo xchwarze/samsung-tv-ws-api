@@ -24,6 +24,7 @@ from typing import (
 
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed
+from websockets.protocol import State
 
 from . import connection, exceptions, helper
 from .command import SamsungTVCommand, SamsungTVSleepCommand
@@ -174,4 +175,4 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         await asyncio.sleep(delay)
 
     def is_alive(self) -> bool:
-        return self.connection is not None and not self.connection.closed
+        return self.connection is not None and self.connection.state is not State.CLOSED
