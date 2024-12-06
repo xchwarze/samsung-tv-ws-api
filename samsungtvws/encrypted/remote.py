@@ -185,6 +185,5 @@ class SamsungTVEncryptedWSAsyncRemote:
 
     def is_alive(self) -> bool:
         return (
-            self._connection is not None
-            and not self._connection.state is not State.CLOSED
+            self._connection is not None and self._connection.state is not State.CLOSED
         )
