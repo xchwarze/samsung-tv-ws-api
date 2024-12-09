@@ -29,17 +29,17 @@ Example:
        or
        run ./async_art_update_from_folder.py <tv_ip> -f <folder_path> -c 60
        and leave it running
-       
+
     2) You use your TV to display your own artwork, you want a slideshow that displays a random artwork every minute, but want to add/remove art from a network share
        run ./async_art_update_from_folder.py <tv_ip> -f <folder_path_to_share> -u 1
        and leave it running. Add/remove art from the network share folder to include it/remove it from the slideshow.
        If you want an update every 15 seconds
        run ./async_art_update_from_folder.py <tv_ip> -f <folder_path_to_share> -u 0.25
-       
+
     3) you have artwork on the TV marked as "favourites", but want to inclue your own artwork from a folder in a random slideshow that updates once a day
        run ./async_art_update_from_folder.py <tv_ip> -f <folder_path> -c 3600 -u 1440 -F
        and leave it running. Add/remove art from the folder to include it/remove it from the slideshow.
-       
+
     4) You have some standard art uploaded to your TV, that you slideshow from the TV, but want to add seasonal artworks to the slideshow that you change from time to time.
        run ./async_art_update_from_folder.py <tv_ip> -f <folder_path> -c 3600
        and leave it running. Add/remove art from the folder to include it/remove it from the slideshow.
@@ -48,20 +48,21 @@ Example:
        after updating the files in the folder
 '''
 
-import sys
+import argparse
+import asyncio
+import datetime
+import io
+import json
 import logging
 import os
-import io
 import random
-import json
-import asyncio
+from signal import SIGINT, SIGTERM
+import sys
 import time
-import datetime
-import argparse
-from signal import SIGTERM, SIGINT
+
 HAVE_PIL = False
 try:
-    from PIL import Image, ImageFilter, ImageChops
+    from PIL import Image, ImageChops, ImageFilter
     HAVE_PIL=True
 except ImportError:
     pass
@@ -85,15 +86,15 @@ def parseargs():
     parser.add_argument('-F','--favourite', action='store_true', default=False, help='include favourites in rotation (default: %(default)s))')
     parser.add_argument('-D','--debug', action='store_true', default=False, help='Debug mode (default: %(default)s))')
     return parser.parse_args()
-    
+
 class PIL_methods:
-    
+
     def __init__(self, mon):
         self.log = logging.getLogger('Main.'+__class__.__name__)
         self.mon = mon
         self.folder = self.mon.folder
         self.uploaded_files = self.mon.uploaded_files
-        
+
     async def initialize(self):
         '''
         initialize uploaded_files using PIL
@@ -113,7 +114,7 @@ class PIL_methods:
                 self.log.info('no photos found on tv')
         else:
             self.log.info('no files, using origional uploaded files list')
-            
+
     async def check_thumbnails(self, files_images, my_photos):
         '''
         download thumbnails from my_photos to compare with file data
@@ -127,7 +128,7 @@ class PIL_methods:
             self.mon.write_program_data()
         else:
             self.log.info('failed to get thumbnails')
-            
+
     def compare_thumbnails(self, files_images, my_photos_thumbnails):
         '''
         compare file data with thumbnails to find a match, and update update_uploaded_files
@@ -141,7 +142,7 @@ class PIL_methods:
                     if filename not in self.uploaded_files.keys():
                         self.mon.update_uploaded_files(filename, my_content_id)
                     break
-        
+
     def log_progress(self, total, count):
         '''
         log % progress every 10% if this will take a while
@@ -150,7 +151,7 @@ class PIL_methods:
             percent = min(100,(count*100)//total)
             if count % (total//10) == 0:
                 self.log.info('{}% complete'.format(percent))
-        
+
     def load_files(self):
         '''
         reads folder files, and returns dictionary of filenames and binary data
@@ -161,7 +162,7 @@ class PIL_methods:
         files_images = self.get_files_dict(files)
         self.log.info('loaded: {}'.format(list(files_images.keys())))
         return files_images
-        
+
     def get_files_dict(self, files):
         '''
         makes a dictionary of filename and file binary data
@@ -179,7 +180,7 @@ class PIL_methods:
             except Exception as e:
                 self.log.warning('Error loading: {}, {}'.format(file, e))
         return files_images
-        
+
     async def get_thumbnails(self, content_ids):
         '''
         gets thumbnails from tv in list of content_ids
@@ -194,7 +195,7 @@ class PIL_methods:
                 thumbnails = {os.path.splitext(k)[0]:v for k,v in (await self.mon.tv.get_thumbnail_list(content_ids)).items()}
         self.log.info('got {} thumbnails'.format(len(thumbnails)))
         return thumbnails
-        
+
     def fix_file_type(self, filename, file_type, image_data=None):
         if not all([HAVE_PIL, file_type]):
             return file_type
@@ -205,7 +206,7 @@ class PIL_methods:
         if not (org == file_type or (org == 'jpg' and file_type == 'jpeg')):
             self.log.warning('file {} type changed from {} to {}'.format(filename, org, file_type))
         return file_type
-        
+
     def are_images_equal(self, img1, img2):
         '''
         rough check if images are similar using PIL (avoid numpy which is faster)
@@ -217,11 +218,11 @@ class PIL_methods:
         equal_content = diff <= 0.2                 #pick a threshhold
         self.log.debug('equal_content: {}, diff: {}'.format(equal_content, diff))
         return equal_content
-    
+
 class monitor_and_display:
-    
+
     allowed_ext = ['jpg', 'jpeg', 'png', 'bmp', 'tif']
-    
+
     def __init__(self, ip, folder, period=5, update_time=1440, include_fav=False, sync=True, matte='none', sequential=False, on=False):
         self.log = logging.getLogger('Main.'+__class__.__name__)
         self.debug = self.log.getEffectiveLevel() <= logging.DEBUG
@@ -248,7 +249,7 @@ class monitor_and_display:
             asyncio.get_running_loop().add_signal_handler(SIGTERM, self.close)
         except Exception:
             pass
-        
+
     async def start_monitoring(self):
         '''
         program entry point
@@ -266,14 +267,14 @@ class monitor_and_display:
                 await self.check_matte()
                 await self.select_artwork()
         await self.tv.close()
-        
+
     def close(self):
         '''
         exit on signal
         '''
         self.log.info('SIGINT/SIGTERM received, exiting')
         os._exit(1)
-        
+
     async def get_api_version(self):
         '''
         checks api version to see if it's old (<2021) or new type
@@ -282,7 +283,7 @@ class monitor_and_display:
         api_version = await self.tv.get_api_version()
         self.log.info('API version: {}'.format(api_version))
         self.api_version = 0 if int(api_version.replace('.','')) < 4000 else 1
-        
+
     async def check_matte(self):
         '''
         checks if the matte passed for uploads to use is valid type and color
@@ -299,9 +300,9 @@ class monitor_and_display:
                     self.log.info('Valid mattes types: {} and colors: {}'.format(matte_types, matte_colors))
                 self.log.warning('Invalid matte selected: {}. A valid matte would be shadowbox_polar for eample, using none'.format(self.matte))
             except AssertionError:
-                self.log.warning('Error getting mattes list, setting to none'.format(e))
+                self.log.warning("Error getting mattes list, setting to none".format())
             self.matte = 'none'
-            
+
     async def initialize(self):
         '''
         initializes program
@@ -319,7 +320,7 @@ class monitor_and_display:
             await self.pil.initialize() #optional
         else:
             self.log.warning('syncing disabled, not updating uploaded files list')
-        
+
     async def get_tv_content(self, category='MY-C0002'):
         '''
         gets content_id list of category - either My Photos (MY-C0002) or Favourites (MY-C0004) from tv
@@ -330,13 +331,13 @@ class monitor_and_display:
             self.log.warning('failed to get contents from TV')
             result = None
         return result
-        
+
     def get_folder_files(self):
         '''
         returns list of files in folder is extension matches allowed image types
         '''
         return [f for f in os.listdir(self.folder) if os.path.isfile(os.path.join(self.folder, f)) and self.get_file_type(os.path.join(self.folder, f)) in self.allowed_ext]
-        
+
     async def get_current_artwork(self):
         '''
         reads currently displayed art content_id from tv
@@ -346,7 +347,7 @@ class monitor_and_display:
         except Exception:
             content_id = None
         return content_id
-            
+
     async def sync_file_list(self):
         '''
         if art has been deleted on tv, resyncronises uploaded_files with tv
@@ -355,26 +356,26 @@ class monitor_and_display:
         if my_photos is not None:
             self.uploaded_files = {k:v for k,v in self.uploaded_files.items() if v['content_id'] in my_photos}
             self.write_program_data()
-        
+
     def get_time(self, sec):
         '''
         returns seconds as timedelta for display as h:m:s
         '''
         return datetime.timedelta(seconds = sec)
-   
+
     def load_program_data(self):
         '''
         load previous settings on program start update
         '''
         if os.path.isfile(self.program_data_path):
-            with open(self.program_data_path, 'r') as f:
+            with open(self.program_data_path) as f:
                 program_data = json.load(f)
                 self.uploaded_files = program_data.get('uploaded_files', program_data)
                 self.start = program_data.get('last_update', time.time())
         else:
             self.uploaded_files = {}
             self.start = time.time()
-        
+
     def write_program_data(self):
         '''
         save current settings, including file list with content_id on tv and last updated time
@@ -383,7 +384,7 @@ class monitor_and_display:
         with open(self.program_data_path, 'w') as f:
             program_data = {'last_update': self.start, 'uploaded_files': self.uploaded_files}
             json.dump(program_data, f)
-            
+
     def read_file(self, filename):
         '''
         read image file, return file binary data and file type
@@ -396,7 +397,7 @@ class monitor_and_display:
         except Exception as e:
             self.log.error('Error reading file: {}, {}'.format(filename, e))
         return None, None
-        
+
     def get_file_type(self, filename, image_data=None):
         '''
         try to figure out what kind of image file is, starting with the extension
@@ -411,7 +412,7 @@ class monitor_and_display:
         except Exception as e:
             self.log.error('Error reading file: {}, {}'.format(filename, e))
         return None
-            
+
     def update_uploaded_files(self, filename, content_id):
         '''
         if file is uploaded, update the dictionary entry
@@ -420,7 +421,7 @@ class monitor_and_display:
         self.uploaded_files.pop(filename, None)
         if content_id:
             self.uploaded_files[filename] = {'content_id': content_id, 'modified':self.get_last_updated(filename)}
-        
+
     async def upload_files(self, filenames):
         '''
         upload files in list to tv
@@ -436,7 +437,7 @@ class monitor_and_display:
                 else:
                     self.log.warning('file: {} failed to upload'.format(filename))
                 self.write_program_data()
-            
+
     async def delete_files_from_tv(self, content_ids):
         '''
         remove files from tv if tv is in art mode
@@ -451,7 +452,7 @@ class monitor_and_display:
         get last updated timestamp for file
         '''
         return os.path.getmtime(os.path.join(self.folder, filename))
-        
+
     async def remove_files(self, files):
         '''
         if files deleted, remove them from tv
@@ -462,7 +463,7 @@ class monitor_and_display:
             await self.delete_files_from_tv(content_ids_removed)
             return True
         return False
-            
+
     async def add_files(self, files):
         '''
         if new files found, upload to tv
@@ -475,7 +476,7 @@ class monitor_and_display:
             await self.upload_files(new_files)
             return True
         return False
-            
+
     async def update_files(self, files):
         '''
         check if files were modified
@@ -491,11 +492,11 @@ class monitor_and_display:
             await self.upload_files(modified_files)
             return True
         return False
-            
+
     async def wait_for_files(self, files):
         #wait for files to arrive
         await asyncio.sleep(min(10, 5 * len(files)))
-            
+
     async def update_art_timer(self):
         '''
         changes art on tv as part of slideshow if enabled
@@ -513,13 +514,13 @@ class monitor_and_display:
                 await self.change_art()
             else:
                 self.log.info('next {} update in {}'.format('sequential' if self.sequential else 'random', self.get_time(self.update_time - (time.time() - self.start))))
-                
+
     def get_content_ids(self):
         '''
         return list of all content ids available for selecting to display
         '''
         return list({v['content_id'] for v in self.uploaded_files.values()}.union(self.fav))
-        
+
     def get_next_art(self):
         '''
         get next content_id from list, set current_content_id or return None is no list
@@ -529,14 +530,14 @@ class monitor_and_display:
             content_id = self.next_value(self.current_content_id, content_ids) if self.sequential else random.choice(content_ids)
             return content_id
         return None
-        
+
     def next_value(self, value, lst):
         '''
         get next value from list, or return first element
         return None if list is empty
         '''
         return lst[(lst.index(value)+1) % len(lst)] if value in lst else lst[0] if lst else None
-        
+
     async def change_art(self):
         '''
         update displayed art on tv, it next_art is a different content_id to current
@@ -548,7 +549,7 @@ class monitor_and_display:
             self.current_content_id = content_id
         else:
             self.log.info('skipping art update, as new content_id: {} is the same'.format(content_id))
-    
+
     async def check_dir(self):
         '''
         scan folder for new, deleted or updated files, but only when tv is in art mode
@@ -581,7 +582,7 @@ class monitor_and_display:
             if self.period == 0:
                 break
             await asyncio.sleep(self.period)
-            
+
 async def main():
     global log
     log = logging.getLogger('Main')
@@ -591,13 +592,13 @@ async def main():
         log.setLevel(logging.DEBUG)
         logging.getLogger().setLevel(logging.DEBUG)
     log.debug('Debug mode')
-    
+
     args.folder = os.path.normpath(args.folder)
-    
+
     if not os.path.exists(args.folder):
         self.log.warning('folder {} does not exist, exiting'.format(args.folder))
         os._exit(1)
-    
+
     mon = monitor_and_display(  args.ip,
                                 args.folder,
                                 period          = args.check,

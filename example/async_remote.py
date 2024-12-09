@@ -22,7 +22,7 @@ async def main():
 
     # Turn off (FrameTV)
     # await tv.send_command(SendRemoteKey.hold_key("KEY_POWER", 3))
-    
+
     # Rotate Frame TV (with auto rotation mount)
     # 2022/2023 version
     # await tv.send_command(SendRemoteKey.hold_key("KEY_MULTI_VIEW", 3))

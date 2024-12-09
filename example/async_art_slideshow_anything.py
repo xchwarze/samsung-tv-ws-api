@@ -19,17 +19,17 @@ Only artwork in the 'slideshow' folder will be shown on the TV.
 The sequence is random, and the time period will resume automatically when the program is restarted
 '''
 
+import argparse
+import asyncio
+from dataclasses import dataclass
+import datetime
+from enum import Enum
 import logging
 import os
-import shutil
 import random
-import asyncio
+import shutil
+from signal import SIGINT, SIGTERM
 import time
-import argparse
-import datetime
-from signal import SIGTERM, SIGINT
-from dataclasses import dataclass
-from enum import Enum
 
 from samsungtvws.async_art import SamsungTVAsyncArt
 
@@ -45,14 +45,14 @@ def parseargs():
     parser.add_argument('-u','--update', action="store", type=float, default=2, help='random update period (mins) 0.25 minnimum (default: %(default)s))')
     parser.add_argument('-D','--debug', action='store_true', default=False, help='Debug mode (default: %(default)s))')
     return parser.parse_args()
-    
+
 @dataclass
 class artDataMixin:
     dir_name:str
     category_id: str
     dir: str
     tv_files: set()
-    
+
 class slideshow:
 
     category = Enum(
@@ -63,7 +63,7 @@ class slideshow:
               ],
         type=artDataMixin,
     )
-    
+
     def __init__(self, ip, folder, period=60, random_update=1440):
         self.log = logging.getLogger('Main.'+__class__.__name__)
         self.debug = self.log.getEffectiveLevel() <= logging.DEBUG
@@ -76,7 +76,7 @@ class slideshow:
         self.api_version = 1
         self.start = time.time()
         self.tv = SamsungTVAsyncArt(host=self.ip, port=8002)
-        
+
         self.log.info('check thumbnails {}, slideshow rotation every: {}'.format('every {}s'.format(self.period) if self.period else 'once', datetime.timedelta(seconds = self.random_update)))
         try:
             #doesn't work in Windows
@@ -84,26 +84,26 @@ class slideshow:
             asyncio.get_running_loop().add_signal_handler(SIGTERM, self.close)
         except Exception:
             pass
-        
+
     async def start_slideshow(self):
         await self.tv.start_listening()
         await self.select_artwork()
         await self.tv.close()
-        
+
     def close(self):
         self.log.info('SIGINT/SIGTERM received, exiting')
         os._exit(1)
-        
+
     def make_directory(self, directory):
         try:
             os.makedirs(directory, exist_ok=True)
-        except OSError as e:
+        except OSError:
             pass
-        
+
     async def get_api_version(self):
         api_version = await self.tv.get_api_version()
         self.api_version = 0 if int(api_version.replace('.','')) < 4000 else 1
-        
+
     async def get_tv_content(self, category='MY-C0002'):
         result = []
         try:
@@ -111,7 +111,7 @@ class slideshow:
         except AssertionError:
             pass
         return result
-        
+
     async def get_thumbnails(self, content_ids):
         thumbnails = {}
         if content_ids:
@@ -123,7 +123,7 @@ class slideshow:
                 thumbnails = await self.tv.get_thumbnail_list(content_ids)
         self.log.info('got {} thumbnails'.format(len(thumbnails)))
         return thumbnails
-        
+
     async def initialize(self):
         for cat in self.category:
             self.make_directory(cat.dir)
@@ -134,28 +134,28 @@ class slideshow:
             for file in self.get_files(self.category.FAVOURITES):
                 shutil.copy2(os.path.join(self.category.FAVOURITES.dir, file), self.category.SLIDESHOW.dir)
         await self.set_start()
-                
+
     async def set_start(self):
         content_id = (await self.tv.get_current()).get('content_id')
         self.log.debug('got current artwork: {}'.format(content_id))
         self.start = max(time.time() - self.random_update*60, self.get_last_updated(self.get_filename(content_id, self.category.SLIDESHOW)))
-              
+
     def get_files(self, cat):
         return self.get_file_set(cat.dir)
-        
+
     def get_filename(self, content_id, cat):
         return next(iter(f for f in self.get_files(cat) if self.get_content_ids(f) == content_id), None)
-        
+
     def get_last_updated(self, filename):
         if filename:
             return os.path.getmtime(os.path.join(self.category.SLIDESHOW.dir, filename))
         return time.time()
-        
+
     def set_last_updated(self, filename):
         if filename:
             path = os.path.join(self.category.SLIDESHOW.dir, filename)
             os.utime(path, (os.path.getctime(path), time.time()))
-        
+
     async def update_thmbnails(self, cat):
         self.log.info('checking thumbnails {}'.format(cat.name))
         files = self.get_files(cat)
@@ -166,8 +166,8 @@ class slideshow:
         if new_thumbnails:
             photos_thumbnails = await self.get_thumbnails(new_thumbnails)
             new_thumbnails = {k:v for k,v  in photos_thumbnails.items() if k not in files}
-            self.write_thumbnails(cat.dir, new_thumbnails) 
-            
+            self.write_thumbnails(cat.dir, new_thumbnails)
+
     def remove_files(self, cat):
         self.log.info('checking for deleted files in {}'.format(cat.dir))
         files = self.get_files(cat)
@@ -185,14 +185,14 @@ class slideshow:
             else:
                 self.log.warning('cannot remove {} as it does not exist'.format(path))
         self.log.info('done checking for deleted files')
-        
+
     async def download_thmbnails(self):
         await self.update_thmbnails(self.category.MY_PHOTOS)
         await self.update_thmbnails(self.category.FAVOURITES)
         self.remove_files(self.category.MY_PHOTOS)
         self.remove_files(self.category.FAVOURITES)
         self.remove_files(self.category.SLIDESHOW)
-        
+
     async def do_random_update(self):
         if time.time() - self.start > self.random_update:
             self.log.info('doing random update, after {}'.format(datetime.timedelta(seconds = self.random_update)))
@@ -206,7 +206,7 @@ class slideshow:
                 await self.tv.select_image(content_id)
             return True
         return False
-            
+
     def write_thumbnails(self, folder, thumbnails):
         try:
             for filename, data in thumbnails.items():
@@ -217,15 +217,15 @@ class slideshow:
                         f.write(data)
         except Exception as e:
             self.log.error('error writing file: {}, {}'.format(os.path.join(folder, filename), e))
-        
+
     def get_file_set(self, folder):
         return {f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))}
-            
+
     def get_content_ids(self, filenames):
         if isinstance(filenames, str):
             return os.path.splitext(filenames)[0]
         return {os.path.splitext(v)[0] for v in filenames}
-        
+
     def get_countdown(self):
         return datetime.timedelta(seconds = max(0, (self.random_update - (time.time() - self.start))))
 
@@ -251,7 +251,7 @@ class slideshow:
             if self.period == 0:
                 break
             await asyncio.sleep(self.period)
-            
+
 async def main():
     global log
     log = logging.getLogger('Main')
@@ -260,7 +260,7 @@ async def main():
         log.setLevel(logging.DEBUG)
         logging.getLogger().setLevel(logging.DEBUG)
     log.debug('Debug mode')
-    
+
     mon = slideshow(args.ip,
                     os.path.normpath(args.folder),
                     period          = args.check,

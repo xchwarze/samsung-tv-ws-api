@@ -8,21 +8,22 @@ Copyright (C) 2024 Nick Waterton <n.waterton@outlook.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
+import asyncio
 from datetime import datetime
-import os
 import json
 import logging
+import os
 import random
-import asyncio
-import aiohttp
-from typing import Any, Dict, List, Optional, Union, Callable, Awaitable
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 import uuid
 
+import aiohttp
+
 from . import exceptions, helper
-from .command import SamsungTVCommand
 from .async_connection import SamsungTVWSAsyncConnection
-from .event import D2D_SERVICE_MESSAGE_EVENT, MS_CHANNEL_READY_EVENT
 from .async_rest import SamsungTVAsyncRest
+from .command import SamsungTVCommand
+from .event import D2D_SERVICE_MESSAGE_EVENT, MS_CHANNEL_READY_EVENT
 from .helper import get_ssl_context
 
 _LOGGING = logging.getLogger(__name__)
@@ -88,12 +89,12 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
             raise exceptions.ConnectionFailure(response)
 
         return self.connection
-        
+
     async def close(self):
         if self.session and not self.session.closed:
             await self.session.close()
         await super().close()
-        
+
     async def start_listening(self) -> None:
         # Override base class to process events
         await super().start_listening(self.process_event)
@@ -101,11 +102,11 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
             await self.get_artmode()
         except AssertionError:
             pass
-            
+
     def get_uuid(self):
         self.art_uuid = str(uuid.uuid4())
         return self.art_uuid
-        
+
     async def wait_for_response(self, request_uuid, timeout=2):
         data = None
         try:
@@ -134,7 +135,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         self.pending_requests[wait_for_event or request_data["id"]] = asyncio.Future()
         await self.send_command(ArtChannelEmitCommand.art_app_request(request_data))
         return await self.wait_for_response(wait_for_event or request_data["id"])
-        
+
     async def process_event(self, event=None, response=None):
         if event == D2D_SERVICE_MESSAGE_EVENT:
             data = json.loads(response["data"])
@@ -147,12 +148,12 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
                 self.art_mode = False
             elif 'wakeup' in sub_event:
                 asyncio.create_task(self.get_artmode())
-                
+
             if sub_event in self.callbacks.keys():
                 awaitable = self.callbacks[sub_event](event, response)
                 if awaitable:
                     asyncio.create_task(awaitable)
-                
+
             request_id = data.get('request_id', data.get('id'))
             try:
                 if request_id in self.pending_requests.keys():
@@ -161,13 +162,13 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
                     self.pending_requests[sub_event].set_result(response)
             except asyncio.exceptions.InvalidStateError:    #already completed
                 pass
-                
+
     def set_callback(self, trigger, callback=None):
         if not callback:
             self.callbacks.pop(trigger, None)
         else:
             self.callbacks[trigger] = callback
-            
+
     def get_session(self):
         if self.session is None or self.session.closed:
             self.session = aiohttp.ClientSession()
@@ -185,22 +186,22 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
             await asyncio.sleep(0.1)    #do not hit rest api to frequently
             data = await self._get_rest_api().rest_device_info()
             return data.get("device", {}).get("FrameTVSupport") == "true"
-        except Exception as e:
+        except Exception:
             pass
         return False
-        
+
     async def on(self) -> bool:
         try:
             await asyncio.sleep(0.1)    #do not hit rest api to frequently
             data = await self._get_rest_api().rest_device_info()
             return data.get("device", {}).get('PowerState', 'off') == 'on'
-        except Exception as e:
+        except Exception:
             pass
         return False
-        
+
     async def is_artmode(self) -> bool:
         return await self.on() and self.art_mode
-        
+
     async def get_api_version(self):
         data = await self._send_art_request(
             {"request": "get_api_version"}
@@ -235,7 +236,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         )
         assert data
         return data
-        
+
     async def set_favourite(self, content_id, status='on'):
         data = await self._send_art_request(
             {   "request": "change_favorite",
@@ -245,7 +246,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         )
         assert data
         return data
-        
+
     async def get_artmode_settings(self, setting=''):
         '''
         setting can be any of 'brightness', 'color_temperature', 'motion_sensitivity',
@@ -264,7 +265,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         )
         assert data
         return data
- 
+
     async def set_auto_rotation_status(self, duration=0, type=True, category=2):
         '''
         duration is "off" or "number" where number is duration in minutes. set 0 for 'off'
@@ -319,7 +320,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         )
         assert data
         return data
-        
+
     async def get_color_temperature(self):
         data = await self._send_art_request(
             {"request": "get_color_temperature"}
@@ -335,7 +336,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         )
         assert data
         return data
- 
+
     async def get_thumbnail_list(self, content_id_list=[]):
         if isinstance(content_id_list, str):
             content_id_list=[content_id_list]
@@ -407,12 +408,12 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
             file_type = file_extension[1:]
             with open(file, 'rb') as f:
                 file = f.read()
-                
+
         file_size = len(file)
         file_type = file_type.lower()
         if file_type == "jpeg":
             file_type = "jpg"
-            
+
         if date is None:
             date = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
         data = await self._send_art_request(
@@ -447,7 +448,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         )
 
         ssl_context = get_ssl_context() if conn_info.get('secured', False) else None
-        reader, writer = await asyncio.open_connection(conn_info['ip'], int(conn_info['port']), ssl=ssl_context)  
+        reader, writer = await asyncio.open_connection(conn_info['ip'], int(conn_info['port']), ssl=ssl_context)
         writer.write(len(header).to_bytes(4, "big"))
         writer.write(header.encode("ascii"))
         writer.write(file)
@@ -493,7 +494,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
                 "value": mode,
             }
         )
-        
+
     async def get_rotation(self):
         data = await self._send_art_request(
             {"request": "get_current_rotation"}

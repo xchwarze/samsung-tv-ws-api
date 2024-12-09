@@ -171,7 +171,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
         assert response
         return json.loads(response["data"])
-        
+
     def set_favourite(self, content_id, status='on'):
         response = self._send_art_request(
             {   "request": "change_favorite",
@@ -182,7 +182,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
         assert response
         return json.loads(response["data"])
-        
+
     def get_artmode_settings(self, setting=''):
         '''
         setting can be any of 'brightness', 'color_temperature', 'motion_sensitivity',
@@ -207,7 +207,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
         assert response
         return json.loads(response["data"])
- 
+
     def set_auto_rotation_status(self, duration=0, type=True, category=2):
         '''
         duration is "off" or "number" where number is duration in minutes. set 0 for 'off'
@@ -257,7 +257,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
         assert response
         return json.loads(response["data"])
-        
+
     def get_color_temperature(self):
         response = self._send_art_request(
             {"request": "get_color_temperature"},
@@ -273,7 +273,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
         assert response
         return json.loads(response["data"])
- 
+
     def get_thumbnail_list(self, content_id_list=[]):
         if isinstance(content_id_list, str):
             content_id_list=[content_id_list]
@@ -356,7 +356,7 @@ class SamsungTVArt(SamsungTVWSConnection):
             file_type = file_extension[1:]
             with open(file, 'rb') as f:
                 file = f.read()
-                
+
         file_size = len(file)
         file_type = file_type.lower()
         if file_type == "jpeg":
@@ -399,7 +399,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
 
         art_socket_raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        art_socket = get_ssl_context().wrap_socket(art_socket_raw) if conn_info.get('secured', False) else art_socket_raw  
+        art_socket = get_ssl_context().wrap_socket(art_socket_raw) if conn_info.get('secured', False) else art_socket_raw
         art_socket.connect((conn_info["ip"], int(conn_info["port"])))
         art_socket.send(len(header).to_bytes(4, "big"))
         art_socket.send(header.encode("ascii"))
@@ -470,7 +470,7 @@ class SamsungTVArt(SamsungTVWSConnection):
                 "value": mode,
             }
         )
-        
+
     def get_rotation(self):
         response = self._send_art_request(
             {"request": "get_current_rotation"},
@@ -478,7 +478,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
         assert response
         data = json.loads(response["data"])
-        
+
         return data.get("current_rotation_status",0)
 
     def get_photo_filter_list(self):
