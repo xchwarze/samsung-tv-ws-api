@@ -11,9 +11,7 @@ This project is a library for remote controlling Samsung televisions via a TCP/I
 
 It currently supports modern (post-2016) TVs with Ethernet or Wi-Fi connectivity. They should be all models with TizenOs.
 
-This fork is based on https://github.com/xchwarze/samsung-tv-ws-api work
-
-Origionally Based on https://github.com/marysieek/samsung-tv-api work
+Based on https://github.com/marysieek/samsung-tv-api work
 
 ## Install
 
@@ -102,11 +100,6 @@ logging.info(info)
 ```
 
 ### Art Mode
-
-Art mode has been updated to support all Frame TV's including 2021/22/23 and 2024 models.
-**NOTE:** The async library is more reliable/robust than the regular library, so I reccomend you use that if possible. See the `async_art` examples.
-
-If you use and like this library for art mode, [Buy me a coffee](https://paypal.me/NWaterton).
 
 TVs that support art mode (such as The Frame) can be controlled as follows:
 
