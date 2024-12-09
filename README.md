@@ -17,43 +17,6 @@ Origionally Based on https://github.com/marysieek/samsung-tv-api work
 
 ## Install
 
-### Install This Fork
-
-This fork is intened to provide extended support to Frame TV's.
-
-First clone this repository to your local drive (make sure you have git installed):
-
-```
-git clone https://github.com/NickWaterton/samsung-tv-ws-api.git
-```
-
-Then change to the `samsung-tv-ws-api` directory:
-
-```
-cd samsung-tv-ws-api
-```
-
-Now run install:
-
-```
-python ./setup.py install
-```
-
-You can also install directly from git using pip (your command may be `pip` or `pip3` depending on your setup):
-
-```bash
-pip install git+https://github.com/NickWaterton/samsung-tv-ws-api.git
-```
-
-Or from the git clone:
-
-```bash
-git clone https://github.com/NickWaterton/samsung-tv-ws-api.git
-pip install "./samsung-tv-ws-api"
-```
-
-### Install Origional
-
 ```bash
 $ pip3 install samsungtvws[async,encrypted]
 ```
