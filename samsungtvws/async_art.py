@@ -329,7 +329,9 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         assert data
         return data
 
-    async def get_thumbnail_list(self, content_id_list=[]):
+    async def get_thumbnail_list(self, content_id_list=None):
+        if content_id_list is None:
+            content_id_list = []
         if isinstance(content_id_list, str):
             content_id_list = [content_id_list]
         content_id_list = [{"content_id": id} for id in content_id_list]
@@ -364,7 +366,9 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         writer.close()
         return thumbnail_data_dict
 
-    async def get_thumbnail(self, content_id_list=[], as_dict=False):
+    async def get_thumbnail(self, content_id_list=None, as_dict=False):
+        if content_id_list is None:
+            content_id_list = []
         if isinstance(content_id_list, str):
             content_id_list = [content_id_list]
         thumbnail_data_dict = {}

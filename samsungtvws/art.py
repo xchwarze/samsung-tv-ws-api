@@ -288,7 +288,9 @@ class SamsungTVArt(SamsungTVWSConnection):
         assert response
         return json.loads(response["data"])
 
-    def get_thumbnail_list(self, content_id_list=[]):
+    def get_thumbnail_list(self, content_id_list=None):
+        if content_id_list is None:
+            content_id_list = []
         if isinstance(content_id_list, str):
             content_id_list = [content_id_list]
         content_id_list = [{"content_id": id} for id in content_id_list]
@@ -331,7 +333,9 @@ class SamsungTVArt(SamsungTVWSConnection):
             thumbnail_data_dict[filename] = thumbnail_data
         return thumbnail_data_dict
 
-    def get_thumbnail(self, content_id_list=[], as_dict=False):
+    def get_thumbnail(self, content_id_list=None, as_dict=False):
+        if content_id_list is None:
+            content_id_list = []
         if isinstance(content_id_list, str):
             content_id_list = [content_id_list]
         thumbnail_data_dict = {}

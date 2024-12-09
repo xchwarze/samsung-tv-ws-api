@@ -57,6 +57,7 @@ import logging
 import os
 import random
 from signal import SIGINT, SIGTERM
+import sys
 import time
 
 HAVE_PIL = False
@@ -382,7 +383,7 @@ class monitor_and_display:
         exit on signal
         """
         self.log.info("SIGINT/SIGTERM received, exiting")
-        os._exit(1)
+        sys.exit(1)
 
     async def get_api_version(self):
         """
@@ -779,8 +780,8 @@ async def main():
     args.folder = os.path.normpath(args.folder)
 
     if not os.path.exists(args.folder):
-        self.log.warning(f"folder {args.folder} does not exist, exiting")
-        os._exit(1)
+        log.warning(f"folder {args.folder} does not exist, exiting")
+        sys.exit(1)
 
     mon = monitor_and_display(
         args.ip,
@@ -800,4 +801,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        os._exit(1)
+        sys.exit(1)

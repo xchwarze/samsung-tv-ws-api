@@ -29,6 +29,7 @@ import os
 import random
 import shutil
 from signal import SIGINT, SIGTERM
+import sys
 import time
 
 from samsungtvws.async_art import SamsungTVAsyncArt
@@ -138,7 +139,7 @@ class slideshow:
 
     def close(self):
         self.log.info("SIGINT/SIGTERM received, exiting")
-        os._exit(1)
+        sys.exit(1)
 
     def make_directory(self, directory):
         try:
@@ -354,4 +355,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        os._exit(1)
+        sys.exit(1)
