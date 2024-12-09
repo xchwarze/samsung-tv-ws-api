@@ -8,8 +8,9 @@ from types import TracebackType
 from typing import List, Optional
 
 import aiohttp
-from websockets.client import WebSocketClientProtocol, connect
+from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed
+from websockets.protocol import State
 
 from ..exceptions import ConnectionFailure
 from .command import SamsungTVEncryptedCommand
@@ -39,7 +40,7 @@ class SamsungTVEncryptedWSAsyncRemote:
     REST_URL_FORMAT = "http://{host}:{port}/{route}"
     URL_FORMAT = "ws://{host}:{port}/socket.io/1/websocket/{app}"
 
-    _connection: Optional[WebSocketClientProtocol]
+    _connection: Optional[ClientConnection]
     _recv_loop: Optional["asyncio.Task[None]"]
 
     def __init__(
@@ -129,7 +130,7 @@ class SamsungTVEncryptedWSAsyncRemote:
 
     @staticmethod
     async def _do_start_listening(
-        connection: WebSocketClientProtocol,
+        connection: ClientConnection,
     ) -> None:
         """Do start listening."""
         with contextlib.suppress(ConnectionClosed):
@@ -160,7 +161,7 @@ class SamsungTVEncryptedWSAsyncRemote:
 
     @staticmethod
     async def _send_command(
-        connection: WebSocketClientProtocol,
+        connection: ClientConnection,
         command: SamsungTVEncryptedCommand,
         session: SamsungTVEncryptedSession,
         delay: float,
@@ -183,4 +184,6 @@ class SamsungTVEncryptedWSAsyncRemote:
         LOGGER.debug("Connection closed")
 
     def is_alive(self) -> bool:
-        return self._connection is not None and not self._connection.closed
+        return (
+            self._connection is not None and self._connection.state is not State.CLOSED
+        )

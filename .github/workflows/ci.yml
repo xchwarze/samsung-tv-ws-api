@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v4
 
       - name: Install Python 3.10
-        uses: actions/setup-python@v2.3.2
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
@@ -24,7 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - uses: pre-commit/action@v2.0.3
+      - uses: pre-commit/action@v3.0.1
 
   tests:
     name: ${{ matrix.python-version }} / ${{ matrix.os }}
@@ -33,17 +33,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - { python-version: "3.13", os: ubuntu-latest, session: "tests" }
           - { python-version: "3.12", os: ubuntu-latest, session: "tests" }
           - { python-version: "3.11", os: ubuntu-latest, session: "tests" }
           - { python-version: "3.10", os: ubuntu-latest, session: "tests" }
           - { python-version: "3.9", os: ubuntu-latest, session: "tests" }
-          - { python-version: "3.8", os: ubuntu-latest, session: "tests" }
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v4
 
       - name: Install Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2.3.2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 

@@ -36,7 +36,7 @@ class SamsungTVEncryptedSession:
 
     def _encrypt(self, raw: str) -> bytes:
         encryptor = self._cipher.encryptor()
-        return (  # type:ignore[no-any-return]
+        return (
             encryptor.update(bytes(Padding.pad(raw), encoding="utf8"))
             + encryptor.finalize()
         )
