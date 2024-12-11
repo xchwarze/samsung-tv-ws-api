@@ -10,6 +10,7 @@ import base64
 import json
 import logging
 import ssl
+import random
 from typing import Any, Dict, Optional, Union
 
 from . import exceptions
@@ -42,3 +43,7 @@ def get_ssl_context() -> ssl.SSLContext:
         _SSL_CONTEXT.check_hostname = False
         _SSL_CONTEXT.verify_mode = ssl.CERT_NONE
     return _SSL_CONTEXT
+
+
+def generate_connection_id() -> int:
+    return random.randrange(4 * 1024 * 1024 * 1024)

@@ -14,36 +14,18 @@ import json
 import logging
 import os
 import random
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Callable, Awaitable
 import uuid
-
 import aiohttp
 
 from . import exceptions, helper
+from .art import ArtChannelEmitCommand, ART_ENDPOINT
 from .async_connection import SamsungTVWSAsyncConnection
 from .async_rest import SamsungTVAsyncRest
-from .command import SamsungTVCommand
 from .event import D2D_SERVICE_MESSAGE_EVENT, MS_CHANNEL_READY_EVENT
 from .helper import get_ssl_context
 
 _LOGGING = logging.getLogger(__name__)
-
-ART_ENDPOINT = "com.samsung.art-app"
-
-
-class ArtChannelEmitCommand(SamsungTVCommand):
-    def __init__(self, params: Dict[str, Any]) -> None:
-        super().__init__("ms.channel.emit", params)
-
-    @staticmethod
-    def art_app_request(data: Dict[str, Any]) -> "ArtChannelEmitCommand":
-        return ArtChannelEmitCommand(
-            {
-                "event": "art_app_request",
-                "to": "host",
-                "data": json.dumps(data),
-            }
-        )
 
 
 class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
@@ -95,7 +77,9 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
             await self.session.close()
         await super().close()
 
-    async def start_listening(self) -> None:
+    async def start_listening(
+        self, callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]] = None
+    ) -> None:
         # Override base class to process events
         await super().start_listening(self.process_event)
         try:
