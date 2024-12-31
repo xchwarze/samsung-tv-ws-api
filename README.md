@@ -143,8 +143,8 @@ info = tv.art().get_artmode()
 logging.info(info)
 
 # Switch art mode on or off
-tv.art().set_artmode(True)
-tv.art().set_artmode(False)
+tv.art().set_artmode('on')
+tv.art().set_artmode('off')
 
 # Upload a picture
 file = open('test.png', 'rb')
