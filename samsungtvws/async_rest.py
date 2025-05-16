@@ -41,9 +41,7 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
             elif method == "PUT":
                 future = self.session.put(url, timeout=self.timeout, ssl=False)
             elif method == "DELETE":
-                future = self.session.delete(
-                    url, timeout=self.timeout, ssl=False
-                )
+                future = self.session.delete(url, timeout=self.timeout, ssl=False)
             else:
                 future = self.session.get(url, timeout=self.timeout, ssl=False)
             async with future as resp:
