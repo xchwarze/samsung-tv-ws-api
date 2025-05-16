@@ -32,18 +32,21 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
             timeout=timeout,
         )
         self.session = session
+        self.client_timeout = aiohttp.ClientTimeout(timeout)
 
     async def _rest_request(self, target: str, method: str = "GET") -> Dict[str, Any]:
         url = self._format_rest_url(target)
         try:
             if method == "POST":
-                future = self.session.post(url, timeout=self.timeout, ssl=False)
+                future = self.session.post(url, timeout=self.client_timeout, ssl=False)
             elif method == "PUT":
-                future = self.session.put(url, timeout=self.timeout, ssl=False)
+                future = self.session.put(url, timeout=self.client_timeout, ssl=False)
             elif method == "DELETE":
-                future = self.session.delete(url, timeout=self.timeout, ssl=False)
+                future = self.session.delete(
+                    url, timeout=self.client_timeout, ssl=False
+                )
             else:
-                future = self.session.get(url, timeout=self.timeout, ssl=False)
+                future = self.session.get(url, timeout=self.client_timeout, ssl=False)
             async with future as resp:
                 return helper.process_api_response(await resp.text())
         except aiohttp.ClientConnectionError as err:
