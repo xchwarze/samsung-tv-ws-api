@@ -6,9 +6,9 @@ Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
-from asyncio import Future, timeout, TimeoutError as AsyncioTimeoutError
+from asyncio import Future, timeout
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from . import async_connection, remote, rest
 from .event import ED_INSTALLED_APP_EVENT, parse_installed_app
@@ -20,10 +20,10 @@ class SamsungTVWSAsyncRemote(async_connection.SamsungTVWSAsyncConnection):
     def __init__(
         self,
         host: str,
-        token: Optional[str] = None,
-        token_file: Optional[str] = None,
+        token: str | None = None,
+        token_file: str | None = None,
         port: int = 8001,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         key_press_delay: float = 1,
         name: str = "SamsungTvRemote",
     ) -> None:
@@ -37,25 +37,25 @@ class SamsungTVWSAsyncRemote(async_connection.SamsungTVWSAsyncConnection):
             key_press_delay=key_press_delay,
             name=name,
         )
-        self._rest_api: Optional[rest.SamsungTVRest] = None
-        self._app_list_futures: Set[Future[Dict[str, Any]]] = set()
+        self._rest_api: rest.SamsungTVRest | None = None
+        self._app_list_futures: set[Future[dict[str, Any]]] = set()
 
-    async def app_list(self) -> Optional[List[Dict[str, Any]]]:
+    async def app_list(self) -> list[dict[str, Any]] | None:
         _LOGGING.debug("Get app list (not available on all TVs)")
         # See https://github.com/xchwarze/samsung-tv-ws-api/issues/23
-        app_list_future: Future[Dict[str, Any]] = Future()
+        app_list_future: Future[dict[str, Any]] = Future()
         self._app_list_futures.add(app_list_future)
         await self.send_command(remote.ChannelEmitCommand.get_installed_app())
 
         try:
             async with timeout(self.timeout):
                 response = await app_list_future
-        except AsyncioTimeoutError as err:
+        except TimeoutError as err:
             _LOGGING.debug("Failed to get app list: %s", err)
             return None
         return parse_installed_app(response)
 
-    def _websocket_event(self, event: str, response: Dict[str, Any]) -> None:
+    def _websocket_event(self, event: str, response: dict[str, Any]) -> None:
         """Handle websocket event."""
         super()._websocket_event(event, response)
         if event == ED_INSTALLED_APP_EVENT:

@@ -12,7 +12,7 @@ import json
 import logging
 import random
 import socket
-from typing import Any, Dict, Optional
+from typing import Any
 import uuid
 
 import websocket
@@ -29,11 +29,11 @@ ART_ENDPOINT = "com.samsung.art-app"
 
 
 class ArtChannelEmitCommand(SamsungTVCommand):
-    def __init__(self, params: Dict[str, Any]) -> None:
+    def __init__(self, params: dict[str, Any]) -> None:
         super().__init__("ms.channel.emit", params)
 
     @staticmethod
-    def art_app_request(data: Dict[str, Any]) -> "ArtChannelEmitCommand":
+    def art_app_request(data: dict[str, Any]) -> "ArtChannelEmitCommand":
         return ArtChannelEmitCommand(
             {
                 "event": "art_app_request",
@@ -65,7 +65,7 @@ class SamsungTVArt(SamsungTVWSConnection):
             name=name,
         )
         self.art_uuid = str(uuid.uuid4())
-        self._rest_api: Optional[SamsungTVRest] = None
+        self._rest_api: SamsungTVRest | None = None
 
     def open(self) -> websocket.WebSocket:
         super().open()
@@ -85,10 +85,10 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def _send_art_request(
         self,
-        request_data: Dict[str, Any],
-        wait_for_event: Optional[str] = None,
-        wait_for_sub_event: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
+        request_data: dict[str, Any],
+        wait_for_event: str | None = None,
+        wait_for_sub_event: str | None = None,
+    ) -> dict[str, Any] | None:
         request_data["id"] = self.art_uuid
         self.send_command(ArtChannelEmitCommand.art_app_request(request_data))
 
@@ -96,8 +96,8 @@ class SamsungTVArt(SamsungTVWSConnection):
             return None
 
         assert self.connection
-        event: Optional[str] = None
-        sub_event: Optional[str] = None
+        event: str | None = None
+        sub_event: str | None = None
         while event != wait_for_event:
             data = self.connection.recv()
             response = helper.process_api_response(data)
@@ -250,8 +250,8 @@ class SamsungTVArt(SamsungTVWSConnection):
         wait_for_event = "d2d_service_message"
 
         assert self.connection
-        event: Optional[str] = None
-        sub_event: Optional[str] = None
+        event: str | None = None
+        sub_event: str | None = None
 
         while event != wait_for_event:
             data = self.connection.recv()

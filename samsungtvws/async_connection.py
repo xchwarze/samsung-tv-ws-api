@@ -7,19 +7,14 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 import asyncio
+from collections.abc import Awaitable, Callable, Sequence
 import contextlib
 import json
 import logging
 from types import TracebackType
 from typing import (
     Any,
-    Awaitable,
-    Callable,
-    Dict,
-    List,
     Optional,
-    Sequence,
-    Union,
 )
 
 from websockets.asyncio.client import ClientConnection, connect
@@ -39,7 +34,7 @@ _LOGGING = logging.getLogger(__name__)
 
 
 class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
-    connection: Optional[ClientConnection]
+    connection: ClientConnection | None
     _recv_loop: Optional["asyncio.Task[None]"]
 
     async def __aenter__(self) -> "SamsungTVWSAsyncConnection":
@@ -47,9 +42,9 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     async def __aexit__(
         self,
-        exc_type: Optional[type],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         await self.close()
 
@@ -61,12 +56,12 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         url = self._format_websocket_url(self.endpoint)
 
         _LOGGING.debug("WS url %s", url)
-        connect_kwargs: Dict[str, Any] = {}
+        connect_kwargs: dict[str, Any] = {}
         if self._is_ssl_connection():
             connect_kwargs["ssl"] = get_ssl_context()
         connection = await connect(url, open_timeout=self.timeout, **connect_kwargs)
 
-        event: Optional[str] = None
+        event: str | None = None
         while event is None or event in IGNORE_EVENTS_AT_STARTUP:
             data = await connection.recv()
             response = helper.process_api_response(data)
@@ -89,7 +84,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         return connection
 
     async def start_listening(
-        self, callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]] = None
+        self, callback: Callable[[str, Any], Awaitable[None] | None] | None = None
     ) -> None:
         """Open, and start listening."""
         if self.connection:
@@ -103,7 +98,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     async def _do_start_listening(
         self,
-        callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]],
+        callback: Callable[[str, Any], Awaitable[None] | None] | None,
         connection: ClientConnection,
     ) -> None:
         """Do start listening."""
@@ -129,8 +124,8 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     async def send_commands(
         self,
-        commands: Sequence[Union[SamsungTVCommand, Dict[str, Any]]],
-        key_press_delay: Optional[float] = None,
+        commands: Sequence[SamsungTVCommand | dict[str, Any]],
+        key_press_delay: float | None = None,
     ) -> None:
         if self.connection is None:
             self.connection = await self.open()
@@ -142,8 +137,8 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     async def send_command(
         self,
-        command: Union[List[SamsungTVCommand], SamsungTVCommand, Dict[str, Any]],
-        key_press_delay: Optional[float] = None,
+        command: list[SamsungTVCommand] | SamsungTVCommand | dict[str, Any],
+        key_press_delay: float | None = None,
     ) -> None:
         if isinstance(command, list):
             _LOGGING.warning(
@@ -158,7 +153,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
     @staticmethod
     async def _send_command(
         connection: ClientConnection,
-        command: Union[SamsungTVCommand, Dict[str, Any]],
+        command: SamsungTVCommand | dict[str, Any],
         delay: float,
     ) -> None:
         if isinstance(command, SamsungTVSleepCommand):

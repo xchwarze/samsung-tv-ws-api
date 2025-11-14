@@ -6,7 +6,7 @@ Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 from .exceptions import MessageError
 
@@ -25,11 +25,11 @@ MS_VOICEAPP_HIDE_EVENT = "ms.voiceApp.hide"
 IGNORE_EVENTS_AT_STARTUP = (ED_EDENTV_UPDATE_EVENT, MS_VOICEAPP_HIDE_EVENT)
 
 
-def parse_installed_app(event: Dict[str, Any]) -> List[Dict[str, Any]]:
+def parse_installed_app(event: dict[str, Any]) -> list[dict[str, Any]]:
     assert event["event"] == ED_INSTALLED_APP_EVENT
     return event["data"]["data"]  # type:ignore[no-any-return]
 
 
-def parse_ms_error(event: Dict[str, Any]) -> MessageError:
+def parse_ms_error(event: dict[str, Any]) -> MessageError:
     assert event["event"] == MS_ERROR_EVENT
     return MessageError(event["data"]["message"])
