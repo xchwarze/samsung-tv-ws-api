@@ -139,5 +139,5 @@ def test_send_image_failure(connection: Mock) -> None:
             )
 
         connection.send.assert_called_once_with(
-            '{"method": "ms.channel.emit", "params": {"event": "art_app_request", "to": "host", "data": "{\\"request\\": \\"send_image\\", \\"file_type\\": \\"png\\", \\"conn_info\\": {\\"d2d_mode\\": \\"socket\\", \\"connection_id\\": 4091151321, \\"id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\"}, \\"image_date\\": \\"2023:05:02 15:06:39\\", \\"matte_id\\": \\"none\\", \\"file_size\\": 0, \\"id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\"}"}}'
+            '{"method": "ms.channel.emit", "params": {"event": "art_app_request", "to": "host", "data": "{\\"request\\": \\"send_image\\", \\"file_type\\": \\"png\\", \\"request_id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\", \\"conn_info\\": {\\"d2d_mode\\": \\"socket\\", \\"connection_id\\": 4091151321, \\"id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\"}, \\"image_date\\": \\"2023:05:02 15:06:39\\", \\"matte_id\\": \\"none\\", \\"portrait_matte_id\\": \\"shadowbox_polar\\", \\"file_size\\": 0, \\"id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\"}"}}'
         )

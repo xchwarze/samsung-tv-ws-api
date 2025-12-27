@@ -253,6 +253,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
         if event == ED_INSTALLED_APP_EVENT:
             self._app_list = parse_installed_app(response)
 
+    # TODO: I don't see much point in having SendRemoteKey now...
     def send_key(
         self,
         key: str,
