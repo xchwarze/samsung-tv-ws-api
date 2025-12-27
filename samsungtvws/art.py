@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import socket
-from typing import IO, Any, Dict, Optional, Tuple, Union
+from typing import IO, Any, Dict, Iterable, Optional, Sequence, Tuple, Union, cast
 import uuid
 
 import websocket
@@ -121,8 +121,10 @@ class SamsungTVArt(SamsungTVWSConnection):
         """Return decoded conn_info dict from a D2D payload."""
         conn_info = payload.get("conn_info", {})
         if isinstance(conn_info, str):
-            return json.loads(conn_info)
-        return conn_info
+            return cast(JsonObj, json.loads(conn_info))
+        if isinstance(conn_info, dict):
+            return cast(JsonObj, conn_info)
+        return {}
 
     def _open_d2d_socket(self, conn_info: JsonObj) -> socket.socket:
         """Open a TCP socket to the TV D2D endpoint (optionally TLS-wrapped)."""
@@ -323,7 +325,9 @@ class SamsungTVArt(SamsungTVWSConnection):
         except exceptions.ResponseError:
             # Fallback to legacy API. it may not respond on newer TVs.
             data = self._request_json("get_api_version")
-        return data["version"]
+        if not isinstance(data, dict) or "version" not in data:
+            raise exceptions.ResponseError("Missing 'version' in response")
+        return cast(str, data["version"])
 
     def get_device_info(self):
         """Return device info payload."""
@@ -465,7 +469,9 @@ class SamsungTVArt(SamsungTVWSConnection):
         # TODO maybe in art api v4.x this command is "color_temperature"
         return self._set_value("set_color_temperature", value)
 
-    def get_thumbnail_list(self, content_id_list=None) -> Dict[str, bytearray]:
+    def get_thumbnail_list(
+        self, content_id_list: Optional[Union[str, Sequence[str]]] = None
+    ) -> Dict[str, bytearray]:
         """Fetch one or more thumbnails via D2D socket."""
         if content_id_list is None:
             content_id_list = []
@@ -504,7 +510,9 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         return thumbnails
 
-    def get_thumbnail(self, content_id_list=None, as_dict: bool = False):
+    def get_thumbnail(
+        self, content_id_list=None, as_dict: bool = False
+    ) -> Union[Dict[str, bytearray], list[bytearray], bytearray]:
         """Fetch thumbnail(s) via D2D socket."""
         if content_id_list is None:
             content_id_list = []
@@ -629,16 +637,19 @@ class SamsungTVArt(SamsungTVWSConnection):
             request_uuid=upload_id,
             wait_for_sub_event="image_added",
         )
-        return done["content_id"]
+        return cast(str, done["content_id"])
 
     def delete(self, content_id: str) -> bool:
         """Delete a single artwork by content id."""
         return self.delete_list([content_id])
 
-    def delete_list(self, content_ids) -> bool:
+    def delete_list(self, content_ids: Iterable[str]) -> bool:
         """Delete multiple artworks by content id."""
         content_id_list = [{"content_id": cid} for cid in content_ids]
         data = self._request_json("delete_image_list", content_id_list=content_id_list)
+
+        if not isinstance(data, dict):
+            return False
 
         returned = data.get("content_id_list")
         if not returned:
@@ -650,7 +661,10 @@ class SamsungTVArt(SamsungTVWSConnection):
             except json.JSONDecodeError:
                 return False
 
-        return returned == content_id_list
+        if not isinstance(returned, list):
+            return False
+
+        return cast(list[object], returned) == cast(list[object], content_id_list)
 
     def select_image(
         self, content_id: str, category: Optional[str] = None, show: bool = True
