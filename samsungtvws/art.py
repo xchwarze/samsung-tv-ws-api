@@ -130,15 +130,25 @@ class SamsungTVArt(SamsungTVWSConnection):
     def _open_d2d_socket(self, conn_info: JsonObj) -> socket.socket:
         """Open a TCP socket to the TV D2D endpoint (optionally TLS-wrapped)."""
         raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Best-effort timeout: avoid hanging forever on connect/recv.
+        # Samsung's D2D endpoint can be flaky depending on firmware.
+        if self.timeout is not None:
+            try:
+                raw_sock.settimeout(self.timeout)
+            except OSError:
+                pass
+
         sock = get_ssl_context().wrap_socket(raw_sock) if conn_info.get("secured", False) else raw_sock
         sock.connect((conn_info["ip"], int(conn_info["port"])))
+
         return sock
 
     def _wait_for_d2d(
-            self,
-            *,
-            request_uuid: Optional[str],
-            wait_for_sub_event: Optional[str],
+        self,
+        *,
+        request_uuid: Optional[str],
+        wait_for_sub_event: Optional[str],
     ) -> Any:
         while True:
             event, frame = self._recv_frame()
@@ -172,12 +182,12 @@ class SamsungTVArt(SamsungTVWSConnection):
                 return payload
 
     def _send_art_request(
-            self,
-            request_data: JsonObj,
-            wait_for_event: Optional[str] = D2D_SERVICE_MESSAGE_EVENT,
-            wait_for_sub_event: Optional[str] = None,
-            *,
-            request_uuid: Optional[str] = None,
+        self,
+        request_data: JsonObj,
+        wait_for_event: Optional[str] = D2D_SERVICE_MESSAGE_EVENT,
+        wait_for_sub_event: Optional[str] = None,
+        *,
+        request_uuid: Optional[str] = None,
     ) -> Optional[Any]:
         """
         Send a request and optionally wait for a response.
@@ -374,10 +384,21 @@ class SamsungTVArt(SamsungTVWSConnection):
             type=slideshow_type,
         )
 
+    def set_brightness_sensor_setting(self, value: Any) -> Any:
+        """Enable or disable brightness sensor."""
+        return self._set_value(
+            "set_brightness_sensor_setting",
+            "on" if value else "off",
+        )
+
     def get_brightness(self):
         """Return art mode brightness level."""
-        # TODO maybe in art api v4.x this command is "brightness"
-        return self._get_value("get_brightness")
+        try:
+            # Art api v4 support
+            data = self.get_artmode_settings("brightness")
+            return data.get("value")
+        except exceptions.ResponseError:
+            return self._get_value("get_brightness")
 
     def set_brightness(self, value):
         """Set art mode brightness level."""
@@ -386,8 +407,12 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_color_temperature(self):
         """Return art mode color temperature."""
-        # TODO maybe in art api v4.x this command is "color_temperature"
-        return self._get_value("get_color_temperature")
+        try:
+            # Art api v4 support
+            data = self.get_artmode_settings("color_temperature")
+            return data.get("value")
+        except exceptions.ResponseError:
+            return self._get_value("get_color_temperature")
 
     def set_color_temperature(self, value):
         """Set art mode color temperature."""
@@ -615,10 +640,19 @@ class SamsungTVArt(SamsungTVWSConnection):
         """Delete a single artwork by content id."""
         self.delete_list([content_id])
 
-    def delete_list(self, content_ids) -> None:
+    def delete_list(self, content_ids) -> bool:
         """Delete multiple artworks by content id."""
         content_id_list = [{"content_id": cid} for cid in content_ids]
-        self._request_json("delete_image_list", content_id_list=content_id_list)
+        data = self._request_json("delete_image_list", content_id_list=content_id_list)
+
+        returned = data.get("content_id_list")
+        if isinstance(returned, str):
+            try:
+                returned = json.loads(returned)
+            except json.JSONDecodeError:
+                return False
+
+        return returned == content_id_list
 
     def select_image(self, content_id: str, category: Optional[str] = None, show: bool = True) -> None:
         """Select an artwork and optionally show it immediately."""
@@ -676,3 +710,11 @@ class SamsungTVArt(SamsungTVWSConnection):
             params["portrait_matte_id"] = portrait_matte
 
         self._request_json("change_matte", **params)
+
+    def set_motion_timer(self, value: str) -> Any:
+        """Set motion timer (e.g. 'off', '5', '15', '30', '60', '120', '240')."""
+        return self._set_value("set_motion_timer", value)
+
+    def set_motion_sensitivity(self, value: str) -> Any:
+        """Set motion sensitivity ('1' to '3')."""
+        return self._set_value("set_motion_sensitivity", value)
