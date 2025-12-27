@@ -29,7 +29,7 @@ def test_create_connection_from_remote() -> None:
         ]
 
         tv_art = SamsungTVWS("127.0.0.1").art()
-        tv_art.set_artmode("test")
+        tv_art.set_artmode(True)
 
         connection_class.assert_called_once_with(
             "ws://127.0.0.1:8001/api/v2/channels/com.samsung.art-app?name=U2Ftc3VuZ1R2UmVtb3Rl",
@@ -51,7 +51,7 @@ def test_create_connection_direct() -> None:
         ]
 
         tv_art = SamsungTVArt("127.0.0.1")
-        tv_art.set_artmode("test")
+        tv_art.set_artmode(True)
 
         connection_class.assert_called_once_with(
             "ws://127.0.0.1:8001/api/v2/channels/com.samsung.art-app?name=U2Ftc3VuZ1R2UmVtb3Rl",
@@ -72,10 +72,10 @@ def test_set_artmode(connection: Mock) -> None:
             MS_CHANNEL_READY_SAMPLE,
         ]
         tv_art = SamsungTVArt("127.0.0.1")
-        tv_art.set_artmode("test")
+        tv_art.set_artmode(True)
 
         connection.send.assert_called_once_with(
-            '{"method": "ms.channel.emit", "params": {"event": "art_app_request", "to": "host", "data": "{\\"request\\": \\"set_artmode_status\\", \\"value\\": \\"test\\", \\"id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\"}"}}'
+            '{"method": "ms.channel.emit", "params": {"event": "art_app_request", "to": "host", "data": "{\\"request\\": \\"set_artmode_status\\", \\"value\\": \\"on\\", \\"id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\"}"}}'
         )
 
 
