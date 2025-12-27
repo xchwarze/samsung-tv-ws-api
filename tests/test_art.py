@@ -122,7 +122,7 @@ def test_send_image_failure(connection: Mock) -> None:
     with patch(
         "samsungtvws.art.uuid.uuid4",
         return_value="07e72228-7110-4655-aaa6-d81b5188c219",
-    ), patch("samsungtvws.art.random.randrange", return_value=4091151321):
+    ), patch("samsungtvws.helper.random.randrange", return_value=4091151321):
         connection.recv.side_effect = [
             MS_CHANNEL_CONNECT_SAMPLE,
             MS_CHANNEL_READY_SAMPLE,

@@ -46,4 +46,5 @@ def get_ssl_context() -> ssl.SSLContext:
 
 
 def generate_connection_id() -> int:
+    """Return a per-connection id used by the D2D socket handshake."""
     return random.randrange(4 * 1024 * 1024 * 1024)
