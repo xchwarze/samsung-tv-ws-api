@@ -17,6 +17,7 @@ import random
 from typing import Any, Dict, Optional, Callable, Awaitable
 import uuid
 import aiohttp
+from websockets.asyncio.client import ClientConnection
 
 from . import exceptions, helper
 from .art import ArtChannelEmitCommand, ART_ENDPOINT
@@ -52,11 +53,10 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         self.art_uuid = str(uuid.uuid4())
         self._rest_api: Optional[SamsungTVAsyncRest] = None
         self.art_mode = None
-        self.session = None
         self.pending_requests = {}
         self.callbacks = {}
 
-    async def open(self):
+    async def open(self) -> ClientConnection:
         await super().open()
 
         # Override base class to wait for MS_CHANNEL_READY_EVENT
@@ -72,10 +72,10 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
 
         return self.connection
 
-    async def close(self):
-        if self.session and not self.session.closed:
-            await self.session.close()
-        await super().close()
+    def get_or_generate_uuid(self) -> str:
+        if not self.art_uuid:
+            self.art_uuid = str(uuid.uuid4())
+        return self.art_uuid
 
     async def start_listening(
         self, callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]] = None
@@ -111,7 +111,9 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         return data
 
     async def _send_art_request(
-        self, request_data: Dict[str, Any], wait_for_event: Optional[str] = None
+        self,
+        request_data: Dict[str, Any],
+        wait_for_event: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         if not request_data.get("id"):
             request_data["id"] = self.get_uuid()  # old api
@@ -121,6 +123,7 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         return await self.wait_for_response(wait_for_event or request_data["id"])
 
     async def process_event(self, event=None, response=None):
+        # esto es un port de: https://github.com/tavicu/homebridge-samsung-tizen/blob/master/lib/art.js#L120
         if event == D2D_SERVICE_MESSAGE_EVENT:
             data = json.loads(response["data"])
             sub_event = data.get("event", "*")
@@ -153,17 +156,13 @@ class SamsungTVAsyncArt(SamsungTVWSAsyncConnection):
         else:
             self.callbacks[trigger] = callback
 
-    def get_session(self):
-        if self.session is None or self.session.closed:
-            self.session = aiohttp.ClientSession()
-            self._rest_api = None
-        return self.session
-
     def _get_rest_api(self) -> SamsungTVAsyncRest:
-        self.get_session()
         if self._rest_api is None:
             self._rest_api = SamsungTVAsyncRest(
-                host=self.host, port=self.port, session=self.session
+                host=self.host,
+                port=self.port,
+                timeout=self.timeout,
+                session=aiohttp.ClientSession(),
             )
         return self._rest_api
 

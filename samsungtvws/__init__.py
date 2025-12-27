@@ -7,6 +7,7 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 from .remote import SamsungTVWS
+from .async_remote import SamsungTVWSAsyncRemote
 from .shortcuts import SamsungTVShortcuts
 
-__all__ = ["SamsungTVShortcuts", "SamsungTVWS"]
+__all__ = ["SamsungTVWS", "SamsungTVWSAsyncRemote", "SamsungTVShortcuts"]

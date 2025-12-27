@@ -81,6 +81,8 @@ class SamsungTVArt(SamsungTVWSConnection):
             self.close()
             raise exceptions.ConnectionFailure(response)
 
+        self._send_update_status()
+
         return self.connection
     
     def get_or_generate_uuid(self) -> str:
@@ -95,14 +97,17 @@ class SamsungTVArt(SamsungTVWSConnection):
         wait_for_sub_event: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         request_data["id"] = self.get_or_generate_uuid()
-        self.send_command(ArtChannelEmitCommand.art_app_request(request_data))
 
+        # this is for support new api (v ?????)
+        request_data["request_id"] = request_data["id"]
+
+        self.send_command(ArtChannelEmitCommand.art_app_request(request_data))
         if not wait_for_event:
             return None
 
         assert self.connection
+        response = None
         event: Optional[str] = None
-        sub_event: Optional[str] = None
         while event != wait_for_event:
             data = self.connection.recv()
             response = helper.process_api_response(data)
@@ -127,7 +132,12 @@ class SamsungTVArt(SamsungTVWSConnection):
     def _get_rest_api(self) -> SamsungTVRest:
         if self._rest_api is None:
             self._rest_api = SamsungTVRest(self.host, self.port, self.timeout)
+
         return self._rest_api
+
+    def _send_update_status(self):
+        self.get_api_version()
+        self.get_artmode()
 
     def supported(self) -> bool:
         support = None
@@ -146,7 +156,6 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
         assert response
         data = json.loads(response["data"])
-        assert response
         return data["version"]
 
     def get_device_info(self):
@@ -312,7 +321,7 @@ class SamsungTVArt(SamsungTVWSConnection):
                 "conn_info": {
                     "d2d_mode": "socket",
                     "connection_id": generate_connection_id(),
-                    "id": self.art_uuid,
+                    "id": self.get_or_generate_uuid(),
                 },
             },
             wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
@@ -359,7 +368,7 @@ class SamsungTVArt(SamsungTVWSConnection):
                     "conn_info": {
                         "d2d_mode": "socket",
                         "connection_id": generate_connection_id(),
-                        "id": self.art_uuid,
+                        "id": self.get_or_generate_uuid(),
                     },
                 },
                 wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
@@ -415,11 +424,10 @@ class SamsungTVArt(SamsungTVWSConnection):
             {
                 "request": "send_image",
                 "file_type": file_type,
-                "request_id": self.art_uuid,
                 "conn_info": {
                     "d2d_mode": "socket",
                     "connection_id": generate_connection_id(),
-                    "id": self.art_uuid,
+                    "id": self.get_or_generate_uuid(),
                 },
                 "image_date": date,
                 "matte_id": matte or "none",
@@ -483,23 +491,19 @@ class SamsungTVArt(SamsungTVWSConnection):
         self.delete_list([content_id])
 
     def delete_list(self, content_ids):
-        content_id_list = []
-        for item in content_ids:
-            content_id_list.append({"content_id": item})
-
-        self._send_art_request(
-            {"request": "delete_image_list", "content_id_list": content_id_list}
-        )
+        content_id_list = [{"content_id": item} for item in content_ids]
+        self._send_art_request({
+            "request": "delete_image_list",
+            "content_id_list": content_id_list
+        })
 
     def select_image(self, content_id, category=None, show=True):
-        self._send_art_request(
-            {
-                "request": "select_image",
-                "category_id": category,
-                "content_id": content_id,
-                "show": show,
-            }
-        )
+        self._send_art_request({
+            "request": "select_image",
+            "category_id": category,
+            "content_id": content_id,
+            "show": show,
+        })
 
     def get_artmode(self):
         response = self._send_art_request(
@@ -550,7 +554,7 @@ class SamsungTVArt(SamsungTVWSConnection):
             }
         )
 
-    def get_matte_list(self, include_colour=False):
+    def get_matte_list(self):
         response = self._send_art_request(
             {"request": "get_matte_list"},
             wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
@@ -558,25 +562,30 @@ class SamsungTVArt(SamsungTVWSConnection):
         assert response
         data = json.loads(response["data"])
 
-        return (
-            (
-                json.loads(data["matte_type_list"]),
-                json.loads(data.get("matte_color_list")),
-            )
-            if include_colour
-            else json.loads(data["matte_type_list"])
-        )
+        result = {}
+        if "matte_type_list" in data:
+            result["matte_types"] = json.loads(data["matte_type_list"])
+
+        # I understand that in some version of the api this is the new name of the data...
+        if "matte_list" in data:
+            result["matte_types"] = json.loads(data["matte_list"])
+
+        if "matte_color_list" in data:
+            result["matte_colors"] = json.loads(data["matte_color_list"])
+
+        return result
 
     def change_matte(self, content_id, matte_id=None, portrait_matte=None):
         """
         matte is name_color eg flexible_polar or none
         NOTE: Not all mattes can be set for all image sizes!
         """
-        art_request = {
+        request = {
             "request": "change_matte",
             "content_id": content_id,
             "matte_id": matte_id or "none",
         }
         if portrait_matte:
-            art_request["portrait_matte_id"] = portrait_matte
-        self._send_art_request(art_request)
+            request["portrait_matte_id"] = portrait_matte
+
+        self._send_art_request(request)
