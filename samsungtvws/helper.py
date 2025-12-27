@@ -9,6 +9,7 @@ SPDX-License-Identifier: LGPL-3.0
 import base64
 import json
 import logging
+import random
 import ssl
 from typing import Any, Dict, Optional, Union
 
@@ -38,6 +39,12 @@ def process_api_response(response: Union[str, bytes]) -> Dict[str, Any]:
 def get_ssl_context() -> ssl.SSLContext:
     global _SSL_CONTEXT
     if not _SSL_CONTEXT:
-        _SSL_CONTEXT = ssl.SSLContext()
+        _SSL_CONTEXT = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        _SSL_CONTEXT.check_hostname = False
         _SSL_CONTEXT.verify_mode = ssl.CERT_NONE
     return _SSL_CONTEXT
+
+
+def generate_connection_id() -> int:
+    """Return a per-connection id used by the D2D socket handshake."""
+    return random.randrange(4 * 1024 * 1024 * 1024)

@@ -1,5 +1,7 @@
 """Constants for tests."""
 
+with open("tests/fixtures/event_d2d_service_message_ok_sample.json") as file:
+    D2D_SERVICE_MESSAGE_OK_SAMPLE = file.read()
 with open("tests/fixtures/event_d2d_service_message_available.json") as file:
     D2D_SERVICE_MESSAGE_AVAILABLE_SAMPLE = file.read()
 with open("tests/fixtures/event_d2d_service_message_send_image_error.json") as file:
