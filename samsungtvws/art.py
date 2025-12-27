@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import socket
-from typing import IO, Any, Dict, Iterable, Optional, Sequence, Tuple, Union, cast
+from typing import IO, Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
 import uuid
 
 import websocket
@@ -105,7 +105,7 @@ class SamsungTVArt(SamsungTVWSConnection):
             _LOGGING.debug("event: %s", event)
             return event, frame
         except websocket.WebSocketTimeoutException as e:
-            raise exceptions.TimeoutError(f"Websocket Time out: {e}") from e
+            raise exceptions.ConnectionFailure(f"Websocket Time out: {e}") from e
 
     def _decode_d2d_payload(self, frame: WsFrame) -> Optional[JsonObj]:
         """Decode D2D payload from a frame (if present)."""
@@ -113,7 +113,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         if not isinstance(data, str):
             return None
         try:
-            return json.loads(data)
+            return cast(JsonObj, json.loads(data))
         except json.JSONDecodeError:
             return None
 
@@ -511,8 +511,10 @@ class SamsungTVArt(SamsungTVWSConnection):
         return thumbnails
 
     def get_thumbnail(
-        self, content_id_list=None, as_dict: bool = False
-    ) -> Union[Dict[str, bytearray], list[bytearray], bytearray]:
+        self,
+        content_id_list: Optional[Union[str, Sequence[str]]] = None,
+        as_dict: bool = False,
+    ) -> Union[Dict[str, bytearray], List[bytearray], bytearray]:
         """Fetch thumbnail(s) via D2D socket."""
         if content_id_list is None:
             content_id_list = []
@@ -664,7 +666,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         if not isinstance(returned, list):
             return False
 
-        return cast(list[object], returned) == cast(list[object], content_id_list)
+        return cast(List[object], returned) == cast(List[object], content_id_list)
 
     def select_image(
         self, content_id: str, category: Optional[str] = None, show: bool = True
