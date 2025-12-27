@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import socket
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union, IO
 import uuid
 import websocket
 
@@ -82,9 +82,6 @@ class SamsungTVArt(SamsungTVWSConnection):
             self.close()
             raise exceptions.ConnectionFailure(frame)
 
-        # TODO sync status
-        self._send_update_status()
-
         return self.connection
 
     def _new_request_uuid(self) -> str:
@@ -142,7 +139,35 @@ class SamsungTVArt(SamsungTVWSConnection):
         sock = get_ssl_context().wrap_socket(raw_sock) if conn_info.get("secured", False) else raw_sock
         sock.connect((conn_info["ip"], int(conn_info["port"])))
 
+        # Ensure recv/send timeout is applied to the final socket
+        if self.timeout is not None:
+            try:
+                sock.settimeout(self.timeout)
+            except OSError:
+                pass
+
         return sock
+
+    def _recv_d2d_file(self, sock: socket.socket) -> Tuple[str, bytearray, int, int]:
+        """Receive a single D2D file payload."""
+        header_len = int.from_bytes(self._recv_exact(sock, 4), "big")
+        header = json.loads(self._recv_exact(sock, header_len))
+
+        size = int(header["fileLength"])
+        name = f'{header["fileID"]}.{header["fileType"]}'
+        data = self._recv_exact(sock, size)
+
+        return name, bytearray(data), int(header["num"]), int(header["total"])
+
+    def _recv_exact(self, sock: socket.socket, size: int) -> bytes:
+        """Receive exactly `size` bytes from socket or fail."""
+        buf = bytearray()
+        while len(buf) < size:
+            chunk = sock.recv(size - len(buf))
+            if not chunk:
+                raise exceptions.ConnectionFailure({"reason": "socket closed"})
+            buf.extend(chunk)
+        return bytes(buf)
 
     def _wait_for_d2d(
         self,
@@ -225,6 +250,18 @@ class SamsungTVArt(SamsungTVWSConnection):
     # -------------------------
     # Generic getters / setters
     # -------------------------
+    def _to_on_off(self, value: Any) -> str:
+        """Normalize value to 'on' or 'off'."""
+        if isinstance(value, bool):
+            return "on" if value else "off"
+
+        if isinstance(value, str):
+            correct_value = value.lower()
+            if correct_value in ("on", "off"):
+                return correct_value
+
+        raise ValueError("Expected bool or 'on'/'off' string")
+
     def _request_json(self, request: str, *, wait_for_sub_event: Optional[str] = None, **params: Any) -> Any:
         """Generic request helper returning decoded D2D payload."""
         return self._send_art_request({"request": request, **params}, wait_for_sub_event=wait_for_sub_event)
@@ -250,10 +287,6 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         return self._rest_api
 
-    def _send_update_status(self):
-        self.get_api_version()
-        self.get_artmode()
-
     def supported(self) -> bool:
         support = None
         data = self._get_rest_api().rest_device_info()
@@ -261,7 +294,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         if device:
             support = device.get("FrameTVSupport")
 
-        return support == "true"
+        return str(support).lower() == "true"
 
     # -------------------------
     # Art API
@@ -305,7 +338,7 @@ class SamsungTVArt(SamsungTVWSConnection):
             "change_favorite",
             wait_for_sub_event="favorite_changed",
             content_id=content_id,
-            status=status,
+            status=self._to_on_off(status),
         )
 
     def get_artmode_settings(self, setting=""):
@@ -386,10 +419,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def set_brightness_sensor_setting(self, value: Any) -> Any:
         """Enable or disable brightness sensor."""
-        return self._set_value(
-            "set_brightness_sensor_setting",
-            "on" if value else "off",
-        )
+        return self._set_value("set_brightness_sensor_setting", self._to_on_off(value))
 
     def get_brightness(self):
         """Return art mode brightness level."""
@@ -419,20 +449,16 @@ class SamsungTVArt(SamsungTVWSConnection):
         # TODO maybe in art api v4.x this command is "color_temperature"
         return self._set_value("set_color_temperature", value)
 
-    def get_thumbnail_list(self, content_id_list=None):
-        """
-        Fetch one or more thumbnails via D2D socket.
-
-        Returns a dict: {"<fileID>.<fileType>": bytearray, ...}.
-        """
+    def get_thumbnail_list(self, content_id_list=None) -> Dict[str, bytearray]:
+        """Fetch one or more thumbnails via D2D socket."""
         if content_id_list is None:
             content_id_list = []
         if isinstance(content_id_list, str):
             content_id_list = [content_id_list]
 
         req_list = [{"content_id": cid} for cid in content_id_list]
-
         d2d_id = self._new_request_uuid()
+
         payload = self._send_art_request(
             {
                 "request": "get_thumbnail_list",
@@ -447,8 +473,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         )
 
         assert payload
-        conn_info = self._parse_conn_info(payload)
-        sock = self._open_d2d_socket(conn_info)
+        sock = self._open_d2d_socket(self._parse_conn_info(payload))
 
         thumbnails: Dict[str, bytearray] = {}
         try:
@@ -456,38 +481,15 @@ class SamsungTVArt(SamsungTVWSConnection):
             current = -1
 
             while current + 1 < total:
-                header_len = int.from_bytes(sock.recv(4), "big")
-                header = json.loads(sock.recv(header_len))
-
-                file_len = int(header["fileLength"])
-                current = int(header["num"])
-                total = int(header["total"])
-                filename = f'{header["fileID"]}.{header["fileType"]}'
-
-                buf = bytearray()
-                while len(buf) < file_len:
-                    chunk = sock.recv(file_len - len(buf))
-                    if not chunk:
-                        raise exceptions.ConnectionFailure({"reason": "thumbnail socket closed"})
-                    buf.extend(chunk)
-
-                thumbnails[filename] = buf
+                name, data, current, total = self._recv_d2d_file(sock)
+                thumbnails[name] = data
         finally:
-            try:
-                sock.close()
-            except OSError:
-                pass
+            sock.close()
 
         return thumbnails
 
     def get_thumbnail(self, content_id_list=None, as_dict: bool = False):
-        """
-        Fetch thumbnail(s) via D2D socket.
-
-        - as_dict=True: returns {"<fileID>.<fileType>": bytearray, ...}
-        - single id + as_dict=False: returns bytearray
-        - multiple ids + as_dict=False: returns List[bytearray]
-        """
+        """Fetch thumbnail(s) via D2D socket."""
         if content_id_list is None:
             content_id_list = []
         if isinstance(content_id_list, str):
@@ -511,65 +513,48 @@ class SamsungTVArt(SamsungTVWSConnection):
             )
 
             assert payload
-            conn_info = self._parse_conn_info(payload)
-            sock = self._open_d2d_socket(conn_info)
+            sock = self._open_d2d_socket(self._parse_conn_info(payload))
 
             try:
-                header_len = int.from_bytes(sock.recv(4), "big")
-                header = json.loads(sock.recv(header_len))
-
-                file_len = int(header["fileLength"])
-                filename = f'{header["fileID"]}.{header["fileType"]}'
-
-                buf = bytearray()
-                while len(buf) < file_len:
-                    chunk = sock.recv(file_len - len(buf))
-                    if not chunk:
-                        raise exceptions.ConnectionFailure({"reason": "thumbnail socket closed"})
-                    buf.extend(chunk)
-
-                result[filename] = buf
+                name, data, _, _ = self._recv_d2d_file(sock)
+                result[name] = data
             finally:
-                try:
-                    sock.close()
-                except OSError:
-                    pass
+                sock.close()
 
         if as_dict:
             return result
-
-        if len(content_id_list) > 1:
+        if len(result) > 1:
             return list(result.values())
-
-        if content_id_list:
+        if result:
             return next(iter(result.values()))
 
         return bytearray()
 
     def upload(
-            self,
-            file,
-            matte="shadowbox_polar",
-            portrait_matte="shadowbox_polar",
-            file_type="png",
-            date=None,
-            chunk_size: int = 64 * 1024,
-    ):
-        """
-        Upload an image via D2D socket.
-
-        Some firmwares require `id == request_id == conn_info.id` for this flow.
-        """
+        self,
+        file: Union[str, bytes, bytearray, IO[bytes]],
+        matte: str = "shadowbox_polar",
+        portrait_matte: str = "shadowbox_polar",
+        file_type: str = "png",
+        date: Optional[str] = None,
+    ) -> str:
+        """Upload an image via D2D socket and return content_id."""
+        # Load bytes
         if isinstance(file, str):
             _, ext = os.path.splitext(file)
             if ext:
                 file_type = ext[1:]
             with open(file, "rb") as f:
-                data_bytes = f.read()
+                data = f.read()
+        elif hasattr(file, "read"):
+            # file-like object
+            data = file.read()
+            if not isinstance(data, (bytes, bytearray)):
+                raise ValueError("Expected file-like object returning bytes")
         else:
-            data_bytes = bytes(file)
+            data = bytes(file)
 
-        file_size = len(data_bytes)
+        file_size = len(data)
         ft = file_type.lower()
         if ft == "jpeg":
             ft = "jpg"
@@ -578,23 +563,23 @@ class SamsungTVArt(SamsungTVWSConnection):
             date = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
 
         upload_id = self._new_request_uuid()
+
         ready = self._send_art_request(
             {
                 "request": "send_image",
-                "file_type": ft,
                 "id": upload_id,
                 "request_id": upload_id,
+                "file_type": ft,
+                "file_size": file_size,
+                "image_date": date,
+                "matte_id": matte or "none",
+                "portrait_matte_id": portrait_matte or "none",
                 "conn_info": {
                     "d2d_mode": "socket",
                     "connection_id": generate_connection_id(),
                     "id": upload_id,
                 },
-                "image_date": date,
-                "matte_id": matte or "none",
-                "portrait_matte_id": portrait_matte or "none",
-                "file_size": file_size,
             },
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
             wait_for_sub_event="ready_to_use",
             request_uuid=upload_id,
         )
@@ -606,24 +591,18 @@ class SamsungTVArt(SamsungTVWSConnection):
                 "num": 0,
                 "total": 1,
                 "fileLength": file_size,
-                "fileName": "dummy",
+                "fileName": "image",
                 "fileType": ft,
                 "secKey": conn_info["key"],
                 "version": "0.0.1",
             }
-        )
+        ).encode("ascii")
 
         sock = self._open_d2d_socket(conn_info)
         try:
-            sock.send(len(header).to_bytes(4, "big"))
-            sock.send(header.encode("ascii"))
-
-            sent = 0
-            mv = memoryview(data_bytes)
-            while sent < file_size:
-                end = min(sent + chunk_size, file_size)
-                sock.send(mv[sent:end])
-                sent = end
+            sock.sendall(len(header).to_bytes(4, "big"))
+            sock.sendall(header)
+            sock.sendall(data)
         finally:
             try:
                 sock.close()
@@ -632,13 +611,13 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         done = self._wait_for_d2d(
             request_uuid=upload_id,
-            wait_for_sub_event="image_added"
+            wait_for_sub_event="image_added",
         )
-        return done.get("content_id")
+        return done["content_id"]
 
-    def delete(self, content_id: str) -> None:
+    def delete(self, content_id: str) -> bool:
         """Delete a single artwork by content id."""
-        self.delete_list([content_id])
+        return self.delete_list([content_id])
 
     def delete_list(self, content_ids) -> bool:
         """Delete multiple artworks by content id."""
@@ -646,6 +625,9 @@ class SamsungTVArt(SamsungTVWSConnection):
         data = self._request_json("delete_image_list", content_id_list=content_id_list)
 
         returned = data.get("content_id_list")
+        if not returned:
+            return False
+
         if isinstance(returned, str):
             try:
                 returned = json.loads(returned)
@@ -654,17 +636,17 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         return returned == content_id_list
 
-    def select_image(self, content_id: str, category: Optional[str] = None, show: bool = True) -> None:
+    def select_image(self, content_id: str, category: Optional[str] = None, show: bool = True) -> Any:
         """Select an artwork and optionally show it immediately."""
-        self._request_json("select_image", category_id=category, content_id=content_id, show=show)
+        return self._request_json("select_image", category_id=category, content_id=content_id, show=show)
 
     def get_artmode(self):
         """Return current art mode state."""
         return self._get_value("get_artmode_status")
 
-    def set_artmode(self, mode):
+    def set_artmode(self, mode: Union[bool, int, str]) -> Any:
         """Set art mode state."""
-        self._set_value("set_artmode_status", mode)
+        return self._set_value("set_artmode_status", self._to_on_off(mode))
 
     def get_rotation(self):
         """Return current rotation status."""
@@ -677,7 +659,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def set_photo_filter(self, content_id, filter_id):
         """Set photo filter for a content id."""
-        self._request_json("set_photo_filter", content_id=content_id, filter_id=filter_id)
+        return self._request_json("set_photo_filter", content_id=content_id, filter_id=filter_id)
 
     def get_matte_list(self):
         """
@@ -699,8 +681,12 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         return result
 
-    def change_matte(self, content_id: str, matte_id: Optional[str] = None,
-                     portrait_matte: Optional[str] = None) -> None:
+    def change_matte(
+        self,
+        content_id: str,
+        matte_id: Optional[str] = None,
+        portrait_matte: Optional[str] = None
+    ) -> Any:
         """Change matte for an artwork (optionally portrait-specific)."""
         params = {
             "content_id": content_id,
@@ -709,7 +695,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         if portrait_matte:
             params["portrait_matte_id"] = portrait_matte
 
-        self._request_json("change_matte", **params)
+        return self._request_json("change_matte", **params)
 
     def set_motion_timer(self, value: str) -> Any:
         """Set motion timer (e.g. 'off', '5', '15', '30', '60', '120', '240')."""
