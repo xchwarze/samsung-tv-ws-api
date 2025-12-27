@@ -10,13 +10,13 @@ from samsungtvws.art import SamsungTVArt
 from samsungtvws.remote import SamsungTVWS
 
 from .const import (
+    D2D_SERVICE_MESSAGE_AVAILABLE_SAMPLE,
+    D2D_SERVICE_MESSAGE_IMAGE_ADDED_SAMPLE,
+    D2D_SERVICE_MESSAGE_OK_SAMPLE,
+    D2D_SERVICE_MESSAGE_READY_TO_USE_SAMPLE,
+    D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_CHANNEL_READY_SAMPLE,
-    D2D_SERVICE_MESSAGE_AVAILABLE_SAMPLE,
-    D2D_SERVICE_MESSAGE_OK_SAMPLE,
-    D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR,
-    D2D_SERVICE_MESSAGE_READY_TO_USE_SAMPLE,
-    D2D_SERVICE_MESSAGE_IMAGE_ADDED_SAMPLE,
 )
 
 _UUID = "07e72228-7110-4655-aaa6-d81b5188c219"
@@ -216,4 +216,3 @@ def test_send_image_success_sends_binary_frame(connection: Mock) -> None:
         assert header["fileType"] == "png"
         assert header["fileLength"] == len(file_bytes)
         assert header["secKey"] == "TESTKEY"
-
