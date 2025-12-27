@@ -71,7 +71,6 @@ class SamsungTVArt(SamsungTVWSConnection):
             key_press_delay=key_press_delay,
             name=name,
         )
-        self.art_uuid = None
         self._rest_api: Optional[SamsungTVRest] = None
 
     def open(self) -> websocket.WebSocket:
@@ -87,12 +86,6 @@ class SamsungTVArt(SamsungTVWSConnection):
         self._send_update_status()
 
         return self.connection
-    
-    def get_or_generate_uuid(self) -> str:
-        if not self.art_uuid:
-            self.art_uuid = str(uuid.uuid4())
-
-        return self.art_uuid
 
     def _new_request_uuid(self) -> str:
         """Return a fresh uuid to correlate a single request/response."""
@@ -206,6 +199,9 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         # Non-D2D waits return the websocket frame as-is.
         if wait_for_event != D2D_SERVICE_MESSAGE_EVENT:
+            if wait_for_sub_event:
+                raise ValueError("wait_for_sub_event is only valid for D2D_SERVICE_MESSAGE_EVENT")
+
             while True:
                 event, frame = self._recv_frame()
                 if event == wait_for_event:
@@ -411,17 +407,21 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         req_list = [{"content_id": cid} for cid in content_id_list]
 
-        d2d_id = self.get_or_generate_uuid()
-        payload = self._request_json(
-            "get_thumbnail_list",
-            content_id_list=req_list,
-            conn_info={
-                "d2d_mode": "socket",
-                "connection_id": generate_connection_id(),
-                "id": d2d_id,
+        d2d_id = self._new_request_uuid()
+        payload = self._send_art_request(
+            {
+                "request": "get_thumbnail_list",
+                "content_id_list": req_list,
+                "conn_info": {
+                    "d2d_mode": "socket",
+                    "connection_id": generate_connection_id(),
+                    "id": d2d_id,
+                },
             },
+            request_uuid=d2d_id,
         )
 
+        assert payload
         conn_info = self._parse_conn_info(payload)
         sock = self._open_d2d_socket(conn_info)
 
@@ -437,7 +437,6 @@ class SamsungTVArt(SamsungTVWSConnection):
                 file_len = int(header["fileLength"])
                 current = int(header["num"])
                 total = int(header["total"])
-
                 filename = f'{header["fileID"]}.{header["fileType"]}'
 
                 buf = bytearray()
@@ -472,17 +471,21 @@ class SamsungTVArt(SamsungTVWSConnection):
         result: Dict[str, bytearray] = {}
 
         for cid in content_id_list:
-            d2d_id = self.get_or_generate_uuid()
-            payload = self._request_json(
-                "get_thumbnail",
-                content_id=cid,
-                conn_info={
-                    "d2d_mode": "socket",
-                    "connection_id": generate_connection_id(),
-                    "id": d2d_id,
+            d2d_id = self._new_request_uuid()
+            payload = self._send_art_request(
+                {
+                    "request": "get_thumbnail",
+                    "content_id": cid,
+                    "conn_info": {
+                        "d2d_mode": "socket",
+                        "connection_id": generate_connection_id(),
+                        "id": d2d_id,
+                    },
                 },
+                request_uuid=d2d_id,
             )
 
+            assert payload
             conn_info = self._parse_conn_info(payload)
             sock = self._open_d2d_socket(conn_info)
 
@@ -549,7 +552,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         if date is None:
             date = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
 
-        upload_id = self.get_or_generate_uuid()
+        upload_id = self._new_request_uuid()
         ready = self._send_art_request(
             {
                 "request": "send_image",
