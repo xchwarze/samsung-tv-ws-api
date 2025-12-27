@@ -174,7 +174,6 @@ tv.art().set_photo_filter('SAM-F0206', 'ink')
 ### Async
 
 Examples are available in the examples folder: `async_remote.py`, `async_rest.py`
-Frame TV art examples are available in `async_art.py`, `async_art_slideshow_anything.py`, `async_art_update_from_directry.py`
 
 ### Encrypted API
 
@@ -185,9 +184,6 @@ Examples are available in the examples folder: `encrypted_authenticator.py`, `en
 List of support TV models. https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html
 
 ```
-2024 : LS03D
-2022/23 : LS03B/C
-2021 : LS03A
 2017 : M5500 and above
 2016 : K4300, K5300 and above
 2015 : J5500 and above (except J6203)

@@ -7,13 +7,15 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 import aiohttp
 
 from . import connection, exceptions, helper
 
 _LOGGING = logging.getLogger(__name__)
+
+_REQUEST_METHODS = Literal["GET", "POST", "PUT", "DELETE"]
 
 
 class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
@@ -33,19 +35,13 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
         )
         self.session = session
 
-    async def _rest_request(self, target: str, method: str = "GET") -> Dict[str, Any]:
+    async def _rest_request(
+        self, method: _REQUEST_METHODS, target: str
+    ) -> Dict[str, Any]:
+        timeout = aiohttp.ClientTimeout(self.timeout)
         url = self._format_rest_url(target)
         try:
-            if method == "POST":
-                future = self.session.post(url, timeout=self.timeout, verify_ssl=False)
-            elif method == "PUT":
-                future = self.session.put(url, timeout=self.timeout, verify_ssl=False)
-            elif method == "DELETE":
-                future = self.session.delete(
-                    url, timeout=self.timeout, verify_ssl=False
-                )
-            else:
-                future = self.session.get(url, timeout=self.timeout, verify_ssl=False)
+            future = self.session.request(method, url, timeout=timeout, ssl=False)
             async with future as resp:
                 return helper.process_api_response(await resp.text())
         except aiohttp.ClientConnectionError as err:
@@ -55,20 +51,20 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
 
     async def rest_device_info(self) -> Dict[str, Any]:
         _LOGGING.debug("Get device info via rest api")
-        return await self._rest_request("")
+        return await self._rest_request("GET", "")
 
     async def rest_app_status(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Get app %s status via rest api", app_id)
-        return await self._rest_request("applications/" + app_id)
+        return await self._rest_request("GET", "applications/" + app_id)
 
     async def rest_app_run(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Run app %s via rest api", app_id)
-        return await self._rest_request("applications/" + app_id, "POST")
+        return await self._rest_request("POST", "applications/" + app_id)
 
     async def rest_app_close(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Close app %s via rest api", app_id)
-        return await self._rest_request("applications/" + app_id, "DELETE")
+        return await self._rest_request("DELETE", "applications/" + app_id)
 
     async def rest_app_install(self, app_id: str) -> Dict[str, Any]:
         _LOGGING.debug("Install app %s via rest api", app_id)
-        return await self._rest_request("applications/" + app_id, "PUT")
+        return await self._rest_request("PUT", "applications/" + app_id)

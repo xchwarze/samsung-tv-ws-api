@@ -1,3 +1,41 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=77.0"]
+
+[project]
+name = "samsungtvws"
+version = "2.7.2"
+license = "LGPL-3.0"
+description = "Samsung Smart TV WS API wrapper"
+readme = "README.md"
+authors = [{ name = "Xchwarze" }]
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+]
+dependencies = [
+    "websocket-client>=0.57.0",
+    "requests>=2.21.0",
+]
+
+[project.urls]
+"Source code" = "https://github.com/xchwarze/samsung-tv-ws-api"
+
+[project.optional-dependencies]
+async = [
+    "aiohttp>=3.8.1",
+    "websockets>=13",
+]
+encrypted = [
+    "cryptography>=35.0.0",
+    "py3rijndael>=0.3.3",
+]
+
+[tool.setuptools.packages.find]
+include = ["samsungtvws*"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py38"
