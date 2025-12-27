@@ -1,12 +1,11 @@
 import logging
-import sys
+from pathlib import Path
 from pprint import pprint
 import sys
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from samsungtvws import SamsungTVWS
-from samsungtvws.exceptions import ResponseError, ConnectionFailure
+from samsungtvws.exceptions import ConnectionFailure, ResponseError
 
 TV_IP = "192.168.x.x"
 TIMEOUT = 5
@@ -60,7 +59,7 @@ def main() -> None:
         log.error("API error: %s", e)
     except ConnectionFailure as e:
         log.error("Connection failure: %s", e)
-    except Exception as e:
+    except Exception:
         log.exception("Unexpected error")
     finally:
         try:

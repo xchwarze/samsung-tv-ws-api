@@ -1,9 +1,9 @@
 """Tests for art module."""
 
+import json
 from unittest.mock import Mock, patch
 
 import pytest
-import json
 
 from samsungtvws import exceptions
 from samsungtvws.art import SamsungTVArt
@@ -16,7 +16,6 @@ from .const import (
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_CHANNEL_READY_SAMPLE,
 )
-
 
 _UUID = "07e72228-7110-4655-aaa6-d81b5188c219"
 
@@ -134,7 +133,9 @@ def test_send_image_failure(connection: Mock) -> None:
             exceptions.ResponseError,
             match=r"`send_image` request failed with error number -1",
         ):
-            tv_art.upload(b"", file_type="png", matte="none", date="2023:05:02 15:06:39")
+            tv_art.upload(
+                b"", file_type="png", matte="none", date="2023:05:02 15:06:39"
+            )
 
         # Assert structurally, not via exact string match
         assert connection.send.call_count == 1
@@ -163,4 +164,3 @@ def test_send_image_failure(connection: Mock) -> None:
         assert inner["file_size"] == 0
         assert inner["id"] == str(_UUID)
         assert inner["portrait_matte_id"] == "shadowbox_polar"
-

@@ -9,8 +9,8 @@ SPDX-License-Identifier: LGPL-3.0
 import base64
 import json
 import logging
-import ssl
 import random
+import ssl
 from typing import Any, Dict, Optional, Union
 
 from . import exceptions

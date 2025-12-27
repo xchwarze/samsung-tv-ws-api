@@ -12,15 +12,16 @@ import json
 import logging
 import os
 import socket
-from typing import Any, Dict, Optional, Tuple, Union, IO
+from typing import IO, Any, Dict, Optional, Tuple, Union
 import uuid
+
 import websocket
 
 from . import exceptions, helper
 from .command import SamsungTVCommand
 from .connection import SamsungTVWSConnection
 from .event import D2D_SERVICE_MESSAGE_EVENT, MS_CHANNEL_READY_EVENT
-from .helper import get_ssl_context, generate_connection_id
+from .helper import generate_connection_id, get_ssl_context
 from .rest import SamsungTVRest
 
 # for typing
@@ -47,7 +48,6 @@ class ArtChannelEmitCommand(SamsungTVCommand):
 
 
 class SamsungTVArt(SamsungTVWSConnection):
-
     # -------------------------
     # Lifecycle / connection
     # -------------------------
@@ -136,7 +136,11 @@ class SamsungTVArt(SamsungTVWSConnection):
             except OSError:
                 pass
 
-        sock = get_ssl_context().wrap_socket(raw_sock) if conn_info.get("secured", False) else raw_sock
+        sock = (
+            get_ssl_context().wrap_socket(raw_sock)
+            if conn_info.get("secured", False)
+            else raw_sock
+        )
         sock.connect((conn_info["ip"], int(conn_info["port"])))
 
         # Ensure recv/send timeout is applied to the final socket
@@ -191,12 +195,16 @@ class SamsungTVArt(SamsungTVWSConnection):
                 continue
 
             sub_event = payload.get("event", "*")
-            _LOGGING.debug("sub_event: %s, wait_for_sub_event: %s", sub_event, wait_for_sub_event)
+            _LOGGING.debug(
+                "sub_event: %s, wait_for_sub_event: %s", sub_event, wait_for_sub_event
+            )
 
             if sub_event == "error":
                 req = "unknown_request"
                 try:
-                    req = json.loads(payload.get("request_data", "{}")).get("request", req)
+                    req = json.loads(payload.get("request_data", "{}")).get(
+                        "request", req
+                    )
                 except json.JSONDecodeError:
                     pass
                 raise exceptions.ResponseError(
@@ -235,7 +243,9 @@ class SamsungTVArt(SamsungTVWSConnection):
         # Non-D2D waits return the websocket frame as-is.
         if wait_for_event != D2D_SERVICE_MESSAGE_EVENT:
             if wait_for_sub_event:
-                raise ValueError("wait_for_sub_event is only valid for D2D_SERVICE_MESSAGE_EVENT")
+                raise ValueError(
+                    "wait_for_sub_event is only valid for D2D_SERVICE_MESSAGE_EVENT"
+                )
 
             while True:
                 event, frame = self._recv_frame()
@@ -262,9 +272,13 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         raise ValueError("Expected bool or 'on'/'off' string")
 
-    def _request_json(self, request: str, *, wait_for_sub_event: Optional[str] = None, **params: Any) -> Any:
+    def _request_json(
+        self, request: str, *, wait_for_sub_event: Optional[str] = None, **params: Any
+    ) -> Any:
         """Generic request helper returning decoded D2D payload."""
-        return self._send_art_request({"request": request, **params}, wait_for_sub_event=wait_for_sub_event)
+        return self._send_art_request(
+            {"request": request, **params}, wait_for_sub_event=wait_for_sub_event
+        )
 
     def _get_value(self, request: str, key: str = "value", **params: Any) -> Any:
         """Generic getter returning payload[key] when present."""
@@ -274,7 +288,9 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         return data
 
-    def _set_value(self, request: str, value: Any, key: str = "value", **params: Any) -> Any:
+    def _set_value(
+        self, request: str, value: Any, key: str = "value", **params: Any
+    ) -> Any:
         """Generic setter sending value under payload key."""
         return self._request_json(request, **{key: value, **params})
 
@@ -636,9 +652,13 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         return returned == content_id_list
 
-    def select_image(self, content_id: str, category: Optional[str] = None, show: bool = True) -> Any:
+    def select_image(
+        self, content_id: str, category: Optional[str] = None, show: bool = True
+    ) -> Any:
         """Select an artwork and optionally show it immediately."""
-        return self._request_json("select_image", category_id=category, content_id=content_id, show=show)
+        return self._request_json(
+            "select_image", category_id=category, content_id=content_id, show=show
+        )
 
     def get_artmode(self):
         """Return current art mode state."""
@@ -659,7 +679,9 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def set_photo_filter(self, content_id, filter_id):
         """Set photo filter for a content id."""
-        return self._request_json("set_photo_filter", content_id=content_id, filter_id=filter_id)
+        return self._request_json(
+            "set_photo_filter", content_id=content_id, filter_id=filter_id
+        )
 
     def get_matte_list(self):
         """
@@ -685,7 +707,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         self,
         content_id: str,
         matte_id: Optional[str] = None,
-        portrait_matte: Optional[str] = None
+        portrait_matte: Optional[str] = None,
     ) -> Any:
         """Change matte for an artwork (optionally portrait-specific)."""
         params = {
