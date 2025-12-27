@@ -127,6 +127,20 @@ class SamsungTVArt(SamsungTVWSConnection):
         except json.JSONDecodeError:
             return None
 
+    def _parse_conn_info(self, payload: JsonObj) -> JsonObj:
+        """Return decoded conn_info dict from a D2D payload."""
+        conn_info = payload.get("conn_info", {})
+        if isinstance(conn_info, str):
+            return json.loads(conn_info)
+        return conn_info
+
+    def _open_d2d_socket(self, conn_info: JsonObj) -> socket.socket:
+        """Open a TCP socket to the TV D2D endpoint (optionally TLS-wrapped)."""
+        raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock = get_ssl_context().wrap_socket(raw_sock) if conn_info.get("secured", False) else raw_sock
+        sock.connect((conn_info["ip"], int(conn_info["port"])))
+        return sock
+
     def _wait_for_d2d(
             self,
             *,
@@ -290,20 +304,20 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_artmode_settings(self, setting=""):
         """
-        setting can be any of 'brightness', 'color_temperature', 'motion_sensitivity',
-        'motion_timer', or 'brightness_sensor_setting'
+        Return Art Mode settings.
+
+        If `setting` is provided, returns the matching setting entry when the TV
+        responds with a nested `data` list; otherwise returns the full payload.
         """
-        response = self._send_art_request(
-            {"request": "get_artmode_settings"},
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
-        )
-        assert response
+        data = self._request_json("get_artmode_settings")
 
-        data = json.loads(response["data"])
-        assert data
+        nested = data.get("data")
+        if isinstance(nested, str):
+            try:
+                nested_data = json.loads(nested)
+            except json.JSONDecodeError:
+                return data
 
-        if "data" in data:
-            nested_data = json.loads(data["data"])
             for item in nested_data:
                 if item.get("item") == setting:
                     return item
@@ -316,21 +330,26 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def set_auto_rotation_status(self, duration=0, type=True, category=2):
         """
-        duration is "off" or "number" where number is duration in minutes. set 0 for 'off'
-        slide show type can be "slideshow" or "shuffleslideshow", set True for shuffleslideshow
-        category is 'MY-C0004' or 'MY-C0002' where 4 is favourites, 2 is my pictures, and 8 is store
+        Configure auto-rotation (slideshow rotation) for a category.
+
+        duration: minutes (>0) or 0 to disable
+        type: True for shuffled slideshow, False for ordered slideshow
+        category: numeric suffix used to build category_id (e.g. 2 -> "MY-C0002")
         """
-        response = self._send_art_request(
-            {
-                "request": "set_auto_rotation_status",
-                "value": str(duration) if duration > 0 else "off",
-                "category_id": f"MY-C000{category}",
-                "type": "shuffleslideshow" if type else "slideshow",
-            },
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
+        value = "off"
+        if duration > 0:
+            value = str(duration)
+
+        slideshow_type = "slideshow"
+        if type:
+            slideshow_type = "shuffleslideshow"
+
+        return self._request_json(
+            "set_auto_rotation_status",
+            value=value,
+            category_id=f"MY-C000{category}",
+            type=slideshow_type,
         )
-        assert response
-        return json.loads(response["data"])
 
     def get_slideshow_status(self):
         """Return slideshow configuration."""
@@ -338,21 +357,26 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def set_slideshow_status(self, duration=0, type=True, category=2):
         """
-        duration is "off" or "number" where number is duration in minutes. set 0 for 'off'
-        slide show type can be "slideshow" or "shuffleslideshow", set True for shuffleslideshow
-        category is 'MY-C0004' or 'MY-C0002' where 4 is favourites, 2 is my pictures, and 8 is store
+        Configure slideshow playback for a category.
+
+        duration: minutes (>0) or 0 to disable
+        type: True for shuffled slideshow, False for ordered slideshow
+        category: numeric suffix used to build category_id (e.g. 2 -> "MY-C0002")
         """
-        response = self._send_art_request(
-            {
-                "request": "set_slideshow_status",
-                "value": str(duration) if duration > 0 else "off",
-                "category_id": f"MY-C000{category}",
-                "type": "shuffleslideshow" if type else "slideshow",
-            },
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
+        value = "off"
+        if duration > 0:
+            value = str(duration)
+
+        slideshow_type = "slideshow"
+        if type:
+            slideshow_type = "shuffleslideshow"
+
+        return self._request_json(
+            "set_slideshow_status",
+            value=value,
+            category_id=f"MY-C000{category}",
+            type=slideshow_type,
         )
-        assert response
-        return json.loads(response["data"])
 
     def get_brightness(self):
         """Return art mode brightness level."""
@@ -375,128 +399,167 @@ class SamsungTVArt(SamsungTVWSConnection):
         return self._set_value("set_color_temperature", value)
 
     def get_thumbnail_list(self, content_id_list=None):
+        """
+        Fetch one or more thumbnails via D2D socket.
+
+        Returns a dict: {"<fileID>.<fileType>": bytearray, ...}.
+        """
         if content_id_list is None:
             content_id_list = []
         if isinstance(content_id_list, str):
             content_id_list = [content_id_list]
-        content_id_list = [{"content_id": id} for id in content_id_list]
 
-        response = self._send_art_request(
-            {
-                "request": "get_thumbnail_list",
-                "content_id_list": content_id_list,
-                "conn_info": {
+        req_list = [{"content_id": cid} for cid in content_id_list]
+
+        d2d_id = self.get_or_generate_uuid()
+        payload = self._request_json(
+            "get_thumbnail_list",
+            content_id_list=req_list,
+            conn_info={
+                "d2d_mode": "socket",
+                "connection_id": generate_connection_id(),
+                "id": d2d_id,
+            },
+        )
+
+        conn_info = self._parse_conn_info(payload)
+        sock = self._open_d2d_socket(conn_info)
+
+        thumbnails: Dict[str, bytearray] = {}
+        try:
+            total = 1
+            current = -1
+
+            while current + 1 < total:
+                header_len = int.from_bytes(sock.recv(4), "big")
+                header = json.loads(sock.recv(header_len))
+
+                file_len = int(header["fileLength"])
+                current = int(header["num"])
+                total = int(header["total"])
+
+                filename = f'{header["fileID"]}.{header["fileType"]}'
+
+                buf = bytearray()
+                while len(buf) < file_len:
+                    chunk = sock.recv(file_len - len(buf))
+                    if not chunk:
+                        raise exceptions.ConnectionFailure({"reason": "thumbnail socket closed"})
+                    buf.extend(chunk)
+
+                thumbnails[filename] = buf
+        finally:
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+        return thumbnails
+
+    def get_thumbnail(self, content_id_list=None, as_dict: bool = False):
+        """
+        Fetch thumbnail(s) via D2D socket.
+
+        - as_dict=True: returns {"<fileID>.<fileType>": bytearray, ...}
+        - single id + as_dict=False: returns bytearray
+        - multiple ids + as_dict=False: returns List[bytearray]
+        """
+        if content_id_list is None:
+            content_id_list = []
+        if isinstance(content_id_list, str):
+            content_id_list = [content_id_list]
+
+        result: Dict[str, bytearray] = {}
+
+        for cid in content_id_list:
+            d2d_id = self.get_or_generate_uuid()
+            payload = self._request_json(
+                "get_thumbnail",
+                content_id=cid,
+                conn_info={
                     "d2d_mode": "socket",
                     "connection_id": generate_connection_id(),
-                    "id": self.get_or_generate_uuid(),
+                    "id": d2d_id,
                 },
-            },
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
-        )
-        assert response
-
-        data = json.loads(response["data"])
-        conn_info = json.loads(data["conn_info"])
-        art_socket_raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        art_socket = (
-            get_ssl_context().wrap_socket(art_socket_raw)
-            if conn_info.get("secured", False)
-            else art_socket_raw
-        )
-        art_socket.connect((conn_info["ip"], int(conn_info["port"])))
-        total_num_thumbnails = 1
-        current_thumb = -1
-        thumbnail_data_dict = {}
-        while current_thumb + 1 < total_num_thumbnails:
-            header_len = int.from_bytes(art_socket.recv(4), "big")
-            header = json.loads(art_socket.recv(header_len))
-            thumbnail_data_len = int(header["fileLength"])
-            current_thumb = int(header["num"])
-            total_num_thumbnails = int(header["total"])
-            filename = "{}.{}".format(header["fileID"], header["fileType"])
-            thumbnail_data = bytearray()
-            while len(thumbnail_data) < thumbnail_data_len:
-                packet = art_socket.recv(thumbnail_data_len - len(thumbnail_data))
-                thumbnail_data.extend(packet)
-            thumbnail_data_dict[filename] = thumbnail_data
-        return thumbnail_data_dict
-
-    def get_thumbnail(self, content_id_list=None, as_dict=False):
-        if content_id_list is None:
-            content_id_list = []
-        if isinstance(content_id_list, str):
-            content_id_list = [content_id_list]
-
-        thumbnail_data_dict = {}
-        thumbnail_data = None
-        for content_id in content_id_list:
-            response = self._send_art_request(
-                {
-                    "request": "get_thumbnail",
-                    "content_id": content_id,
-                    "conn_info": {
-                        "d2d_mode": "socket",
-                        "connection_id": generate_connection_id(),
-                        "id": self.get_or_generate_uuid(),
-                    },
-                },
-                wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
             )
-            assert response
-            data = json.loads(response["data"])
-            conn_info = json.loads(data["conn_info"])
 
-            art_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            art_socket.connect((conn_info["ip"], int(conn_info["port"])))
-            header_len = int.from_bytes(art_socket.recv(4), "big")
-            header = json.loads(art_socket.recv(header_len))
+            conn_info = self._parse_conn_info(payload)
+            sock = self._open_d2d_socket(conn_info)
 
-            thumbnail_data_len = int(header["fileLength"])
-            thumbnail_data = bytearray()
-            while len(thumbnail_data) < thumbnail_data_len:
-                packet = art_socket.recv(thumbnail_data_len - len(thumbnail_data))
-                thumbnail_data.extend(packet)
-            filename = "{}.{}".format(header["fileID"], header["fileType"])
-            thumbnail_data_dict[filename] = thumbnail_data
+            try:
+                header_len = int.from_bytes(sock.recv(4), "big")
+                header = json.loads(sock.recv(header_len))
+
+                file_len = int(header["fileLength"])
+                filename = f'{header["fileID"]}.{header["fileType"]}'
+
+                buf = bytearray()
+                while len(buf) < file_len:
+                    chunk = sock.recv(file_len - len(buf))
+                    if not chunk:
+                        raise exceptions.ConnectionFailure({"reason": "thumbnail socket closed"})
+                    buf.extend(chunk)
+
+                result[filename] = buf
+            finally:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
 
         if as_dict:
-            return thumbnail_data_dict
+            return result
 
         if len(content_id_list) > 1:
-            return list(thumbnail_data_dict.values())
+            return list(result.values())
 
-        return thumbnail_data
+        if content_id_list:
+            return next(iter(result.values()))
+
+        return bytearray()
 
     def upload(
-        self,
-        file,
-        matte="shadowbox_polar",
-        portrait_matte="shadowbox_polar",
-        file_type="png",
-        date=None,
+            self,
+            file,
+            matte="shadowbox_polar",
+            portrait_matte="shadowbox_polar",
+            file_type="png",
+            date=None,
+            chunk_size: int = 64 * 1024,
     ):
-        if isinstance(file, str):
-            file_name, file_extension = os.path.splitext(file)
-            file_type = file_extension[1:]
-            with open(file, "rb") as f:
-                file = f.read()
+        """
+        Upload an image via D2D socket.
 
-        file_size = len(file)
-        file_type = file_type.lower()
-        if file_type == "jpeg":
-            file_type = "jpg"
+        Some firmwares require `id == request_id == conn_info.id` for this flow.
+        """
+        if isinstance(file, str):
+            _, ext = os.path.splitext(file)
+            if ext:
+                file_type = ext[1:]
+            with open(file, "rb") as f:
+                data_bytes = f.read()
+        else:
+            data_bytes = bytes(file)
+
+        file_size = len(data_bytes)
+        ft = file_type.lower()
+        if ft == "jpeg":
+            ft = "jpg"
 
         if date is None:
             date = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
 
-        response = self._send_art_request(
+        upload_id = self.get_or_generate_uuid()
+        ready = self._send_art_request(
             {
                 "request": "send_image",
-                "file_type": file_type,
+                "file_type": ft,
+                "id": upload_id,
+                "request_id": upload_id,
                 "conn_info": {
                     "d2d_mode": "socket",
                     "connection_id": generate_connection_id(),
-                    "id": self.get_or_generate_uuid(),
+                    "id": upload_id,
                 },
                 "image_date": date,
                 "matte_id": matte or "none",
@@ -505,74 +568,58 @@ class SamsungTVArt(SamsungTVWSConnection):
             },
             wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
             wait_for_sub_event="ready_to_use",
+            request_uuid=upload_id,
         )
-        assert response
-        data = json.loads(response["data"])
-        conn_info = json.loads(data["conn_info"])
+        assert ready
+
+        conn_info = self._parse_conn_info(ready)
         header = json.dumps(
             {
                 "num": 0,
                 "total": 1,
                 "fileLength": file_size,
                 "fileName": "dummy",
-                "fileType": file_type,
+                "fileType": ft,
                 "secKey": conn_info["key"],
                 "version": "0.0.1",
             }
         )
 
-        art_socket_raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        art_socket = (
-            get_ssl_context().wrap_socket(art_socket_raw)
-            if conn_info.get("secured", False)
-            else art_socket_raw
+        sock = self._open_d2d_socket(conn_info)
+        try:
+            sock.send(len(header).to_bytes(4, "big"))
+            sock.send(header.encode("ascii"))
+
+            sent = 0
+            mv = memoryview(data_bytes)
+            while sent < file_size:
+                end = min(sent + chunk_size, file_size)
+                sock.send(mv[sent:end])
+                sent = end
+        finally:
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+        done = self._wait_for_d2d(
+            request_uuid=upload_id,
+            wait_for_sub_event="image_added"
         )
-        art_socket.connect((conn_info["ip"], int(conn_info["port"])))
-        art_socket.send(len(header).to_bytes(4, "big"))
-        art_socket.send(header.encode("ascii"))
-        art_socket.send(file)
+        return done.get("content_id")
 
-        wait_for_event = D2D_SERVICE_MESSAGE_EVENT
-        wait_for_sub_event = "image_added"
-
-        assert self.connection
-        event: Optional[str] = None
-        sub_event: Optional[str] = None
-
-        while event != wait_for_event:
-            data = self.connection.recv()
-            response = helper.process_api_response(data)
-            event = response.get("event", "*")
-            assert event
-            self._websocket_event(event, response)
-            if event == wait_for_event and wait_for_sub_event:
-                # Check sub event, reset event if it doesn't match
-                data = json.loads(response["data"])
-                sub_event = data.get("event", "*")
-                if sub_event != wait_for_sub_event:
-                    event = None
-
-        data = json.loads(response["data"])
-
-        return data["content_id"]
-
-    def delete(self, content_id):
+    def delete(self, content_id: str) -> None:
+        """Delete a single artwork by content id."""
         self.delete_list([content_id])
 
-    def delete_list(self, content_ids):
-        content_id_list = [{"content_id": item} for item in content_ids]
-        self._send_art_request({
-            "request": "delete_image_list",
-            "content_id_list": content_id_list
-        })
+    def delete_list(self, content_ids) -> None:
+        """Delete multiple artworks by content id."""
+        content_id_list = [{"content_id": cid} for cid in content_ids]
+        self._request_json("delete_image_list", content_id_list=content_id_list)
 
-    def select_image(self, content_id, category=None, show=True):
-        self._send_art_request({
-            "request": "select_image",
-            "category_id": category,
-            "content_id": content_id,
-            "show": show,
-        })
+    def select_image(self, content_id: str, category: Optional[str] = None, show: bool = True) -> None:
+        """Select an artwork and optionally show it immediately."""
+        self._request_json("select_image", category_id=category, content_id=content_id, show=show)
 
     def get_artmode(self):
         """Return current art mode state."""
@@ -596,37 +643,33 @@ class SamsungTVArt(SamsungTVWSConnection):
         self._request_json("set_photo_filter", content_id=content_id, filter_id=filter_id)
 
     def get_matte_list(self):
-        response = self._send_art_request(
-            {"request": "get_matte_list"},
-            wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
-        )
-        assert response
-        data = json.loads(response["data"])
+        """
+        Return available matte types and optional colors.
 
+        Normalizes API differences across TV firmware (matte_type_list vs matte_list).
+        """
+        data = self._request_json("get_matte_list")
         result = {}
-        if "matte_type_list" in data:
-            result["matte_types"] = json.loads(data["matte_type_list"])
 
         # I understand that in some version of the api this is the new name of the data...
-        if "matte_list" in data:
-            result["matte_types"] = json.loads(data["matte_list"])
+        matte_types = data.get("matte_type_list") or data.get("matte_list")
+        if isinstance(matte_types, str):
+            result["matte_types"] = json.loads(matte_types)
 
-        if "matte_color_list" in data:
-            result["matte_colors"] = json.loads(data["matte_color_list"])
+        matte_colors = data.get("matte_color_list")
+        if isinstance(matte_colors, str):
+            result["matte_colors"] = json.loads(matte_colors)
 
         return result
 
-    def change_matte(self, content_id, matte_id=None, portrait_matte=None):
-        """
-        matte is name_color eg flexible_polar or none
-        NOTE: Not all mattes can be set for all image sizes!
-        """
-        request = {
-            "request": "change_matte",
+    def change_matte(self, content_id: str, matte_id: Optional[str] = None,
+                     portrait_matte: Optional[str] = None) -> None:
+        """Change matte for an artwork (optionally portrait-specific)."""
+        params = {
             "content_id": content_id,
             "matte_id": matte_id or "none",
         }
         if portrait_matte:
-            request["portrait_matte_id"] = portrait_matte
+            params["portrait_matte_id"] = portrait_matte
 
-        self._send_art_request(request)
+        self._request_json("change_matte", **params)
