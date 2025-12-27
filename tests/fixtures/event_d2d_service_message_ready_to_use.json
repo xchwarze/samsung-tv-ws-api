@@ -1,0 +1,5 @@
+{
+  "data": "{\"id\":\"07e72228-7110-4655-aaa6-d81b5188c219\",\"request_id\":\"07e72228-7110-4655-aaa6-d81b5188c219\",\"event\":\"ready_to_use\",\"conn_info\":{\"ip\":\"127.0.0.1\",\"port\":12345,\"key\":\"TESTKEY\",\"secured\":false}}",
+  "event": "d2d_service_message",
+  "from": "host"
+}

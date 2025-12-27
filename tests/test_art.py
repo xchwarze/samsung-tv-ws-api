@@ -10,11 +10,13 @@ from samsungtvws.art import SamsungTVArt
 from samsungtvws.remote import SamsungTVWS
 
 from .const import (
+    MS_CHANNEL_CONNECT_SAMPLE,
+    MS_CHANNEL_READY_SAMPLE,
     D2D_SERVICE_MESSAGE_AVAILABLE_SAMPLE,
     D2D_SERVICE_MESSAGE_OK_SAMPLE,
     D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR,
-    MS_CHANNEL_CONNECT_SAMPLE,
-    MS_CHANNEL_READY_SAMPLE,
+    D2D_SERVICE_MESSAGE_READY_TO_USE_SAMPLE,
+    D2D_SERVICE_MESSAGE_IMAGE_ADDED_SAMPLE,
 )
 
 _UUID = "07e72228-7110-4655-aaa6-d81b5188c219"
@@ -164,3 +166,54 @@ def test_send_image_failure(connection: Mock) -> None:
         assert inner["file_size"] == 0
         assert inner["id"] == str(_UUID)
         assert inner["portrait_matte_id"] == "shadowbox_polar"
+
+
+def test_send_image_success_sends_binary_frame(connection: Mock) -> None:
+    """Ensure upload sends header+bytes over D2D socket and returns content_id."""
+    file_bytes = b"\x89PNG\r\n\x1a\nFAKEPNGDATA"
+
+    sock = Mock()
+    with patch("samsungtvws.art.uuid.uuid4", return_value=_UUID), patch(
+        "samsungtvws.helper.random.randrange", return_value=4091151321
+    ), patch.object(
+        SamsungTVArt,
+        "_open_d2d_socket",
+        return_value=sock,
+    ):
+        # recv order:
+        # - connect + ready (open())
+        # - ready_to_use (send_image response)
+        # - image_added (final ack)
+        connection.recv.side_effect = [
+            MS_CHANNEL_CONNECT_SAMPLE,
+            MS_CHANNEL_READY_SAMPLE,
+            D2D_SERVICE_MESSAGE_READY_TO_USE_SAMPLE,
+            D2D_SERVICE_MESSAGE_IMAGE_ADDED_SAMPLE,
+        ]
+
+        tv_art = SamsungTVArt("127.0.0.1")
+        content_id = tv_art.upload(
+            file_bytes, file_type="png", matte="none", date="2023:05:02 15:06:39"
+        )
+
+        assert content_id == "MY_F0001"
+
+        # Validate D2D send sequence: len(header) + header + data
+        assert sock.sendall.call_count == 3
+
+        header_len_bytes = sock.sendall.call_args_list[0].args[0]
+        header_bytes = sock.sendall.call_args_list[1].args[0]
+        data_bytes = sock.sendall.call_args_list[2].args[0]
+
+        assert isinstance(header_len_bytes, (bytes, bytearray))
+        assert isinstance(header_bytes, (bytes, bytearray))
+        assert data_bytes == file_bytes
+
+        header_len = int.from_bytes(header_len_bytes, "big")
+        assert header_len == len(header_bytes)
+
+        header = json.loads(header_bytes.decode("ascii"))
+        assert header["fileType"] == "png"
+        assert header["fileLength"] == len(file_bytes)
+        assert header["secKey"] == "TESTKEY"
+
