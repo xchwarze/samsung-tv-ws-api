@@ -98,7 +98,7 @@ class SamsungTVArt(SamsungTVWSConnection):
     ) -> Optional[Dict[str, Any]]:
         request_data["id"] = self.get_or_generate_uuid()
 
-        # this is for support new api (v ?????)
+        # this is for support new api (v4?)
         request_data["request_id"] = request_data["id"]
 
         self.send_command(ArtChannelEmitCommand.art_app_request(request_data))
@@ -195,7 +195,11 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def set_favourite(self, content_id, status="on"):
         response = self._send_art_request(
-            {"request": "change_favorite", "content_id": content_id, "status": status},
+            {
+                "request": "change_favorite",
+                "content_id": content_id,
+                "status": status
+            },
             wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
             wait_for_sub_event="favorite_changed",
         )
@@ -314,6 +318,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         if isinstance(content_id_list, str):
             content_id_list = [content_id_list]
         content_id_list = [{"content_id": id} for id in content_id_list]
+
         response = self._send_art_request(
             {
                 "request": "get_thumbnail_list",
@@ -327,6 +332,7 @@ class SamsungTVArt(SamsungTVWSConnection):
             wait_for_event=D2D_SERVICE_MESSAGE_EVENT,
         )
         assert response
+
         data = json.loads(response["data"])
         conn_info = json.loads(data["conn_info"])
         art_socket_raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -358,6 +364,7 @@ class SamsungTVArt(SamsungTVWSConnection):
             content_id_list = []
         if isinstance(content_id_list, str):
             content_id_list = [content_id_list]
+
         thumbnail_data_dict = {}
         thumbnail_data = None
         for content_id in content_id_list:
@@ -390,13 +397,13 @@ class SamsungTVArt(SamsungTVWSConnection):
             filename = "{}.{}".format(header["fileID"], header["fileType"])
             thumbnail_data_dict[filename] = thumbnail_data
 
-        return (
-            thumbnail_data_dict
-            if as_dict
-            else list(thumbnail_data_dict.values())
-            if len(content_id_list) > 1
-            else thumbnail_data
-        )
+        if as_dict:
+            return thumbnail_data_dict
+
+        if len(content_id_list) > 1:
+            return list(thumbnail_data_dict.values())
+
+        return thumbnail_data
 
     def upload(
         self,
