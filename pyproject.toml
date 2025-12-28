@@ -32,6 +32,13 @@ encrypted = [
     "cryptography>=35.0.0",
     "py3rijndael>=0.3.3",
 ]
+cli = [
+    "typer>=0.20",
+    "wakeonlan>=3.0.0",
+]
+
+[project.scripts]
+samsungtv = "samsungtvws.cli:cli"
 
 [tool.setuptools.packages.find]
 include = ["samsungtvws*"]
