@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, Optional
 
 import typer
 
@@ -38,7 +37,7 @@ def art_supported(ctx: typer.Context) -> None:
 @cli.command("art-mode")
 def art_mode(
     ctx: typer.Context,
-    on: Optional[bool] = typer.Option(
+    on: bool | None = typer.Option(
         None,
         "--on/--off",
         help="Set Art Mode state",
@@ -75,9 +74,7 @@ def art_current(ctx: typer.Context) -> None:
 @cli.command("art-available")
 def art_available(
     ctx: typer.Context,
-    category: Optional[str] = typer.Option(
-        None, "--category", help="Category id filter"
-    ),
+    category: str | None = typer.Option(None, "--category", help="Category id filter"),
 ) -> None:
     """List available art content."""
     _require_art_supported(ctx)
@@ -112,7 +109,7 @@ def art_thumbnail(
     art = tv.art()
 
     if legacy:
-        thumbs: Dict[str, bytearray] = art.get_thumbnail(content_id, as_dict=True)  # type: ignore[assignment]
+        thumbs: dict[str, bytearray] = art.get_thumbnail(content_id, as_dict=True)  # type: ignore[assignment]
     else:
         thumbs = art.get_thumbnail_list(content_id)
 
@@ -144,7 +141,7 @@ def art_upload(
         "--portrait-matte",
         help="Portrait matte id (use 'none' to disable)",
     ),
-    file_type: Optional[str] = typer.Option(
+    file_type: str | None = typer.Option(
         None,
         "--file-type",
         help="Override file type (png/jpg/jpeg). If omitted, inferred from filename.",
@@ -187,7 +184,7 @@ def art_delete(
 @cli.command("art-delete-list")
 def art_delete_list(
     ctx: typer.Context,
-    content_ids: list[str] = typer.Argument(..., help="Content ids"),
+    content_ids: list[str] = typer.Argument(..., help="Content ids"),  # noqa: B008
 ) -> None:
     """Delete multiple artworks by content id."""
     _require_art_supported(ctx)
@@ -213,7 +210,7 @@ def art_matte_set(
     matte_id: str = typer.Argument(
         ..., help="Matte id (e.g. none, shadowbox_polar, ...)"
     ),
-    portrait_matte: Optional[str] = typer.Option(
+    portrait_matte: str | None = typer.Option(
         None,
         "--portrait-matte",
         help="Portrait matte id (optional)",
