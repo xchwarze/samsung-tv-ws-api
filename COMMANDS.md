@@ -8,22 +8,22 @@ This project ships with a CLI (`samsungtv`) that can send remote keys and run co
 
 ```bash
 samsungtv [OPTIONS] COMMAND [ARGS]...
-````
+```
 
 ### Required
 
-* `--host TEXT` TV IP/host (**required**)
+- `--host TEXT` TV IP/host (**required**)
 
 ### Common Options
 
-* `--port INTEGER` WebSocket port (`8001` / `8002`) (default: `8002`)
-* `--token TEXT` Auth token
-* `--token-file TEXT` Path to token file
-* `--timeout FLOAT` Socket timeout seconds (`0` disables timeout) (default: `10`)
-* `--key-press-delay FLOAT` Delay between key presses (seconds) (default: `1.0`)
-* `--name TEXT` Client name shown on TV (default: `SamsungTvRemoteCli`)
-* `--print-token / --no-print-token` Print token once if it is not saved (default: `print-token`)
-* `-v, --verbose INTEGER` Increase verbosity (`-v`: INFO, `-vv`: DEBUG)
+- `--port INTEGER` WebSocket port (`8001` / `8002`) (default: `8002`)
+- `--token TEXT` Auth token
+- `--token-file TEXT` Path to token file
+- `--timeout FLOAT` Socket timeout seconds (`0` disables timeout) (default: `10`)
+- `--key-press-delay FLOAT` Delay between key presses (seconds) (default: `1.0`)
+- `--name TEXT` Client name shown on TV (default: `SamsungTvRemoteCli`)
+- `--print-token / --no-print-token` Print token once if it is not saved (default: `print-token`)
+- `-v, --verbose INTEGER` Increase verbosity (`-v`: INFO, `-vv`: DEBUG)
 
 ---
 
@@ -41,9 +41,9 @@ samsungtv --host <TV_IP> send-key KEY_*
 
 **Options**
 
-* `--times INTEGER` Repeat count (min: `1`, default: `1`)
-* `--cmd TEXT` `Click|Press|Release` (default: `Click`)
-* `--delay FLOAT` Override key press delay (seconds, min: `0.0`)
+- `--times INTEGER` Repeat count (min: `1`, default: `1`)
+- `--cmd TEXT` `Click|Press|Release` (default: `Click`)
+- `--delay FLOAT` Override key press delay (seconds, min: `0.0`)
 
 **Examples**
 
@@ -63,8 +63,8 @@ samsungtv --host 192.168.1.50 send-key KEY_RIGHT --cmd Release
 
 > Notes
 >
-> * `--cmd` is normalized internally and only accepts: `Click`, `Press`, `Release`.
-> * `--delay` overrides `--key-press-delay` for this invocation.
+> - `--cmd` is normalized internally and only accepts: `Click`, `Press`, `Release`.
+> - `--delay` overrides `--key-press-delay` for this invocation.
 
 ---
 

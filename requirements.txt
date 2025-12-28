@@ -11,6 +11,10 @@ async_timeout>=4.0.3
 cryptography>=35.0.0
 py3rijndael>=0.3.3
 
+# cli
+typer>=0.20
+wakeonlan>=3.0.0
+
 # dev
 mypy>=1.13
 pre-commit>=3.5

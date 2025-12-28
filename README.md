@@ -2,7 +2,7 @@
     <img src="https://user-images.githubusercontent.com/5860071/47255992-611d9b00-d481-11e8-965d-d9816f254be2.png" width="300px" border="0" />
     <br/>
     <a href="https://github.com/xchwarze/samsung-tv-ws-api/releases/latest">
-        <img src="https://img.shields.io/badge/version-2.7.2-brightgreen.svg?style=flat-square" alt="Version">
+        <img src="https://img.shields.io/badge/version-3.0.0-brightgreen.svg?style=flat-square" alt="Version">
     </a>
     Samsung Smart TV WS API wrapper
 </p>
@@ -44,7 +44,7 @@ Core library:
 
 ```bash
 pip install samsungtvws
-````
+```
 
 Common install (async + encrypted + CLI):
 
@@ -56,9 +56,9 @@ pip install "samsungtvws[async,encrypted,cli]"
 
 ### Optional extras
 
-* `async`: async I/O support (`aiohttp`, `websockets`)
-* `encrypted`: v1 encrypted API support (older Orsay TVs)
-* `cli`: installs the `samsungtv` command (`typer`, `wakeonlan`)
+- `async`: async I/O support (`aiohttp`, `websockets`)
+- `encrypted`: v1 encrypted API support (older Orsay TVs)
+- `cli`: installs the `samsungtv` command (`typer`, `wakeonlan`)
 
 Examples:
 
@@ -110,10 +110,10 @@ For custom integrations or advanced control flows, the library can be consumed d
 
 The `examples/` directory contains **ready-to-run programmatic examples**, including:
 
-* WebSocket and REST usage
-* Async integrations
-* Encrypted API usage
-* Art Mode control
+- WebSocket and REST usage
+- Async integrations
+- Encrypted API usage
+- Art Mode control
 
 Reviewing these examples is the recommended starting point for manual integrations.
 
@@ -182,11 +182,11 @@ samsungtv --host 192.168.1.50 art-upload image.jpg
 
 The CLI exposes most of the library functionality, including:
 
-* App management
-* Remote control keys
-* Device information
-* Wake-on-LAN
-* Full Art Mode management
+- App management
+- Remote control keys
+- Device information
+- Wake-on-LAN
+- Full Art Mode management
 
 ## Supported TVs
 
@@ -194,15 +194,15 @@ This library is designed to support **all Samsung Smart TVs running Tizen OS** (
 
 It also provides support for older **Orsay-based TVs**, specifically:
 
-* **H series (2014)**
-* **Part of J series (2015)**
+- **H series (2014)**
+- **Part of J series (2015)**
 
 Support for Orsay devices is mainly provided through the encrypted v1 API.
 
 Official Samsung compatibility references:
 
-* [https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html](https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html)
-* [https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html](https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html)
+- [https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html](https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html)
+- [https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html](https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html)
 
 ## License
 
