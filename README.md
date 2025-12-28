@@ -2,196 +2,211 @@
     <img src="https://user-images.githubusercontent.com/5860071/47255992-611d9b00-d481-11e8-965d-d9816f254be2.png" width="300px" border="0" />
     <br/>
     <a href="https://github.com/xchwarze/samsung-tv-ws-api/releases/latest">
-        <img src="https://img.shields.io/badge/version-2.6.0-brightgreen.svg?style=flat-square" alt="Version">
+        <img src="https://img.shields.io/badge/version-2.7.2-brightgreen.svg?style=flat-square" alt="Version">
     </a>
     Samsung Smart TV WS API wrapper
 </p>
 
-This project is a library for remote controlling Samsung televisions via a TCP/IP connection.
+This project is a Python library for remotely controlling Samsung televisions via a TCP/IP connection.
 
-It currently supports modern (post-2016) TVs with Ethernet or Wi-Fi connectivity. They should be all models with TizenOs.
+It supports modern (post-2016) Samsung Smart TVs running **Tizen OS**, connected via Ethernet or Wi-Fi.
 
-Based on https://github.com/marysieek/samsung-tv-api work
+---
 
-## Install
+## Documentation
+
+Most of the general usage and features are documented in this README.
+Some advanced topics are covered in dedicated documents:
+
+- **[Commands](./COMMANDS.md)**  
+  Detailed remote key reference, including the full key list and all supported ways to send keys via the CLI.
+
+- **[Applications (App IDs)](./APPLICATIONS.md)**  
+  Extended documentation about application IDs, how to find them, and how to install or launch applications from the TV.
+
+## Features
+
+- WebSocket and REST APIs
+- Sync and async support
+- Encrypted v1 API support for older TVs
+- Full Art Mode support (Frame TVs)
+- Command-line interface (CLI)
+
+---
+
+## Installation
+
+Requires **Python >= 3.9**.
+
+### Install from PyPI (recommended)
+
+Core library:
 
 ```bash
-$ pip3 install samsungtvws[async,encrypted]
-```
+pip install samsungtvws
+````
 
-or
-
-```bash
-$ pip3 install "git+https://github.com/xchwarze/samsung-tv-ws-api.git#egg=samsungtvws[async,encrypted]"
-```
-
-or...!
+Common install (async + encrypted + CLI):
 
 ```bash
-$ git clone https://github.com/xchwarze/samsung-tv-ws-api
-$ pip3 install "./samsung-tv-ws-api[async,encrypted]"
+pip install "samsungtvws[async,encrypted,cli]"
 ```
 
-### Extras
+---
 
-`async` is required if you wish to use asynchronous I/O for all communications with the TV (`SamsungTVAsyncRest` and `SamsungTVWSAsyncRemote`)
-`encrypted` is required if you wish to communicate with a TV which only support the v1 API (some J and K models) for sending commands (`SamsungTVEncryptedWSAsyncRemote` and `SamsungTVEncryptedWSAsyncAuthenticator`).
+### Optional extras
+
+* `async`: async I/O support (`aiohttp`, `websockets`)
+* `encrypted`: v1 encrypted API support (older Orsay TVs)
+* `cli`: installs the `samsungtv` command (`typer`, `wakeonlan`)
+
+Examples:
+
+```bash
+pip install "samsungtvws[cli]"
+pip install "samsungtvws[async]"
+pip install "samsungtvws[encrypted]"
+```
+
+---
+
+### Install from GitHub (latest main branch)
+
+```bash
+pip install "git+https://github.com/xchwarze/samsung-tv-ws-api.git#egg=samsungtvws[async,encrypted,cli]"
+```
+
+---
+
+### Local development install
+
+```bash
+git clone https://github.com/xchwarze/samsung-tv-ws-api.git
+cd samsung-tv-ws-api
+pip install --editable ".[async,encrypted,cli]"
+```
+
+`--editable` installs the package in development mode and can be omitted for a regular local install.
+
+---
+
+### CLI check
+
+If installed with the `cli` extra:
+
+```bash
+samsungtv --help
+```
+
+---
 
 ## Usage
 
-### Basic
+This library can be used either programmatically or via the CLI, depending on the integration needs.
 
-```python
-import sys
-import os
-import logging
-import wakeonlan
+### Programmatic usage
 
-sys.path.append('../')
+For custom integrations or advanced control flows, the library can be consumed directly from Python code.
 
-from samsungtvws import SamsungTVWS
+The `examples/` directory contains **ready-to-run programmatic examples**, including:
 
-# Increase debug level
-logging.basicConfig(level=logging.INFO)
+* WebSocket and REST usage
+* Async integrations
+* Encrypted API usage
+* Art Mode control
 
-# Normal constructor
-tv = SamsungTVWS('192.168.xxx.xxx')
+Reviewing these examples is the recommended starting point for manual integrations.
 
-# Autosave token to file
-token_file = os.path.dirname(os.path.realpath(__file__)) + '/tv-token.txt'
-tv = SamsungTVWS(host='192.168.xxx.xxx', port=8002, token_file=token_file)
+---
 
-# Toggle power
-tv.shortcuts().power()
+### CLI usage
 
-# Power On
-wakeonlan.send_magic_packet('CC:6E:A4:xx:xx:xx')
+For quick testing, automation, or scripting, the library provides a fully featured **command-line interface**.
+Requires installation with the `cli` extra.
 
-# Open web in browser
-tv.open_browser('https://duckduckgo.com/')
+Once installed:
 
-# View installed apps
-apps = tv.app_list()
-logging.info(apps)
-
-# Open app (Spotify)
-tv.run_app('3201606009684')
-
-# Get app status (Spotify)
-app = tv.rest_app_status('3201606009684')
-logging.info(app)
-
-# Open app (Spotify)
-app = tv.rest_app_run('3201606009684')
-logging.info(app)
-
-# Close app (Spotify)
-app = tv.rest_app_close('3201606009684')
-logging.info(app)
-
-# Install from official store (Spotify)
-app = tv.rest_app_install('3201606009684')
-logging.info(app)
-
-# Get device info (device name, model, supported features..)
-info = tv.rest_device_info()
-logging.info(info)
-
+```bash
+samsungtv --help
 ```
 
-### Art Mode
+#### CLI examples
 
-TVs that support art mode (such as The Frame) can be controlled as follows:
+Power on TV using Wake-on-LAN:
 
-```python
-import sys
-import logging
-
-sys.path.append('../')
-
-from samsungtvws import SamsungTVWS
-
-# Increase debug level
-logging.basicConfig(level=logging.INFO)
-
-# Normal constructor
-tv = SamsungTVWS('192.168.xxx.xxx')
-
-# Is art mode supported?
-info = tv.art().supported()
-logging.info(info)
-
-# List the art available on the device
-info = tv.art().available()
-logging.info(info)
-
-# Retrieve information about the currently selected art
-info = tv.art().get_current()
-logging.info(info)
-
-# Retrieve a thumbnail for a specific piece of art. Returns a JPEG.
-thumbnail = tv.art().get_thumbnail('SAM-F0206')
-
-# Set a piece of art
-tv.art().select_image('SAM-F0206')
-
-# Set a piece of art, but don't immediately show it if not in art mode
-tv.art().select_image('SAM-F0201', show=False)
-
-# Determine whether the TV is currently in art mode
-info = tv.art().get_artmode()
-logging.info(info)
-
-# Switch art mode on or off
-tv.art().set_artmode('on')
-tv.art().set_artmode('off')
-
-# Upload a picture
-file = open('test.png', 'rb')
-data = file.read()
-tv.art().upload(data)
-
-# If uploading a JPEG
-tv.art().upload(data, file_type='JPEG')
-
-# To set the matte to modern and apricot color
-tv.art().upload(data, matte='modern_apricot')
-
-# Delete an uploaded item
-tv.art().delete('MY-F0020')
-
-# Delete multiple uploaded items
-tv.art().delete_list(['MY-F0020', 'MY-F0021'])
-
-# List available photo filters
-info = tv.art().get_photo_filter_list()
-logging.info(info)
-
-# Apply a filter to a specific piece of art
-tv.art().set_photo_filter('SAM-F0206', 'ink')
+```bash
+samsungtv --host 192.168.1.50 wol
 ```
 
-### Async
+Toggle power:
 
-Examples are available in the examples folder: `async_remote.py`, `async_rest.py`
+```bash
+samsungtv --host 192.168.1.50 power
+```
 
-### Encrypted API
+List installed applications:
 
-Examples are available in the examples folder: `encrypted_authenticator.py`, `encrypted_remote.py`
+```bash
+samsungtv --host 192.168.1.50 apps
+```
+
+Run an application by ID:
+
+```bash
+samsungtv --host 192.168.1.50 app-run 3201606009684
+```
+
+Open a URL in the TV browser:
+
+```bash
+samsungtv --host 192.168.1.50 open-browser https://duckduckgo.com
+```
+
+Get device information:
+
+```bash
+samsungtv --host 192.168.1.50 device-info
+```
+
+Enable Art Mode:
+
+```bash
+samsungtv --host 192.168.1.50 art-mode on
+```
+
+Upload an image to Art Mode:
+
+```bash
+samsungtv --host 192.168.1.50 art-upload image.jpg
+```
+
+The CLI exposes most of the library functionality, including:
+
+* App management
+* Remote control keys
+* Device information
+* Wake-on-LAN
+* Full Art Mode management
+
+---
 
 ## Supported TVs
 
-List of support TV models. https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html
+This library is designed to support **all Samsung Smart TVs running Tizen OS** (2016+).
 
-```
-2017 : M5500 and above
-2016 : K4300, K5300 and above
-2015 : J5500 and above (except J6203)
-2014 : H4500, H5500 and above (except H6003/H6103/H6153/H6201/H6203)
-Supported TV models may vary by region.
-```
+It also provides support for older **Orsay-based TVs**, specifically:
 
-For complete list https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html
+* **H series (2014)**
+* **Part of J series (2015)**
+
+Support for Orsay devices is mainly provided through the encrypted v1 API.
+
+Official Samsung compatibility references:
+
+* [https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html](https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html)
+* [https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html](https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html)
+
+---
 
 ## License
 
