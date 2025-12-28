@@ -8,10 +8,12 @@ SPDX-License-Identifier: LGPL-3.0
 
 import typer
 
+from samsungtvws import SamsungTVShortcuts
+
 from .main import cli, get_tv
 
 
-def _sc(ctx: typer.Context):
+def _sc(ctx: typer.Context) -> SamsungTVShortcuts:
     return get_tv(ctx).shortcuts()
 
 

@@ -124,3 +124,15 @@ module = [
     'samsungtvws.remote',
 ]
 disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = [
+  "samsungtvws.cli.*",
+  "typer.*",
+  "wakeonlan.*",
+]
+ignore_missing_imports = true
+disallow_untyped_decorators = false
+disallow_subclassing_any = false
+disallow_untyped_calls = false
+disallow_untyped_defs = false

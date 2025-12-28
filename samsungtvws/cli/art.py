@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Optional
+from typing import Dict, Optional
 
 import typer
 
@@ -112,7 +112,7 @@ def art_thumbnail(
     art = tv.art()
 
     if legacy:
-        thumbs = art.get_thumbnail(content_id, as_dict=True)
+        thumbs: Dict[str, bytearray] = art.get_thumbnail(content_id, as_dict=True)  # type: ignore[assignment]
     else:
         thumbs = art.get_thumbnail_list(content_id)
 
