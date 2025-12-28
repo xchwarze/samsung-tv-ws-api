@@ -476,6 +476,6 @@ KEY_AUTO_ARC_ANTENNA_SATELLITE
 
 This documentation was created based on the command reference published in:
 
-https://tavicu.github.io/homebridge-samsung-tizen/extra/commands.html#list-of-commands
+https://tavicu.github.io/homebridge-samsung-tizen/extra/commands.html
 
 The content was adapted and aligned to match the `samsungtvws` CLI behavior and command semantics.

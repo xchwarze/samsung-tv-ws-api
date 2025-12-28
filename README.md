@@ -188,8 +188,6 @@ The CLI exposes most of the library functionality, including:
 * Wake-on-LAN
 * Full Art Mode management
 
----
-
 ## Supported TVs
 
 This library is designed to support **all Samsung Smart TVs running Tizen OS** (2016+).
@@ -205,8 +203,6 @@ Official Samsung compatibility references:
 
 * [https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html](https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html)
 * [https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html](https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html)
-
----
 
 ## License
 
