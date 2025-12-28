@@ -7,10 +7,11 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 import logging
-from typing import Optional, List
+from typing import List, Optional
 
 import typer
 from typer.core import TyperGroup
+
 from samsungtvws import SamsungTVWS
 
 
@@ -40,6 +41,7 @@ def get_tv(ctx: typer.Context) -> SamsungTVWS:
         key_press_delay=cfg["key_press_delay"],
         name=cfg["name"],
     )
+
 
 def bootstrap_token_if_needed(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None:
@@ -71,25 +73,36 @@ cli = typer.Typer(
     cls=SortedTyperGroup,
 )
 
+
 @cli.callback()
 def main(
     ctx: typer.Context,
     host: str = typer.Option(..., "--host", help="TV IP/host"),
     port: int = typer.Option(8002, "--port", help="Websocket port (8001/8002)"),
     token: Optional[str] = typer.Option(None, "--token", help="Auth token"),
-    token_file: Optional[str] = typer.Option(None, "--token-file", help="Path to token file"),
+    token_file: Optional[str] = typer.Option(
+        None, "--token-file", help="Path to token file"
+    ),
     timeout: Optional[float] = typer.Option(
         10, "--timeout", help="Socket timeout seconds (0 disables timeout)"
     ),
     key_press_delay: float = typer.Option(
         1.0, "--key-press-delay", help="Delay between key presses (seconds)"
     ),
-    name: str = typer.Option("SamsungTvRemoteCli", "--name", help="Client name shown on TV"),
+    name: str = typer.Option(
+        "SamsungTvRemoteCli", "--name", help="Client name shown on TV"
+    ),
     print_token: bool = typer.Option(
-        True,"--print-token/--no-print-token", help="Print token once if it is not saved",
+        True,
+        "--print-token/--no-print-token",
+        help="Print token once if it is not saved",
     ),
     verbose: int = typer.Option(
-        0, "-v", "--verbose", count=True, help="Increase verbosity (-v: INFO, -vv: DEBUG)"
+        0,
+        "-v",
+        "--verbose",
+        count=True,
+        help="Increase verbosity (-v: INFO, -vv: DEBUG)",
     ),
 ) -> None:
     """

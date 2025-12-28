@@ -8,6 +8,7 @@ SPDX-License-Identifier: LGPL-3.0
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Optional
 
@@ -100,9 +101,7 @@ def art_display(
 def art_thumbnail(
     ctx: typer.Context,
     content_id: str = typer.Argument(..., help="Content id"),
-    out: str = typer.Option(
-        "", "--out", help="Output file path (defaults to <content_id>.jpg)"
-    ),
+    out: str = typer.Option("", "--out", help="Output file path"),
     legacy: bool = typer.Option(
         False, "--legacy", help="Use legacy get_thumbnail instead of get_thumbnail_list"
     ),
@@ -122,8 +121,8 @@ def art_thumbnail(
 
     name, data = next(iter(thumbs.items()))
     if not out:
-        # best-effort default
-        out = f"{content_id}.jpg"
+        # default to the filename hinted by the TV when possible
+        out = name
 
     with open(out, "wb") as f:
         f.write(bytes(data))
@@ -151,7 +150,7 @@ def art_upload(
         help="Override file type (png/jpg/jpeg). If omitted, inferred from filename.",
     ),
 ) -> None:
-    """Upload an image and print content_id (without extension)."""
+    """Upload an image and print content_id."""
     _require_art_supported(ctx)
 
     if not os.path.exists(file):
@@ -168,13 +167,13 @@ def art_upload(
         kwargs["file_type"] = file_type
 
     content_id = art.upload(file, **kwargs)
-    typer.echo(os.path.splitext(content_id)[0])
+    typer.echo(content_id)
 
 
 @cli.command("art-delete")
 def art_delete(
     ctx: typer.Context,
-    content_id: str = typer.Argument(..., help="Content id (without extension)"),
+    content_id: str = typer.Argument(..., help="Content id"),
 ) -> None:
     """Delete an artwork by content id."""
     _require_art_supported(ctx)
@@ -188,9 +187,7 @@ def art_delete(
 @cli.command("art-delete-list")
 def art_delete_list(
     ctx: typer.Context,
-    content_ids: list[str] = typer.Argument(
-        ..., help="Content ids (without extension)"
-    ),
+    content_ids: list[str] = typer.Argument(..., help="Content ids"),
 ) -> None:
     """Delete multiple artworks by content id."""
     _require_art_supported(ctx)
@@ -252,7 +249,7 @@ def art_photo_filter_set(
 
 @cli.command("art-slideshow-status")
 def art_slideshow_status(ctx: typer.Context) -> None:
-    """Get slideshow status (new API) or auto-rotation status (legacy)."""
+    """Get slideshow status (falls back to legacy auto-rotation status)."""
     _require_art_supported(ctx)
     tv = get_tv(ctx)
     art = tv.art()
@@ -260,3 +257,60 @@ def art_slideshow_status(ctx: typer.Context) -> None:
         typer.echo(str(art.get_slideshow_status()))
     except exceptions.ResponseError:
         typer.echo(str(art.get_auto_rotation_status()))
+
+
+@cli.command("art-slideshow-set")
+def art_slideshow_set(
+    ctx: typer.Context,
+    category_id: str = typer.Option(
+        ...,
+        "--category-id",
+        help="Category id as reported by the TV (e.g. MY-C0004)",
+    ),
+    duration: int = typer.Option(
+        0,
+        "--duration",
+        min=0,
+        help="Minutes (>0) or 0 to disable",
+    ),
+    shuffle: bool = typer.Option(
+        True,
+        "--shuffle/--ordered",
+        help="Shuffle slideshow items",
+    ),
+) -> None:
+    """
+    Set slideshow / auto-rotation status.
+
+    Uses the new slideshow API when available, falls back to legacy
+    auto-rotation API on older TVs.
+    """
+    _require_art_supported(ctx)
+    tv = get_tv(ctx)
+    art = tv.art()
+
+    try:
+        # New API
+        result = art.set_slideshow_status(
+            duration=duration,
+            type=shuffle,
+            category_id=category_id,
+        )
+    except exceptions.ResponseError:
+        # Legacy API
+        result = art.set_auto_rotation_status(
+            duration=duration,
+            type=shuffle,
+            category_id=category_id,
+        )
+
+    typer.echo(str(result))
+
+
+@cli.command("art-categories")
+def art_categories(ctx: typer.Context) -> None:
+    """List raw category items as returned by the Art API."""
+    _require_art_supported(ctx)
+    tv = get_tv(ctx)
+    for item in tv.art().available():
+        typer.echo(json.dumps(item, ensure_ascii=False))

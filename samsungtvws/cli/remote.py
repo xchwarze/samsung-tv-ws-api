@@ -6,8 +6,10 @@ Copyright (C) 2025 DSR! <xchwarze@gmail.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
-import typer
 from typing import Optional
+
+import typer
+
 from .main import cli, get_tv
 
 
@@ -97,4 +99,3 @@ def factory(
         raise typer.Exit(code=1)
 
     get_tv(ctx).send_key("KEY_FACTORY")
-

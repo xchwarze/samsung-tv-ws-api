@@ -7,6 +7,7 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 import typer
+
 from .main import cli, get_tv
 
 
@@ -65,4 +66,3 @@ def app_install(
     """
     tv = get_tv(ctx)
     typer.echo(str(tv.rest_app_install(app_id)))
-
