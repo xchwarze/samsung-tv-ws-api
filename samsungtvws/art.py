@@ -387,13 +387,21 @@ class SamsungTVArt(SamsungTVWSConnection):
         """Return auto-rotation configuration."""
         return self._request_json("get_auto_rotation_status")
 
-    def set_auto_rotation_status(self, duration=0, type=True, category=2):
+    def set_auto_rotation_status(
+        self,
+        duration: int = 0,
+        type: bool = True,
+        category: int = 2,
+        category_id: Optional[str] = None,
+    ) -> Any:
         """
         Configure auto-rotation (slideshow rotation) for a category.
+        Category format: 'MY-C0004' where 4 is favourites, 2 is my pictures, and 8 is store.
 
         duration: minutes (>0) or 0 to disable
         type: True for shuffled slideshow, False for ordered slideshow
         category: numeric suffix used to build category_id (e.g. 2 -> "MY-C0002")
+        category_id: explicit category id (preferred when known, e.g. "MY-C0004")
         """
         value = "off"
         if duration > 0:
@@ -403,10 +411,11 @@ class SamsungTVArt(SamsungTVWSConnection):
         if type:
             slideshow_type = "shuffleslideshow"
 
+        resolved_category_id = category_id or f"MY-C000{category}"
         return self._request_json(
             "set_auto_rotation_status",
             value=value,
-            category_id=f"MY-C000{category}",
+            category_id=resolved_category_id,
             type=slideshow_type,
         )
 
@@ -414,13 +423,21 @@ class SamsungTVArt(SamsungTVWSConnection):
         """Return slideshow configuration."""
         return self._request_json("get_slideshow_status")
 
-    def set_slideshow_status(self, duration=0, type=True, category=2):
+    def set_slideshow_status(
+        self,
+        duration: int = 0,
+        type: bool = True,
+        category: int = 2,
+        category_id: Optional[str] = None,
+    ) -> Any:
         """
         Configure slideshow playback for a category.
+        Category format: 'MY-C0004' where 4 is favourites, 2 is my pictures, and 8 is store.
 
         duration: minutes (>0) or 0 to disable
         type: True for shuffled slideshow, False for ordered slideshow
         category: numeric suffix used to build category_id (e.g. 2 -> "MY-C0002")
+        category_id: explicit category id (preferred when known, e.g. "MY-C0004")
         """
         value = "off"
         if duration > 0:
@@ -430,10 +447,11 @@ class SamsungTVArt(SamsungTVWSConnection):
         if type:
             slideshow_type = "shuffleslideshow"
 
+        resolved_category_id = category_id or f"MY-C000{category}"
         return self._request_json(
             "set_slideshow_status",
             value=value,
-            category_id=f"MY-C000{category}",
+            category_id=resolved_category_id,
             type=slideshow_type,
         )
 
@@ -514,7 +532,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         self,
         content_id_list: Optional[Union[str, Sequence[str]]] = None,
         as_dict: bool = False,
-    ) -> Union[Dict[str, bytearray], List[bytearray], bytearray]:
+    ) -> Union[Dict[str, bytearray], List[bytearray], Optional[bytearray]]:
         """Fetch thumbnail(s) via D2D socket."""
         if content_id_list is None:
             content_id_list = []
@@ -549,12 +567,12 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         if as_dict:
             return result
-        if len(result) > 1:
+        if len(content_id_list) > 1:
             return list(result.values())
         if result:
             return next(iter(result.values()))
 
-        return bytearray()
+        return None
 
     def upload(
         self,
@@ -678,7 +696,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_artmode(self):
         """Return current art mode state."""
-        return self._get_value("get_artmode_status")
+        return self._get_value("get_artmode_status", key="value")
 
     def set_artmode(self, mode: Union[bool, int, str]) -> Any:
         """Set art mode state."""
