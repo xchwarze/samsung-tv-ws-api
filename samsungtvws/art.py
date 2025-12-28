@@ -383,6 +383,8 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         return data
 
+    # TODO this is the original name of get_slideshow_status
+    # I believe the right thing to do is to unify it...
     def get_auto_rotation_status(self):
         """Return auto-rotation configuration."""
         return self._request_json("get_auto_rotation_status")

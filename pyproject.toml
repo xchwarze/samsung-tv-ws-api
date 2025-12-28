@@ -32,6 +32,13 @@ encrypted = [
     "cryptography>=35.0.0",
     "py3rijndael>=0.3.3",
 ]
+cli = [
+    "typer>=0.20",
+    "wakeonlan>=3.0.0",
+]
+
+[project.scripts]
+samsungtv = "samsungtvws.cli:cli"
 
 [tool.setuptools.packages.find]
 include = ["samsungtvws*"]
@@ -117,3 +124,15 @@ module = [
     'samsungtvws.remote',
 ]
 disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = [
+  "samsungtvws.cli.*",
+  "typer.*",
+  "wakeonlan.*",
+]
+ignore_missing_imports = true
+disallow_untyped_decorators = false
+disallow_subclassing_any = false
+disallow_untyped_calls = false
+disallow_untyped_defs = false
