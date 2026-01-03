@@ -8,9 +8,13 @@ SPDX-License-Identifier: LGPL-3.0
 
 from asyncio import Future, TimeoutError as AsyncioTimeoutError
 import logging
+import sys
 from typing import Any, Dict, List, Optional, Set
 
-import async_timeout
+if sys.version_info >= (3, 11):
+    from asyncio import timeout
+else:
+    from async_timeout import timeout
 
 from . import async_connection, remote, rest
 from .event import ED_INSTALLED_APP_EVENT, parse_installed_app
@@ -50,7 +54,7 @@ class SamsungTVWSAsyncRemote(async_connection.SamsungTVWSAsyncConnection):
         await self.send_command(remote.ChannelEmitCommand.get_installed_app())
 
         try:
-            async with async_timeout.timeout(self.timeout):
+            async with timeout(self.timeout):
                 response = await app_list_future
         except AsyncioTimeoutError as err:
             _LOGGING.debug("Failed to get app list: %s", err)
