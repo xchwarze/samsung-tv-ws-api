@@ -100,3 +100,4 @@ jobs:
           gh release upload
           '${{ github.event.release.tag_name }}' dist/**
           --clobber
+          --repo '${{ github.repository }}'
