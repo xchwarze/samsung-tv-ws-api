@@ -4,7 +4,7 @@ requires = ["setuptools>=77.0"]
 
 [project]
 name = "samsungtvws"
-version = "3.0.0"
+version = "3.0.1"
 license = "LGPL-3.0"
 description = "Samsung Smart TV WS API wrapper"
 readme = "README.md"
@@ -27,6 +27,7 @@ dependencies = [
 async = [
     "aiohttp>=3.8.1",
     "websockets>=13",
+    'async_timeout>=4.0.3; python_version < "3.11"',
 ]
 encrypted = [
     "cryptography>=35.0.0",
@@ -35,6 +36,13 @@ encrypted = [
 cli = [
     "typer>=0.20",
     "wakeonlan>=3.0.0",
+]
+dev = [
+    "mypy>=1.13",
+    "pre-commit>=3.5",
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24",
+    "aioresponses>=0.7.7",
 ]
 
 [project.scripts]
