@@ -8,7 +8,7 @@ SPDX-License-Identifier: LGPL-3.0
 
 import typer
 
-from samsungtvws import SamsungTVShortcuts
+from samsungtvws.shortcuts import SamsungTVShortcuts
 
 from .main import cli, get_tv
 
