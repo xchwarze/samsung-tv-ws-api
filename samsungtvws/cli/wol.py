@@ -15,13 +15,8 @@ from .main import cli
 @cli.command("wol")
 def wol(
     mac: str = typer.Argument(..., help="TV MAC address"),
-    broadcast: str = typer.Option(
-        "255.255.255.255", "--broadcast", help="Broadcast IP"
-    ),
     port: int = typer.Option(9, "--wol-port", help="WOL UDP port"),
 ) -> None:
-    """
-    Send Wake-on-LAN magic packet.
-    """
-    wakeonlan.send_magic_packet(mac, ip_address=broadcast, port=port)
-    typer.echo(f"OK: magic packet sent to {mac} via {broadcast}:{port}")
+    """Send Wake-on-LAN magic packet."""
+    wakeonlan.send_magic_packet(mac, port=port)
+    typer.echo(f"OK: magic packet sent to {mac}")
