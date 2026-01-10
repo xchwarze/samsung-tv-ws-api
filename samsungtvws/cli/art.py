@@ -34,7 +34,7 @@ def _download_url_to_temp_path(image_url: str) -> tuple[str, str]:
     parsed_url = urllib.parse.urlparse(image_url)
     _, url_extension = os.path.splitext(parsed_url.path)
 
-    inferred_file_type = (url_extension[1:].lower() if url_extension else "jpg")
+    inferred_file_type = url_extension[1:].lower() if url_extension else "jpg"
     if inferred_file_type == "jpeg":
         inferred_file_type = "jpg"
 
@@ -168,7 +168,7 @@ def art_thumbnail(
 @cli.command("art-upload")
 def art_upload(
     ctx: typer.Context,
-    file: str | None = typer.Argument(..., help="Path to image file"),
+    file: str | None = typer.Argument(None, help="Path to image file"),
     url: str | None = typer.Option(
         None,
         "--url",
@@ -202,12 +202,12 @@ def art_upload(
     tv = get_tv(ctx)
     art = tv.art()
 
-    upload_arguments  = {
+    upload_arguments = {
         "matte": matte,
         "portrait_matte": portrait_matte,
     }
     if file_type:
-        upload_arguments ["file_type"] = file_type
+        upload_arguments["file_type"] = file_type
 
     temporary_path: str | None = None
     try:
@@ -217,6 +217,7 @@ def art_upload(
             if file_type is None:
                 upload_arguments["file_type"] = inferred_file_type
         else:
+            assert file is not None
             upload_path = file
             if not os.path.exists(upload_path):
                 raise typer.BadParameter(f"File not found: {upload_path}")
