@@ -26,5 +26,5 @@ repos:
             cryptography>=35.0.0,
             py3rijndael>=0.3.3,
           ]
-        exclude: setup|docs/|example/|tests/
+        exclude: setup|assets/|example/|tests/
         args: [--strict]
