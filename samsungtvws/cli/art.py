@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import tempfile
+from typing import Any
 import urllib.parse
 import urllib.request
 
@@ -63,6 +65,73 @@ def _download_url_to_temp_path(image_url: str) -> tuple[str, str]:
         raise
 
     return temp_path, inferred_file_type
+
+
+def _state_file_path_for_folder(folder_path: str) -> str:
+    return os.path.join(folder_path, ".samsungtvws-art-sync.json")
+
+
+def _load_state_file(state_file_path: str) -> dict[str, Any]:
+    if not os.path.isfile(state_file_path):
+        return {"version": 1, "files": {}}
+
+    try:
+        with open(state_file_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return {"version": 1, "files": {}}
+
+    files = data.get("files")
+    if not isinstance(files, dict):
+        files = {}
+
+    return {"version": 1, "files": files}
+
+
+def _save_state_file(state_file_path: str, state: dict[str, Any]) -> None:
+    with open(state_file_path, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
+
+
+def _file_fingerprint(path: str) -> dict[str, Any]:
+    stat = os.stat(path)
+    fingerprint: dict[str, Any] = {
+        "size": int(stat.st_size),
+        "mtime_ns": int(stat.st_mtime_ns),
+    }
+    return fingerprint
+
+
+def _fingerprint_matches(cached: dict[str, Any], current: dict[str, Any]) -> bool:
+    if cached.get("size") != current.get("size"):
+        return False
+    if cached.get("mtime_ns") != current.get("mtime_ns"):
+        return False
+    return True
+
+
+def _iter_image_paths(
+    root_dir: str, recursive: bool, allowed_extensions: set[str]
+) -> list[str]:
+    image_paths: list[str] = []
+
+    if recursive:
+        for directory_path, _, file_names in os.walk(root_dir):
+            for file_name in file_names:
+                _, ext = os.path.splitext(file_name)
+                if ext[1:].lower() in allowed_extensions:
+                    image_paths.append(os.path.join(directory_path, file_name))
+    else:
+        for file_name in os.listdir(root_dir):
+            full_path = os.path.join(root_dir, file_name)
+            if not os.path.isfile(full_path):
+                continue
+            _, ext = os.path.splitext(file_name)
+            if ext[1:].lower() in allowed_extensions:
+                image_paths.append(full_path)
+
+    image_paths.sort()
+    return image_paths
 
 
 @cli.command("art-supported")
@@ -230,6 +299,159 @@ def art_upload(
                 os.remove(temporary_path)
             except OSError:
                 pass
+
+
+@cli.command("art-sync")
+def art_sync(
+    ctx: typer.Context,
+    folder: str = typer.Argument(..., help="Folder containing images"),
+    upload_all: bool = typer.Option(
+        False, "--upload-all", help="Upload all new/changed images"
+    ),
+    pick_random: bool = typer.Option(
+        False, "--random", help="Pick one image (default if no mode)"
+    ),
+    recursive: bool = typer.Option(
+        True, "--recursive/--no-recursive", help="Scan subfolders"
+    ),
+    extensions: str = typer.Option(
+        "jpg,jpeg,png", "--extensions", help="Comma-separated extensions"
+    ),
+    state_file: str = typer.Option("", "--state-file", help="Path to cache JSON file"),
+    no_state: bool = typer.Option(
+        False, "--no-state", help="Do not read/write cache file"
+    ),
+    refresh: bool = typer.Option(False, "--refresh", help="Ignore cache and re-upload"),
+    show: bool | None = typer.Option(
+        None, "--show/--no-show", help="Show when selecting"
+    ),
+    matte: str = typer.Option(
+        "shadowbox_polar", "--matte", help="Matte id (use 'none' to disable)"
+    ),
+    portrait_matte: str = typer.Option(
+        "shadowbox_polar",
+        "--portrait-matte",
+        help="Portrait matte id (use 'none' to disable)",
+    ),
+    file_type: str | None = typer.Option(
+        None,
+        "--file-type",
+        help="Override file type (png/jpg/jpeg). If omitted, inferred from filename.",
+    ),
+) -> None:
+    _require_art_supported(ctx)
+    folder = os.path.abspath(folder)
+
+    if upload_all and pick_random:
+        raise typer.BadParameter("Use either --upload-all or --random, not both.")
+
+    if not upload_all and not pick_random:
+        pick_random = True
+
+    if not os.path.isdir(folder):
+        raise typer.BadParameter(f"Folder not found: {folder}")
+
+    allowed_extensions = {
+        ext.strip().lower().lstrip(".") for ext in extensions.split(",") if ext.strip()
+    }
+    if not allowed_extensions:
+        raise typer.BadParameter("No valid extensions provided.")
+
+    resolved_state_file = ""
+    if not no_state:
+        resolved_state_file = state_file or _state_file_path_for_folder(folder)
+
+    state = {"version": 1, "files": {}}
+    if not no_state:
+        state = _load_state_file(resolved_state_file)
+
+    cached_files = state["files"]
+    assert isinstance(cached_files, dict)
+
+    tv = get_tv(ctx)
+    art = tv.art()
+
+    upload_arguments: dict[str, Any] = {
+        "matte": matte,
+        "portrait_matte": portrait_matte,
+    }
+    if file_type is not None:
+        upload_arguments["file_type"] = file_type
+
+    image_paths = _iter_image_paths(
+        folder, recursive=recursive, allowed_extensions=allowed_extensions
+    )
+    if not image_paths:
+        typer.echo("OK: no images found")
+        raise typer.Exit(code=0)
+
+    def effective_show_flag() -> bool:
+        if show is not None:
+            return show
+        return bool(pick_random)
+
+    show_flag = effective_show_flag()
+
+    def cached_content_id(image_path: str, fingerprint: dict[str, Any]) -> str | None:
+        if refresh:
+            return None
+        cached_entry = cached_files.get(image_path)
+        if not isinstance(cached_entry, dict):
+            return None
+        if not _fingerprint_matches(cached_entry, fingerprint):
+            return None
+        content_id = cached_entry.get("content_id")
+        return content_id if isinstance(content_id, str) else None
+
+    if pick_random:
+        chosen_path = random.choice(image_paths)
+        chosen_fingerprint = _file_fingerprint(chosen_path)
+        chosen_cached_id = cached_content_id(chosen_path, chosen_fingerprint)
+
+        if chosen_cached_id is None:
+            uploaded_content_id = art.upload(chosen_path, **upload_arguments)
+            typer.echo(f"OK: uploaded {chosen_path} -> {uploaded_content_id}")
+
+            if not no_state:
+                cached_files[chosen_path] = {
+                    "content_id": uploaded_content_id,
+                    **chosen_fingerprint,
+                }
+                _save_state_file(resolved_state_file, state)
+
+            content_id_to_display = uploaded_content_id
+        else:
+            typer.echo(f"OK: cached {chosen_path} -> {chosen_cached_id}")
+            content_id_to_display = chosen_cached_id
+
+        art.select_image(content_id_to_display, show=show_flag)
+        typer.echo(f"OK: displayed {content_id_to_display}")
+        return
+
+    uploaded_count = 0
+    skipped_count = 0
+
+    for image_path in image_paths:
+        fingerprint = _file_fingerprint(image_path)
+        existing_id = cached_content_id(image_path, fingerprint)
+        if existing_id is not None:
+            skipped_count += 1
+            continue
+
+        uploaded_content_id = art.upload(image_path, **upload_arguments)
+        uploaded_count += 1
+        typer.echo(f"OK: uploaded {image_path} -> {uploaded_content_id}")
+
+        if not no_state:
+            cached_files[image_path] = {
+                "content_id": uploaded_content_id,
+                **fingerprint,
+            }
+
+    if not no_state:
+        _save_state_file(resolved_state_file, state)
+
+    typer.echo(f"OK: done (uploaded={uploaded_count}, skipped={skipped_count})")
 
 
 @cli.command("art-delete")
