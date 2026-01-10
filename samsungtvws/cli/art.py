@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
+import urllib.parse
+import urllib.request
 
 import typer
 
@@ -25,6 +28,41 @@ def _require_art_supported(ctx: typer.Context) -> None:
             "ERROR: Art Mode not supported on this TV (FrameTVSupport=false).", err=True
         )
         raise typer.Exit(code=2)
+
+
+def _download_url_to_temp_path(image_url: str) -> tuple[str, str]:
+    parsed_url = urllib.parse.urlparse(image_url)
+    _, url_extension = os.path.splitext(parsed_url.path)
+
+    inferred_file_type = (url_extension[1:].lower() if url_extension else "jpg")
+    if inferred_file_type == "jpeg":
+        inferred_file_type = "jpg"
+
+    file_descriptor, temp_path = tempfile.mkstemp(
+        prefix="samsungtvws-art-",
+        suffix=f".{inferred_file_type}",
+    )
+    os.close(file_descriptor)
+
+    request = urllib.request.Request(
+        image_url,
+        headers={"User-Agent": "samsungtvws-cli/1.0"},
+        method="GET",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response, open(
+            temp_path, "wb"
+        ) as output_file:
+            output_file.write(response.read())
+    except Exception:
+        try:
+            os.remove(temp_path)
+        except OSError:
+            pass
+        raise
+
+    return temp_path, inferred_file_type
 
 
 @cli.command("art-supported")
@@ -130,7 +168,12 @@ def art_thumbnail(
 @cli.command("art-upload")
 def art_upload(
     ctx: typer.Context,
-    file: str = typer.Argument(..., help="Path to image file"),
+    file: str | None = typer.Argument(..., help="Path to image file"),
+    url: str | None = typer.Option(
+        None,
+        "--url",
+        help="Image URL to download and upload",
+    ),
     matte: str = typer.Option(
         "shadowbox_polar",
         "--matte",
@@ -150,21 +193,42 @@ def art_upload(
     """Upload an image and print content_id."""
     _require_art_supported(ctx)
 
-    if not os.path.exists(file):
-        raise typer.BadParameter(f"File not found: {file}")
+    if file is None and url is None:
+        raise typer.BadParameter("Provide FILE or --url.")
+
+    if file is not None and url is not None:
+        raise typer.BadParameter("Use either a file path or --url, not both.")
 
     tv = get_tv(ctx)
     art = tv.art()
 
-    kwargs = {
+    upload_arguments  = {
         "matte": matte,
         "portrait_matte": portrait_matte,
     }
     if file_type:
-        kwargs["file_type"] = file_type
+        upload_arguments ["file_type"] = file_type
 
-    content_id = art.upload(file, **kwargs)
-    typer.echo(content_id)
+    temporary_path: str | None = None
+    try:
+        if url is not None:
+            temporary_path, inferred_file_type = _download_url_to_temp_path(url)
+            upload_path = temporary_path
+            if file_type is None:
+                upload_arguments["file_type"] = inferred_file_type
+        else:
+            upload_path = file
+            if not os.path.exists(upload_path):
+                raise typer.BadParameter(f"File not found: {upload_path}")
+
+        content_id = art.upload(upload_path, **upload_arguments)
+        typer.echo(f"OK: uploaded -> {content_id}")
+    finally:
+        if temporary_path:
+            try:
+                os.remove(temporary_path)
+            except OSError:
+                pass
 
 
 @cli.command("art-delete")
