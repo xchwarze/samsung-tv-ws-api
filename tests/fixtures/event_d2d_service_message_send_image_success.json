@@ -1,0 +1,5 @@
+{
+  "data": "{\"event\": \"send_image\", \"request_id\": \"07e72228-7110-4655-aaa6-d81b5188c219\", \"content_id\": \"MY_F0001\", \"matte_id\": \"shadowbox_polar\", \"portrait_matte_id\": \"shadowbox_polar\", \"width\": \"3812\", \"height\": \"2144\"}",
+  "event": "d2d_service_message",
+  "from": "FAKEHOST"
+}

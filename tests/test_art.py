@@ -182,12 +182,14 @@ def test_send_image_success_sends_binary_frame(connection: Mock) -> None:
     ):
         # recv order:
         # - connect + ready (open())
-        # - ready_to_use (send_image response)
+        # - ready_to_use (send_image handshake)
+        # - send_image (progress / intermediate ack)
         # - image_added (final ack)
         connection.recv.side_effect = [
             MS_CHANNEL_CONNECT_SAMPLE,
             MS_CHANNEL_READY_SAMPLE,
             D2D_SERVICE_MESSAGE_READY_TO_USE_SAMPLE,
+            D2D_SERVICE_MESSAGE_IMAGE_ADDED_SAMPLE,
             D2D_SERVICE_MESSAGE_IMAGE_ADDED_SAMPLE,
         ]
 

@@ -8,6 +8,8 @@ with open("tests/fixtures/event_d2d_service_message_send_image_error.json") as f
     D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR = file.read()
 with open("tests/fixtures/event_d2d_service_message_ready_to_use.json") as file:
     D2D_SERVICE_MESSAGE_READY_TO_USE_SAMPLE = file.read()
+with open("tests/fixtures/event_d2d_service_message_send_image_success.json") as file:
+    D2D_SERVICE_MESSAGE_SEND_IMAGE_SUCCESS_SAMPLE = file.read()
 with open("tests/fixtures/event_d2d_service_message_image_added.json") as file:
     D2D_SERVICE_MESSAGE_IMAGE_ADDED_SAMPLE = file.read()
 with open("tests/fixtures/event_ms_channel_connect.json") as file:
