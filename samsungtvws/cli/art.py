@@ -110,6 +110,24 @@ def _fingerprint_matches(cached: dict[str, Any], current: dict[str, Any]) -> boo
     return True
 
 
+def _cached_content_id(
+    cached_files: dict[str, Any],
+    image_path: str,
+    fingerprint: dict[str, Any],
+    *,
+    refresh: bool,
+) -> str | None:
+    if refresh:
+        return None
+    cached_entry = cached_files.get(image_path)
+    if not isinstance(cached_entry, dict):
+        return None
+    if not _fingerprint_matches(cached_entry, fingerprint):
+        return None
+    content_id = cached_entry.get("content_id")
+    return content_id if isinstance(content_id, str) else None
+
+
 def _iter_image_paths(
     root_dir: str, recursive: bool, allowed_extensions: set[str]
 ) -> list[str]:
@@ -132,6 +150,60 @@ def _iter_image_paths(
 
     image_paths.sort()
     return image_paths
+
+
+def _resolve_pick_mode(upload_all: bool, pick_random: bool) -> bool:
+    if upload_all and pick_random:
+        raise typer.BadParameter("Use either --upload-all or --random, not both.")
+    if not upload_all and not pick_random:
+        return True
+    return pick_random
+
+
+def _resolve_show_flag(show: bool | None, pick_random: bool) -> bool:
+    if show is not None:
+        return show
+    return bool(pick_random)
+
+
+def _handle_random_pick(
+    art: Any,
+    image_paths: list[str],
+    cached_files: dict[str, Any],
+    refresh: bool,
+    no_state: bool,
+    resolved_state_file: str,
+    state: dict[str, Any],
+    upload_arguments: dict[str, Any],
+    show_flag: bool,
+) -> None:
+    chosen_path = random.choice(image_paths)
+    chosen_fingerprint = _file_fingerprint(chosen_path)
+
+    cached_entry = cached_files.get(chosen_path)
+    if (
+        not refresh
+        and isinstance(cached_entry, dict)
+        and _fingerprint_matches(cached_entry, chosen_fingerprint)
+        and isinstance(cached_entry.get("content_id"), str)
+    ):
+        content_id_to_display = cached_entry["content_id"]
+        typer.echo(f"OK: cached {chosen_path} -> {content_id_to_display}")
+    else:
+        uploaded_content_id = art.upload(chosen_path, **upload_arguments)
+        typer.echo(f"OK: uploaded {chosen_path} -> {uploaded_content_id}")
+
+        if not no_state:
+            cached_files[chosen_path] = {
+                "content_id": uploaded_content_id,
+                **chosen_fingerprint,
+            }
+            _save_state_file(resolved_state_file, state)
+
+        content_id_to_display = uploaded_content_id
+
+    art.select_image(content_id_to_display, show=show_flag)
+    typer.echo(f"OK: displayed {content_id_to_display}")
 
 
 @cli.command("art-supported")
@@ -342,11 +414,7 @@ def art_sync(
     _require_art_supported(ctx)
     folder = os.path.abspath(folder)
 
-    if upload_all and pick_random:
-        raise typer.BadParameter("Use either --upload-all or --random, not both.")
-
-    if not upload_all and not pick_random:
-        pick_random = True
+    pick_random = _resolve_pick_mode(upload_all, pick_random)
 
     if not os.path.isdir(folder):
         raise typer.BadParameter(f"Folder not found: {folder}")
@@ -385,47 +453,20 @@ def art_sync(
         typer.echo("OK: no images found")
         raise typer.Exit(code=0)
 
-    def effective_show_flag() -> bool:
-        if show is not None:
-            return show
-        return bool(pick_random)
-
-    show_flag = effective_show_flag()
-
-    def cached_content_id(image_path: str, fingerprint: dict[str, Any]) -> str | None:
-        if refresh:
-            return None
-        cached_entry = cached_files.get(image_path)
-        if not isinstance(cached_entry, dict):
-            return None
-        if not _fingerprint_matches(cached_entry, fingerprint):
-            return None
-        content_id = cached_entry.get("content_id")
-        return content_id if isinstance(content_id, str) else None
+    show_flag = _resolve_show_flag(show, pick_random)
 
     if pick_random:
-        chosen_path = random.choice(image_paths)
-        chosen_fingerprint = _file_fingerprint(chosen_path)
-        chosen_cached_id = cached_content_id(chosen_path, chosen_fingerprint)
-
-        if chosen_cached_id is None:
-            uploaded_content_id = art.upload(chosen_path, **upload_arguments)
-            typer.echo(f"OK: uploaded {chosen_path} -> {uploaded_content_id}")
-
-            if not no_state:
-                cached_files[chosen_path] = {
-                    "content_id": uploaded_content_id,
-                    **chosen_fingerprint,
-                }
-                _save_state_file(resolved_state_file, state)
-
-            content_id_to_display = uploaded_content_id
-        else:
-            typer.echo(f"OK: cached {chosen_path} -> {chosen_cached_id}")
-            content_id_to_display = chosen_cached_id
-
-        art.select_image(content_id_to_display, show=show_flag)
-        typer.echo(f"OK: displayed {content_id_to_display}")
+        _handle_random_pick(
+            art=art,
+            image_paths=image_paths,
+            cached_files=cached_files,
+            refresh=refresh,
+            no_state=no_state,
+            resolved_state_file=resolved_state_file,
+            state=state,
+            upload_arguments=upload_arguments,
+            show_flag=show_flag,
+        )
         return
 
     uploaded_count = 0
@@ -433,7 +474,12 @@ def art_sync(
 
     for image_path in image_paths:
         fingerprint = _file_fingerprint(image_path)
-        existing_id = cached_content_id(image_path, fingerprint)
+        existing_id = _cached_content_id(
+            cached_files,
+            image_path,
+            fingerprint,
+            refresh=refresh,
+        )
         if existing_id is not None:
             skipped_count += 1
             continue
