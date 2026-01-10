@@ -3,7 +3,7 @@
     <br/>
     Samsung Smart TV WS API wrapper
     <a href="https://github.com/xchwarze/samsung-tv-ws-api/releases/latest">
-        <img src="https://img.shields.io/badge/version-3.0.2-brightgreen.svg?style=flat-square" alt="Version">
+        <img src="https://img.shields.io/badge/version-3.0.3-brightgreen.svg?style=flat-square" alt="Version">
     </a>
 </p>
 
