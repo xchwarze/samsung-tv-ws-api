@@ -17,12 +17,12 @@ import uuid
 
 import websocket
 
-from . import exceptions, helper
-from .command import SamsungTVCommand
-from .connection import SamsungTVWSConnection
-from .event import D2D_SERVICE_MESSAGE_EVENT, MS_CHANNEL_READY_EVENT
-from .helper import generate_connection_id, get_ssl_context
-from .rest import SamsungTVRest
+from .. import exceptions, helper
+from ..command import SamsungTVCommand
+from ..connection import SamsungTVWSConnection
+from ..event import D2D_SERVICE_MESSAGE_EVENT, MS_CHANNEL_READY_EVENT
+from ..helper import generate_connection_id, get_ssl_context
+from ..rest import SamsungTVRest
 
 # for typing
 JsonObj = Dict[str, Any]

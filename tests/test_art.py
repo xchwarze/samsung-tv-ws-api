@@ -24,7 +24,7 @@ _UUID = "07e72228-7110-4655-aaa6-d81b5188c219"
 
 def test_create_connection_from_remote() -> None:
     connection = Mock()
-    with patch("samsungtvws.art.uuid.uuid4", return_value=_UUID), patch(
+    with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID), patch(
         "samsungtvws.connection.websocket.create_connection"
     ) as connection_class:
         connection_class.return_value = connection
@@ -47,7 +47,7 @@ def test_create_connection_from_remote() -> None:
 
 def test_create_connection_direct() -> None:
     connection = Mock()
-    with patch("samsungtvws.art.uuid.uuid4", return_value=_UUID), patch(
+    with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID), patch(
         "samsungtvws.connection.websocket.create_connection"
     ) as connection_class:
         connection_class.return_value = connection
@@ -70,7 +70,7 @@ def test_create_connection_direct() -> None:
 
 def test_set_artmode(connection: Mock) -> None:
     """Ensure simple data can be parsed."""
-    with patch("samsungtvws.art.uuid.uuid4", return_value=_UUID):
+    with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID):
         connection.recv.side_effect = [
             MS_CHANNEL_CONNECT_SAMPLE,
             MS_CHANNEL_READY_SAMPLE,
@@ -87,7 +87,7 @@ def test_set_artmode(connection: Mock) -> None:
 
 def test_set_available(connection: Mock) -> None:
     """Ensure simple data can be parsed."""
-    with patch("samsungtvws.art.uuid.uuid4", return_value=_UUID):
+    with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID):
         connection.recv.side_effect = [
             MS_CHANNEL_CONNECT_SAMPLE,
             MS_CHANNEL_READY_SAMPLE,
@@ -103,7 +103,7 @@ def test_set_available(connection: Mock) -> None:
 
 
 def test_change_matte(connection: Mock) -> None:
-    with patch("samsungtvws.art.uuid.uuid4", return_value=_UUID):
+    with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID):
         connection.recv.side_effect = [
             MS_CHANNEL_CONNECT_SAMPLE,
             MS_CHANNEL_READY_SAMPLE,
@@ -120,7 +120,7 @@ def test_change_matte(connection: Mock) -> None:
 
 def test_send_image_failure(connection: Mock) -> None:
     """Ensure send_image failure raises error and doesn't hang indefinitely."""
-    with patch("samsungtvws.art.uuid.uuid4", return_value=_UUID), patch(
+    with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID), patch(
         "samsungtvws.helper.random.randrange", return_value=4091151321
     ):
         connection.recv.side_effect = [
@@ -173,7 +173,7 @@ def test_send_image_success_sends_binary_frame(connection: Mock) -> None:
     file_bytes = b"\x89PNG\r\n\x1a\nFAKEPNGDATA"
 
     sock = Mock()
-    with patch("samsungtvws.art.uuid.uuid4", return_value=_UUID), patch(
+    with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID), patch(
         "samsungtvws.helper.random.randrange", return_value=4091151321
     ), patch.object(
         SamsungTVArt,
