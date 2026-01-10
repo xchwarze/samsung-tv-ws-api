@@ -192,7 +192,6 @@ class SamsungTVArt(SamsungTVWSConnection):
 
             msg_uuid = payload.get("request_id", payload.get("id"))
             _LOGGING.debug("request_uuid: %s, message uuid: %s", request_uuid, msg_uuid)
-
             if request_uuid and msg_uuid != request_uuid:
                 continue
 
@@ -656,7 +655,7 @@ class SamsungTVArt(SamsungTVWSConnection):
                 pass
 
         done = self._wait_for_d2d(
-            request_uuid=upload_id,
+            request_uuid=None,
             wait_for_sub_event="image_added",
         )
         return cast(str, done["content_id"])
