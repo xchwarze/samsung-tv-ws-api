@@ -121,7 +121,7 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
-    'samsungtvws.art',
+    'samsungtvws.art.*',
     'samsungtvws.shortcuts',
 ]
 disallow_untyped_calls = false
