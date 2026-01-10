@@ -106,7 +106,7 @@ warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
 exclude = [
-    '^docs',
+    '^assets',
     '^example',
     '^setup',
     '^tests'

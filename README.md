@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="assets/logo.png" width="300px" border="0" />
+    <img src="https://raw.githubusercontent.com/xchwarze/samsung-tv-ws-api/master/assets/logo.png" width="300px" border="0" />
     <br/>
     Samsung Smart TV WS API wrapper
     <a href="https://github.com/xchwarze/samsung-tv-ws-api/releases/latest">
@@ -210,8 +210,8 @@ Official Samsung compatibility references:
 Those who want to help buy testing hardware or just give me a tip, you can do it by sending donations to my Binance account.
 I also made a [Patreon](https://www.patreon.com/xchwarze)
 
-[![patreon](assets/patreon.png)](https://www.patreon.com/xchwarze)
-![binance-qr](assets/binance-qr.png)
+[![patreon](https://raw.githubusercontent.com/xchwarze/samsung-tv-ws-api/master/assets/patreon.png)](https://www.patreon.com/xchwarze)
+![binance-qr](https://raw.githubusercontent.com/xchwarze/samsung-tv-ws-api/master/assets/binance-qr.png)
 
 ## License
 
