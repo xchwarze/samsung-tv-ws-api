@@ -26,11 +26,56 @@ def serialize_string(string: Union[str, bytes]) -> str:
     return base64.b64encode(string).decode("utf-8")
 
 
+def _split_json_and_tail(buf: bytes) -> tuple[bytes, bytes]:
+    """Split WS bytes payload into (json_bytes, tail_bytes)."""
+    start = buf.find(b"{")
+    if start < 0:
+        raise exceptions.ResponseError("Failed to parse response: JSON start not found")
+
+    depth = 0
+    end: int | None = None
+    for i in range(start, len(buf)):
+        b = buf[i]
+        if b == 0x7B:  # {
+            depth += 1
+        elif b == 0x7D:  # }
+            depth -= 1
+            if depth == 0:
+                end = i + 1
+                break
+
+    if end is None:
+        raise exceptions.ResponseError("Failed to parse response: JSON end not found")
+
+    json_bytes = buf[start:end]
+    tail = buf[end:]
+    if tail.startswith(b"\n"):
+        tail = tail[1:]
+    return json_bytes, tail
+
+
 def process_api_response(response: Union[str, bytes]) -> Dict[str, Any]:
     _LOGGING.debug("Processing API response: %s", response)
     try:
-        return json.loads(response)  # type:ignore[no-any-return]
-    except json.JSONDecodeError as err:
+        if isinstance(response, str):
+            return json.loads(response)
+
+        # in old ART api
+        # bytes: could be pure JSON or JSON + binary tail
+        try:
+            return json.loads(response.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            json_bytes, tail = _split_json_and_tail(response)
+            frame = json.loads(json_bytes.decode("utf-8"))
+
+            # Attach binary tail (e.g., thumbnail JPEG)
+            if tail:
+                frame["binary"] = tail
+                frame["binary_len"] = len(tail)
+
+            return frame
+
+    except (UnicodeDecodeError, json.JSONDecodeError) as err:
         raise exceptions.ResponseError(
             "Failed to parse response from TV. Maybe feature not supported on this model"
         ) from err
