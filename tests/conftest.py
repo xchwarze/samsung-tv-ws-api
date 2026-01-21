@@ -10,8 +10,9 @@ from websockets.asyncio.client import ClientConnection
 @pytest.fixture(autouse=True)
 def override_time_sleep():
     """Ignore time sleep in tests."""
-    with patch("samsungtvws.connection.time.sleep"), patch(
-        "samsungtvws.remote.time.sleep"
+    with (
+        patch("samsungtvws.connection.time.sleep"),
+        patch("samsungtvws.remote.time.sleep"),
     ):
         yield
 

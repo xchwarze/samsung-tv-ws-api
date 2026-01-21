@@ -8,7 +8,7 @@ SPDX-License-Identifier: LGPL-3.0
 
 import logging
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 import warnings
 
 from samsungtvws.event import ED_INSTALLED_APP_EVENT, parse_installed_app
@@ -22,12 +22,12 @@ REMOTE_ENDPOINT = "samsung.remote.control"
 
 
 class RemoteControlCommand(SamsungTVCommand):
-    def __init__(self, params: Dict[str, Any]) -> None:
+    def __init__(self, params: dict[str, Any]) -> None:
         super().__init__("ms.remote.control", params)
 
 
 class ChannelEmitCommand(SamsungTVCommand):
-    def __init__(self, params: Dict[str, Any]) -> None:
+    def __init__(self, params: dict[str, Any]) -> None:
         super().__init__("ms.channel.emit", params)
 
     @staticmethod
@@ -93,7 +93,7 @@ class SendRemoteKey(RemoteControlCommand):
         )
 
     @staticmethod
-    def hold(key: str, seconds: float) -> List["SamsungTVCommand"]:
+    def hold(key: str, seconds: float) -> list["SamsungTVCommand"]:
         return [
             SendRemoteKey.press(key),
             SamsungTVSleepCommand(seconds),
@@ -101,7 +101,7 @@ class SendRemoteKey(RemoteControlCommand):
         ]
 
     @staticmethod
-    def hold_key(key: str, seconds: float) -> List["SamsungTVCommand"]:
+    def hold_key(key: str, seconds: float) -> list["SamsungTVCommand"]:
         warnings.warn(
             "SendRemoteKey.hold_key is deprecated, please use SendRemoteKey.hold instead",
             DeprecationWarning,
@@ -238,16 +238,16 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
             name=name,
         )
         self._rest_api: Optional[rest.SamsungTVRest] = None
-        self._app_list: Optional[List[Dict[str, Any]]] = None
+        self._app_list: Optional[list[dict[str, Any]]] = None
 
     def _ws_send(
         self,
-        command: Union[SamsungTVCommand, Dict[str, Any]],
+        command: Union[SamsungTVCommand, dict[str, Any]],
         key_press_delay: Optional[float] = None,
     ) -> None:
         return super().send_command(command, key_press_delay)
 
-    def _websocket_event(self, event: str, response: Dict[str, Any]) -> None:
+    def _websocket_event(self, event: str, response: dict[str, Any]) -> None:
         """Handle websocket event."""
         super()._websocket_event(event, response)
         if event == ED_INSTALLED_APP_EVENT:
@@ -305,7 +305,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
         _LOGGING.debug("Opening url in browser %s", url)
         self.run_app("org.tizen.browser", "NATIVE_LAUNCH", url)
 
-    def app_list(self) -> Optional[List[Dict[str, Any]]]:
+    def app_list(self) -> Optional[list[dict[str, Any]]]:
         _LOGGING.debug("Get app list (not available on all TVs)")
         # See https://github.com/xchwarze/samsung-tv-ws-api/issues/23
         self._app_list = None
@@ -331,19 +331,19 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
             self._rest_api = rest.SamsungTVRest(self.host, self.port, self.timeout)
         return self._rest_api
 
-    def rest_device_info(self) -> Dict[str, Any]:
+    def rest_device_info(self) -> dict[str, Any]:
         return self._get_rest_api().rest_device_info()
 
-    def rest_app_status(self, app_id: str) -> Dict[str, Any]:
+    def rest_app_status(self, app_id: str) -> dict[str, Any]:
         return self._get_rest_api().rest_app_status(app_id)
 
-    def rest_app_run(self, app_id: str) -> Dict[str, Any]:
+    def rest_app_run(self, app_id: str) -> dict[str, Any]:
         return self._get_rest_api().rest_app_run(app_id)
 
-    def rest_app_close(self, app_id: str) -> Dict[str, Any]:
+    def rest_app_close(self, app_id: str) -> dict[str, Any]:
         return self._get_rest_api().rest_app_close(app_id)
 
-    def rest_app_install(self, app_id: str) -> Dict[str, Any]:
+    def rest_app_install(self, app_id: str) -> dict[str, Any]:
         return self._get_rest_api().rest_app_install(app_id)
 
     def shortcuts(self) -> shortcuts.SamsungTVShortcuts:

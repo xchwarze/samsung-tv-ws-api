@@ -7,7 +7,7 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import requests
 
@@ -30,7 +30,7 @@ class SamsungTVRest(connection.SamsungTVWSBaseConnection):
             timeout=timeout,
         )
 
-    def _rest_request(self, target: str, method: str = "GET") -> Dict[str, Any]:
+    def _rest_request(self, target: str, method: str = "GET") -> dict[str, Any]:
         url = self._format_rest_url(target)
         try:
             if method == "POST":
@@ -47,22 +47,22 @@ class SamsungTVRest(connection.SamsungTVWSBaseConnection):
                 "TV unreachable or feature not supported on this model."
             ) from err
 
-    def rest_device_info(self) -> Dict[str, Any]:
+    def rest_device_info(self) -> dict[str, Any]:
         _LOGGING.debug("Get device info via rest api")
         return self._rest_request("")
 
-    def rest_app_status(self, app_id: str) -> Dict[str, Any]:
+    def rest_app_status(self, app_id: str) -> dict[str, Any]:
         _LOGGING.debug("Get app %s status via rest api", app_id)
         return self._rest_request("applications/" + app_id)
 
-    def rest_app_run(self, app_id: str) -> Dict[str, Any]:
+    def rest_app_run(self, app_id: str) -> dict[str, Any]:
         _LOGGING.debug("Run app %s via rest api", app_id)
         return self._rest_request("applications/" + app_id, "POST")
 
-    def rest_app_close(self, app_id: str) -> Dict[str, Any]:
+    def rest_app_close(self, app_id: str) -> dict[str, Any]:
         _LOGGING.debug("Close app %s via rest api", app_id)
         return self._rest_request("applications/" + app_id, "DELETE")
 
-    def rest_app_install(self, app_id: str) -> Dict[str, Any]:
+    def rest_app_install(self, app_id: str) -> dict[str, Any]:
         _LOGGING.debug("Install app %s via rest api", app_id)
         return self._rest_request("applications/" + app_id, "PUT")

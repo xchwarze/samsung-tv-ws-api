@@ -7,18 +7,15 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 import asyncio
+from collections.abc import Awaitable, Sequence
 import contextlib
 import json
 import logging
 from types import TracebackType
 from typing import (
     Any,
-    Awaitable,
     Callable,
-    Dict,
-    List,
     Optional,
-    Sequence,
     Union,
 )
 
@@ -61,7 +58,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         url = self._format_websocket_url(self.endpoint)
 
         _LOGGING.debug("WS url %s", url)
-        connect_kwargs: Dict[str, Any] = {}
+        connect_kwargs: dict[str, Any] = {}
         if self._is_ssl_connection():
             connect_kwargs["ssl"] = get_ssl_context()
         connection = await connect(url, open_timeout=self.timeout, **connect_kwargs)
@@ -129,7 +126,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     async def send_commands(
         self,
-        commands: Sequence[Union[SamsungTVCommand, Dict[str, Any]]],
+        commands: Sequence[Union[SamsungTVCommand, dict[str, Any]]],
         key_press_delay: Optional[float] = None,
     ) -> None:
         if self.connection is None:
@@ -142,7 +139,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     async def send_command(
         self,
-        command: Union[List[SamsungTVCommand], SamsungTVCommand, Dict[str, Any]],
+        command: Union[list[SamsungTVCommand], SamsungTVCommand, dict[str, Any]],
         key_press_delay: Optional[float] = None,
     ) -> None:
         if isinstance(command, list):
@@ -158,7 +155,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
     @staticmethod
     async def _send_command(
         connection: ClientConnection,
-        command: Union[SamsungTVCommand, Dict[str, Any]],
+        command: Union[SamsungTVCommand, dict[str, Any]],
         delay: float,
     ) -> None:
         if isinstance(command, SamsungTVSleepCommand):

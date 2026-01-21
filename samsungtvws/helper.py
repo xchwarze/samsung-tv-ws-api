@@ -11,7 +11,7 @@ import json
 import logging
 import random
 import ssl
-from typing import Any, Dict, Optional, Tuple, Union, cast
+from typing import Any, Optional, Union, cast
 
 from . import exceptions
 
@@ -26,7 +26,7 @@ def serialize_string(string: Union[str, bytes]) -> str:
     return base64.b64encode(string).decode("utf-8")
 
 
-def _split_json_and_tail(buf: bytes) -> Tuple[bytes, bytes]:
+def _split_json_and_tail(buf: bytes) -> tuple[bytes, bytes]:
     """Split WS bytes payload into (json_bytes, tail_bytes)."""
     start = buf.find(b"{")
     if start < 0:
@@ -54,16 +54,16 @@ def _split_json_and_tail(buf: bytes) -> Tuple[bytes, bytes]:
     return json_bytes, tail
 
 
-def process_api_response(response: Union[str, bytes]) -> Dict[str, Any]:
+def process_api_response(response: Union[str, bytes]) -> dict[str, Any]:
     _LOGGING.debug("Processing API response: %s", response)
     try:
         if isinstance(response, str):
-            return cast(Dict[str, Any], json.loads(response))
+            return cast(dict[str, Any], json.loads(response))
 
         # in old ART api
         # bytes: could be pure JSON or JSON + binary tail
         try:
-            return cast(Dict[str, Any], json.loads(response.decode("utf-8")))
+            return cast(dict[str, Any], json.loads(response.decode("utf-8")))
         except (UnicodeDecodeError, json.JSONDecodeError):
             json_bytes, tail = _split_json_and_tail(response)
             frame = json.loads(json_bytes.decode("utf-8"))
@@ -73,7 +73,7 @@ def process_api_response(response: Union[str, bytes]) -> Dict[str, Any]:
                 frame["binary"] = tail
                 frame["binary_len"] = len(tail)
 
-            return cast(Dict[str, Any], frame)
+            return cast(dict[str, Any], frame)
 
     except (UnicodeDecodeError, json.JSONDecodeError) as err:
         raise exceptions.ResponseError(

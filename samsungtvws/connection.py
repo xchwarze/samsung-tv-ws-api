@@ -12,7 +12,7 @@ import ssl
 import threading
 import time
 from types import TracebackType
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 import websocket
 
@@ -104,13 +104,13 @@ class SamsungTVWSBaseConnection:
         else:
             self.token = token
 
-    def _check_for_token(self, response: Dict[str, Any]) -> None:
+    def _check_for_token(self, response: dict[str, Any]) -> None:
         token = response.get("data", {}).get("token")
         if token:
             _LOGGING.debug("Got token %s", token)
             self._set_token(token)
 
-    def _websocket_event(self, event: str, response: Dict[str, Any]) -> None:
+    def _websocket_event(self, event: str, response: dict[str, Any]) -> None:
         """Handle websocket event."""
         if event == MS_ERROR_EVENT:
             _LOGGING.warning("SamsungTVWS websocket error message: %s", response)
@@ -222,7 +222,7 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
 
     def send_command(
         self,
-        command: Union[List[SamsungTVCommand], SamsungTVCommand, Dict[str, Any]],
+        command: Union[list[SamsungTVCommand], SamsungTVCommand, dict[str, Any]],
         key_press_delay: Optional[float] = None,
     ) -> None:
         if self.connection is None:
@@ -240,7 +240,7 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
     @staticmethod
     def _send_command(
         connection: websocket.WebSocket,
-        command: Union[SamsungTVCommand, Dict[str, Any]],
+        command: Union[SamsungTVCommand, dict[str, Any]],
         delay: float,
     ) -> None:
         if isinstance(command, SamsungTVSleepCommand):

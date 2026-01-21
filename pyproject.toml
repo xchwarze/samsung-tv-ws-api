@@ -53,7 +53,7 @@ include = ["samsungtvws*"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint]
 ignore = [
@@ -85,7 +85,7 @@ combine-as-imports = true
 max-complexity = 18
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_incomplete_defs = true
