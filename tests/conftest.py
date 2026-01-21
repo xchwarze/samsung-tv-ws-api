@@ -1,6 +1,5 @@
 """Tests for remote module."""
 
-import asyncio
 from unittest.mock import Mock, patch
 
 from aioresponses import aioresponses
@@ -31,9 +30,7 @@ def get_connection():
 @pytest.fixture(autouse=True)
 def override_asyncio_sleep():
     """Ignore asyncio sleep in tests."""
-    sleep_future = asyncio.Future()
-    sleep_future.set_result(None)
-    with patch("samsungtvws.async_connection.asyncio.sleep", return_value=sleep_future):
+    with patch("samsungtvws.async_connection.asyncio.sleep"):
         yield
 
 
@@ -41,10 +38,11 @@ def override_asyncio_sleep():
 def get_async_connection():
     """Open a websockets connection."""
     connection = Mock(ClientConnection)
-    with patch(
-        "samsungtvws.async_connection.connect", return_value=asyncio.Future()
-    ) as connection_class:
-        connection_class.return_value.set_result(connection)
+
+    async def _connect(*args, **kwargs):
+        return connection
+
+    with patch("samsungtvws.async_connection.connect", _connect):
         yield connection
 
 
