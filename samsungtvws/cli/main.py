@@ -6,8 +6,9 @@ Copyright (C) 2025 DSR! <xchwarze@gmail.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
 import typer
 from typer.core import TyperGroup
@@ -79,11 +80,11 @@ def main(
     ctx: typer.Context,
     host: str = typer.Option(..., "--host", help="TV IP/host"),
     port: int = typer.Option(8002, "--port", help="Websocket port (8001/8002)"),
-    token: Optional[str] = typer.Option(None, "--token", help="Auth token"),
-    token_file: Optional[str] = typer.Option(
+    token: str | None = typer.Option(None, "--token", help="Auth token"),
+    token_file: str | None = typer.Option(
         None, "--token-file", help="Path to token file"
     ),
-    timeout: Optional[float] = typer.Option(
+    timeout: float | None = typer.Option(
         10, "--timeout", help="Socket timeout seconds (0 disables timeout)"
     ),
     key_press_delay: float = typer.Option(

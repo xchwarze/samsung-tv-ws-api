@@ -6,7 +6,7 @@ Copyright (C) 2025 DSR! <xchwarze@gmail.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
-from typing import Optional
+from __future__ import annotations
 
 import typer
 
@@ -29,7 +29,7 @@ def send_key(
     key: str = typer.Argument(..., help="KEY_* value"),
     times: int = typer.Option(1, "--times", min=1, help="Repeat count"),
     cmd: str = typer.Option("Click", "--cmd", help="Click|Press|Release"),
-    delay: Optional[float] = typer.Option(
+    delay: float | None = typer.Option(
         None,
         "--delay",
         min=0.0,

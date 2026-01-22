@@ -6,20 +6,22 @@ Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
+from __future__ import annotations
+
 import base64
 import json
 import logging
 import random
 import ssl
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 
 from . import exceptions
 
 _LOGGING = logging.getLogger(__name__)
-_SSL_CONTEXT: Optional[ssl.SSLContext] = None
+_SSL_CONTEXT: ssl.SSLContext | None = None
 
 
-def serialize_string(string: Union[str, bytes]) -> str:
+def serialize_string(string: str | bytes) -> str:
     if isinstance(string, str):
         string = str.encode(string)
 
@@ -33,7 +35,7 @@ def _split_json_and_tail(buf: bytes) -> tuple[bytes, bytes]:
         raise exceptions.ResponseError("Failed to parse response: JSON start not found")
 
     depth = 0
-    end: Optional[int] = None
+    end: int | None = None
     for i in range(start, len(buf)):
         b = buf[i]
         if b == 0x7B:  # {
@@ -54,7 +56,7 @@ def _split_json_and_tail(buf: bytes) -> tuple[bytes, bytes]:
     return json_bytes, tail
 
 
-def process_api_response(response: Union[str, bytes]) -> dict[str, Any]:
+def process_api_response(response: str | bytes) -> dict[str, Any]:
     _LOGGING.debug("Processing API response: %s", response)
     try:
         if isinstance(response, str):
