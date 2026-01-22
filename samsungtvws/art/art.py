@@ -160,7 +160,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         header = json.loads(self._recv_exact(sock, header_len))
 
         size = int(header["fileLength"])
-        name = f'{header["fileID"]}.{header["fileType"]}'
+        name = f"{header['fileID']}.{header['fileType']}"
         data = self._recv_exact(sock, size)
 
         return name, bytearray(data), int(header["num"]), int(header["total"])
