@@ -1,11 +1,12 @@
 """SamsungTV Encrypted."""
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import logging
 import time
 from types import TracebackType
-from typing import Optional
 
 import aiohttp
 from websockets.asyncio.client import ClientConnection, connect
@@ -40,8 +41,8 @@ class SamsungTVEncryptedWSAsyncRemote:
     REST_URL_FORMAT = "http://{host}:{port}/{route}"
     URL_FORMAT = "ws://{host}:{port}/socket.io/1/websocket/{app}"
 
-    _connection: Optional[ClientConnection]
-    _recv_loop: Optional["asyncio.Task[None]"]
+    _connection: ClientConnection | None
+    _recv_loop: asyncio.Task[None] | None
 
     def __init__(
         self,
@@ -51,13 +52,13 @@ class SamsungTVEncryptedWSAsyncRemote:
         token: str,
         session_id: str,
         port: int = 8000,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         key_press_delay: float = 1,
     ) -> None:
         self._host = host
         self._key_press_delay = key_press_delay
         self._port = port
-        self._session: Optional[SamsungTVEncryptedSession] = None
+        self._session: SamsungTVEncryptedSession | None = None
         if token and session_id:
             self._session = SamsungTVEncryptedSession(token, session_id)
 
@@ -66,14 +67,14 @@ class SamsungTVEncryptedWSAsyncRemote:
         self._connection = None
         self._recv_loop = None
 
-    async def __aenter__(self) -> "SamsungTVEncryptedWSAsyncRemote":
+    async def __aenter__(self) -> SamsungTVEncryptedWSAsyncRemote:
         return self
 
     async def __aexit__(
         self,
-        exc_type: Optional[type],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         await self.close()
 
@@ -141,14 +142,14 @@ class SamsungTVEncryptedWSAsyncRemote:
     async def send_command(
         self,
         command: SamsungTVEncryptedCommand,
-        key_press_delay: Optional[float] = None,
+        key_press_delay: float | None = None,
     ) -> None:
         await self.send_commands([command], key_press_delay)
 
     async def send_commands(
         self,
         commands: list[SamsungTVEncryptedCommand],
-        key_press_delay: Optional[float] = None,
+        key_press_delay: float | None = None,
     ) -> None:
         assert self._session
         if self._connection is None:

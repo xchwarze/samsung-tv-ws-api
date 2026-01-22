@@ -6,13 +6,15 @@ Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import ssl
 import threading
 import time
 from types import TracebackType
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable
 
 import websocket
 
@@ -40,10 +42,10 @@ class SamsungTVWSBaseConnection:
         host: str,
         *,
         endpoint: str,
-        token: Optional[str] = None,
-        token_file: Optional[str] = None,
+        token: str | None = None,
+        token_file: str | None = None,
         port: int = 8001,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         key_press_delay: float = 1,
         name: str = "SamsungTvRemote",
     ):
@@ -55,8 +57,8 @@ class SamsungTVWSBaseConnection:
         self.key_press_delay = key_press_delay
         self.name = name
         self.endpoint = endpoint
-        self.connection: Optional[Any] = None
-        self._recv_loop: Optional[Any] = None
+        self.connection: Any | None = None
+        self._recv_loop: Any | None = None
 
     def _is_ssl_connection(self) -> bool:
         return self.port == 8002
@@ -85,7 +87,7 @@ class SamsungTVWSBaseConnection:
 
         return self._REST_URL_FORMAT.format(**params)
 
-    def _get_token(self) -> Optional[str]:
+    def _get_token(self) -> str | None:
         if self.token_file is not None:
             try:
                 with open(self.token_file) as token_file:
@@ -124,17 +126,17 @@ class SamsungTVWSBaseConnection:
 
 
 class SamsungTVWSConnection(SamsungTVWSBaseConnection):
-    connection: Optional[websocket.WebSocket]
-    _recv_loop: Optional[threading.Thread]
+    connection: websocket.WebSocket | None
+    _recv_loop: threading.Thread | None
 
-    def __enter__(self) -> "SamsungTVWSConnection":
+    def __enter__(self) -> SamsungTVWSConnection:
         return self
 
     def __exit__(
         self,
-        exc_type: Optional[type],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         self.close()
 
@@ -158,7 +160,7 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
             connection="Connection: Upgrade",
         )
 
-        event: Optional[str] = None
+        event: str | None = None
         while event is None or event in IGNORE_EVENTS_AT_STARTUP:
             data = connection.recv()
             response = helper.process_api_response(data)
@@ -181,7 +183,7 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
         return connection
 
     def start_listening(
-        self, callback: Optional[Callable[[str, Any], None]] = None
+        self, callback: Callable[[str, Any], None] | None = None
     ) -> None:
         """Open, and start listening."""
         if self.connection:
@@ -196,7 +198,7 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
 
     def _do_start_listening(
         self,
-        callback: Optional[Callable[[str, Any], None]],
+        callback: Callable[[str, Any], None] | None,
         connection: websocket.WebSocket,
     ) -> None:
         """Do start listening."""
@@ -222,8 +224,8 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
 
     def send_command(
         self,
-        command: Union[list[SamsungTVCommand], SamsungTVCommand, dict[str, Any]],
-        key_press_delay: Optional[float] = None,
+        command: list[SamsungTVCommand] | SamsungTVCommand | dict[str, Any],
+        key_press_delay: float | None = None,
     ) -> None:
         if self.connection is None:
             self.connection = self.open()
@@ -240,7 +242,7 @@ class SamsungTVWSConnection(SamsungTVWSBaseConnection):
     @staticmethod
     def _send_command(
         connection: websocket.WebSocket,
-        command: Union[SamsungTVCommand, dict[str, Any]],
+        command: SamsungTVCommand | dict[str, Any],
         delay: float,
     ) -> None:
         if isinstance(command, SamsungTVSleepCommand):

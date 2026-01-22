@@ -6,6 +6,8 @@ Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
+from __future__ import annotations
+
 import asyncio
 from collections.abc import Awaitable, Sequence
 import contextlib
@@ -15,8 +17,6 @@ from types import TracebackType
 from typing import (
     Any,
     Callable,
-    Optional,
-    Union,
 )
 
 from websockets.asyncio.client import ClientConnection, connect
@@ -36,17 +36,17 @@ _LOGGING = logging.getLogger(__name__)
 
 
 class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
-    connection: Optional[ClientConnection]
-    _recv_loop: Optional["asyncio.Task[None]"]
+    connection: ClientConnection | None
+    _recv_loop: asyncio.Task[None] | None
 
-    async def __aenter__(self) -> "SamsungTVWSAsyncConnection":
+    async def __aenter__(self) -> SamsungTVWSAsyncConnection:
         return self
 
     async def __aexit__(
         self,
-        exc_type: Optional[type],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         await self.close()
 
@@ -63,7 +63,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
             connect_kwargs["ssl"] = get_ssl_context()
         connection = await connect(url, open_timeout=self.timeout, **connect_kwargs)
 
-        event: Optional[str] = None
+        event: str | None = None
         while event is None or event in IGNORE_EVENTS_AT_STARTUP:
             data = await connection.recv()
             response = helper.process_api_response(data)
@@ -86,7 +86,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
         return connection
 
     async def start_listening(
-        self, callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]] = None
+        self, callback: Callable[[str, Any], Awaitable[None] | None] | None = None
     ) -> None:
         """Open, and start listening."""
         if self.connection:
@@ -100,7 +100,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     async def _do_start_listening(
         self,
-        callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]],
+        callback: Callable[[str, Any], Awaitable[None] | None] | None,
         connection: ClientConnection,
     ) -> None:
         """Do start listening."""
@@ -126,8 +126,8 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     async def send_commands(
         self,
-        commands: Sequence[Union[SamsungTVCommand, dict[str, Any]]],
-        key_press_delay: Optional[float] = None,
+        commands: Sequence[SamsungTVCommand | dict[str, Any]],
+        key_press_delay: float | None = None,
     ) -> None:
         if self.connection is None:
             self.connection = await self.open()
@@ -139,8 +139,8 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
 
     async def send_command(
         self,
-        command: Union[list[SamsungTVCommand], SamsungTVCommand, dict[str, Any]],
-        key_press_delay: Optional[float] = None,
+        command: list[SamsungTVCommand] | SamsungTVCommand | dict[str, Any],
+        key_press_delay: float | None = None,
     ) -> None:
         if isinstance(command, list):
             _LOGGING.warning(
@@ -155,7 +155,7 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
     @staticmethod
     async def _send_command(
         connection: ClientConnection,
-        command: Union[SamsungTVCommand, dict[str, Any]],
+        command: SamsungTVCommand | dict[str, Any],
         delay: float,
     ) -> None:
         if isinstance(command, SamsungTVSleepCommand):

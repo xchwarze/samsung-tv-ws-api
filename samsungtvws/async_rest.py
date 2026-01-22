@@ -6,8 +6,10 @@ Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import aiohttp
 
@@ -25,7 +27,7 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
         *,
         session: aiohttp.ClientSession,
         port: int = 8001,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> None:
         super().__init__(
             host,

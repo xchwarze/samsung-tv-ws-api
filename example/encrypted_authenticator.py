@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import asyncio
 import logging
-from typing import Optional
 
 import aiohttp
 
@@ -21,7 +22,7 @@ async def _get_token(
         host, web_session=web_session, port=port
     )
     await authenticator.start_pairing()
-    token: Optional[str] = None
+    token: str | None = None
     while not token:
         pin = input("Please enter pin from tv: ")
         token = await authenticator.try_pin(pin)

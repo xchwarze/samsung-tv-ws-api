@@ -7,13 +7,15 @@ Copyright (C) 2021 Matthew Garrett <mjg59@srcf.ucam.org>
 SPDX-License-Identifier: LGPL-3.0
 """
 
+from __future__ import annotations
+
 from collections.abc import Iterable, Sequence
 from datetime import datetime
 import json
 import logging
 import os
 import socket
-from typing import IO, Any, Optional, Union, cast
+from typing import IO, Any, cast
 import uuid
 
 import websocket
@@ -38,7 +40,7 @@ class ArtChannelEmitCommand(SamsungTVCommand):
         super().__init__("ms.channel.emit", params)
 
     @staticmethod
-    def art_app_request(data: dict[str, Any]) -> "ArtChannelEmitCommand":
+    def art_app_request(data: dict[str, Any]) -> ArtChannelEmitCommand:
         return ArtChannelEmitCommand(
             {
                 "event": "art_app_request",
@@ -72,7 +74,7 @@ class SamsungTVArt(SamsungTVWSConnection):
             key_press_delay=key_press_delay,
             name=name,
         )
-        self._rest_api: Optional[SamsungTVRest] = None
+        self._rest_api: SamsungTVRest | None = None
 
     def open(self) -> websocket.WebSocket:
         super().open()
@@ -108,7 +110,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         except websocket.WebSocketTimeoutException as e:
             raise exceptions.ConnectionFailure(f"Websocket Time out: {e}") from e
 
-    def _decode_d2d_payload(self, frame: WsFrame) -> Optional[JsonObj]:
+    def _decode_d2d_payload(self, frame: WsFrame) -> JsonObj | None:
         """Decode D2D payload from a frame (if present)."""
         data = frame.get("data")
         if not isinstance(data, str):
@@ -179,8 +181,8 @@ class SamsungTVArt(SamsungTVWSConnection):
     def _wait_for_d2d(
         self,
         *,
-        request_uuid: Optional[str],
-        wait_for_sub_event: Optional[str],
+        request_uuid: str | None,
+        wait_for_sub_event: str | None,
     ) -> Any:
         while True:
             event, frame = self._recv_frame()
@@ -219,11 +221,11 @@ class SamsungTVArt(SamsungTVWSConnection):
     def _send_art_request(
         self,
         request_data: JsonObj,
-        wait_for_event: Optional[str] = D2D_SERVICE_MESSAGE_EVENT,
-        wait_for_sub_event: Optional[str] = None,
+        wait_for_event: str | None = D2D_SERVICE_MESSAGE_EVENT,
+        wait_for_sub_event: str | None = None,
         *,
-        request_uuid: Optional[str] = None,
-    ) -> Optional[Any]:
+        request_uuid: str | None = None,
+    ) -> Any | None:
         """
         Send a request and optionally wait for a response.
 
@@ -275,7 +277,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         raise ValueError("Expected bool or 'on'/'off' string")
 
     def _request_json(
-        self, request: str, *, wait_for_sub_event: Optional[str] = None, **params: Any
+        self, request: str, *, wait_for_sub_event: str | None = None, **params: Any
     ) -> Any:
         """Generic request helper returning decoded D2D payload."""
         return self._send_art_request(
@@ -394,7 +396,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         duration: int = 0,
         type: bool = True,
         category: int = 2,
-        category_id: Optional[str] = None,
+        category_id: str | None = None,
     ) -> Any:
         """
         Configure auto-rotation (slideshow rotation) for a category.
@@ -430,7 +432,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         duration: int = 0,
         type: bool = True,
         category: int = 2,
-        category_id: Optional[str] = None,
+        category_id: str | None = None,
     ) -> Any:
         """
         Configure slideshow playback for a category.
@@ -490,7 +492,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         return self._set_value("set_color_temperature", value)
 
     def get_thumbnail_list(
-        self, content_id_list: Optional[Union[str, Sequence[str]]] = None
+        self, content_id_list: str | Sequence[str] | None = None
     ) -> dict[str, bytearray]:
         """Fetch one or more thumbnails via D2D socket."""
         if content_id_list is None:
@@ -532,9 +534,9 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_thumbnail(
         self,
-        content_id_list: Optional[Union[str, Sequence[str]]] = None,
+        content_id_list: str | Sequence[str] | None = None,
         as_dict: bool = False,
-    ) -> Union[dict[str, bytearray], list[bytearray], Optional[bytearray]]:
+    ) -> dict[str, bytearray] | list[bytearray] | bytearray | None:
         """Fetch thumbnail(s) via D2D socket."""
         if content_id_list is None:
             content_id_list = []
@@ -578,11 +580,11 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def upload(
         self,
-        file: Union[str, bytes, bytearray, IO[bytes]],
+        file: str | bytes | bytearray | IO[bytes],
         matte: str = "shadowbox_polar",
         portrait_matte: str = "shadowbox_polar",
         file_type: str = "png",
-        date: Optional[str] = None,
+        date: str | None = None,
     ) -> str:
         """Upload an image via D2D socket and return content_id."""
         # Load bytes
@@ -689,7 +691,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         return cast(list[object], returned) == cast(list[object], content_id_list)
 
     def select_image(
-        self, content_id: str, category: Optional[str] = None, show: bool = True
+        self, content_id: str, category: str | None = None, show: bool = True
     ) -> Any:
         """Select an artwork and optionally show it immediately."""
         return self._request_json(
@@ -700,7 +702,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         """Return current art mode state."""
         return self._get_value("get_artmode_status", key="value")
 
-    def set_artmode(self, mode: Union[bool, int, str]) -> Any:
+    def set_artmode(self, mode: bool | int | str) -> Any:
         """Set art mode state."""
         return self._set_value("set_artmode_status", self._to_on_off(mode))
 
@@ -742,8 +744,8 @@ class SamsungTVArt(SamsungTVWSConnection):
     def change_matte(
         self,
         content_id: str,
-        matte_id: Optional[str] = None,
-        portrait_matte: Optional[str] = None,
+        matte_id: str | None = None,
+        portrait_matte: str | None = None,
     ) -> Any:
         """Change matte for an artwork (optionally portrait-specific)."""
         params = {

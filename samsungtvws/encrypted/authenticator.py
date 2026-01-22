@@ -1,10 +1,11 @@
 """SamsungTV Encrypted."""
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import re
 import struct
-from typing import Optional
 
 import aiohttp
 from cryptography.hazmat.primitives.ciphers import (
@@ -173,7 +174,7 @@ def _generate_server_hello(user_id: str, pin: str) -> dict[str, bytes]:
 
 def _parse_client_hello(
     client_hello: str, data_hash: bytes, aes_key: bytes, user_id: str
-) -> Optional[dict[str, bytes]]:
+) -> dict[str, bytes] | None:
     USER_ID_POS = 15
     USER_ID_LEN_POS = 11
     GX_SIZE = 0x80
@@ -293,13 +294,13 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
         *,
         web_session: aiohttp.ClientSession,
         port: int = 8080,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> None:
         self._host = host
         self._web_session = web_session
         self._port = port
         self._timeout = timeout
-        self._sk_prime: Optional[bytes] = None
+        self._sk_prime: bytes | None = None
 
     def _get_full_url(self, route: str) -> str:
         return f"http://{self._host}:{self._port}/{route}"
@@ -342,7 +343,7 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
         async with self._web_session.get(url) as response:
             LOGGER.debug("Rx: %s", await response.text())
 
-    async def _second_step_of_pairing(self, pin: str) -> Optional[dict[str, bytes]]:
+    async def _second_step_of_pairing(self, pin: str) -> dict[str, bytes] | None:
         hello_output = _generate_server_hello(self.USER_ID, pin)
         if not hello_output:
             return None
@@ -373,7 +374,7 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
             client_hello, hello_output["hash"], hello_output["AES_key"], self.USER_ID
         )
 
-    async def try_pin(self, pin: str) -> Optional[str]:
+    async def try_pin(self, pin: str) -> str | None:
         LOGGER.debug("Trying pin: '%s'", pin)
         await self._first_step_of_pairing()
         result = await self._second_step_of_pairing(pin)

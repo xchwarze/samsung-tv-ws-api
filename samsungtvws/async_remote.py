@@ -6,10 +6,12 @@ Copyright (C) 2019 DSR! <xchwarze@gmail.com>
 SPDX-License-Identifier: LGPL-3.0
 """
 
+from __future__ import annotations
+
 from asyncio import Future, TimeoutError as AsyncioTimeoutError
 import logging
 import sys
-from typing import Any, Optional
+from typing import Any
 
 if sys.version_info >= (3, 11):
     from asyncio import timeout
@@ -26,10 +28,10 @@ class SamsungTVWSAsyncRemote(async_connection.SamsungTVWSAsyncConnection):
     def __init__(
         self,
         host: str,
-        token: Optional[str] = None,
-        token_file: Optional[str] = None,
+        token: str | None = None,
+        token_file: str | None = None,
         port: int = 8001,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         key_press_delay: float = 1,
         name: str = "SamsungTvRemote",
     ) -> None:
@@ -43,10 +45,10 @@ class SamsungTVWSAsyncRemote(async_connection.SamsungTVWSAsyncConnection):
             key_press_delay=key_press_delay,
             name=name,
         )
-        self._rest_api: Optional[rest.SamsungTVRest] = None
+        self._rest_api: rest.SamsungTVRest | None = None
         self._app_list_futures: set[Future[dict[str, Any]]] = set()
 
-    async def app_list(self) -> Optional[list[dict[str, Any]]]:
+    async def app_list(self) -> list[dict[str, Any]] | None:
         _LOGGING.debug("Get app list (not available on all TVs)")
         # See https://github.com/xchwarze/samsung-tv-ws-api/issues/23
         app_list_future: Future[dict[str, Any]] = Future()
