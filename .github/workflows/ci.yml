@@ -14,10 +14,10 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v4
 
-      - name: Install Python 3.9
+      - name: Install Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: "3.10"
 
       - name: Install dependencies
         run: |
@@ -38,7 +38,6 @@ jobs:
           - { python-version: "3.12", os: ubuntu-latest, session: "tests" }
           - { python-version: "3.11", os: ubuntu-latest, session: "tests" }
           - { python-version: "3.10", os: ubuntu-latest, session: "tests" }
-          - { python-version: "3.9", os: ubuntu-latest, session: "tests" }
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4

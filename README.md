@@ -36,7 +36,7 @@ Some advanced topics are covered in dedicated documents:
 
 ## Installation
 
-Requires **Python >= 3.9**.
+Requires **Python >= 3.10**.
 
 ### Install from PyPI (recommended)
 
