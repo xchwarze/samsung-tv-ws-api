@@ -53,9 +53,10 @@ def _download_url_to_temp_path(image_url: str) -> tuple[str, str]:
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=60) as response, open(
-            temp_path, "wb"
-        ) as output_file:
+        with (
+            urllib.request.urlopen(request, timeout=60) as response,
+            open(temp_path, "wb") as output_file,
+        ):
             output_file.write(response.read())
     except Exception:
         try:

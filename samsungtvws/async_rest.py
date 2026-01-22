@@ -7,7 +7,7 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 import logging
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal, Optional
 
 import aiohttp
 
@@ -37,7 +37,7 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
 
     async def _rest_request(
         self, method: _REQUEST_METHODS, target: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         timeout = aiohttp.ClientTimeout(self.timeout)
         url = self._format_rest_url(target)
         try:
@@ -49,22 +49,22 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
                 "TV unreachable or feature not supported on this model."
             ) from err
 
-    async def rest_device_info(self) -> Dict[str, Any]:
+    async def rest_device_info(self) -> dict[str, Any]:
         _LOGGING.debug("Get device info via rest api")
         return await self._rest_request("GET", "")
 
-    async def rest_app_status(self, app_id: str) -> Dict[str, Any]:
+    async def rest_app_status(self, app_id: str) -> dict[str, Any]:
         _LOGGING.debug("Get app %s status via rest api", app_id)
         return await self._rest_request("GET", "applications/" + app_id)
 
-    async def rest_app_run(self, app_id: str) -> Dict[str, Any]:
+    async def rest_app_run(self, app_id: str) -> dict[str, Any]:
         _LOGGING.debug("Run app %s via rest api", app_id)
         return await self._rest_request("POST", "applications/" + app_id)
 
-    async def rest_app_close(self, app_id: str) -> Dict[str, Any]:
+    async def rest_app_close(self, app_id: str) -> dict[str, Any]:
         _LOGGING.debug("Close app %s via rest api", app_id)
         return await self._rest_request("DELETE", "applications/" + app_id)
 
-    async def rest_app_install(self, app_id: str) -> Dict[str, Any]:
+    async def rest_app_install(self, app_id: str) -> dict[str, Any]:
         _LOGGING.debug("Install app %s via rest api", app_id)
         return await self._rest_request("PUT", "applications/" + app_id)

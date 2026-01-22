@@ -5,7 +5,7 @@ import contextlib
 import logging
 import time
 from types import TracebackType
-from typing import List, Optional
+from typing import Optional
 
 import aiohttp
 from websockets.asyncio.client import ClientConnection, connect
@@ -147,7 +147,7 @@ class SamsungTVEncryptedWSAsyncRemote:
 
     async def send_commands(
         self,
-        commands: List[SamsungTVEncryptedCommand],
+        commands: list[SamsungTVEncryptedCommand],
         key_press_delay: Optional[float] = None,
     ) -> None:
         assert self._session

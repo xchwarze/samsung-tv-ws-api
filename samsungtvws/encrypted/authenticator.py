@@ -4,7 +4,7 @@ import hashlib
 import logging
 import re
 import struct
-from typing import Dict, Optional
+from typing import Optional
 
 import aiohttp
 from cryptography.hazmat.primitives.ciphers import (
@@ -137,7 +137,7 @@ def _apply_samy_go_key_transform(data: bytes) -> bytes:
     return r.encrypt(data)  # type: ignore[no-any-return]
 
 
-def _generate_server_hello(user_id: str, pin: str) -> Dict[str, bytes]:
+def _generate_server_hello(user_id: str, pin: str) -> dict[str, bytes]:
     sha1 = hashlib.sha1()
     sha1.update(pin.encode("utf-8"))
     pin_hash = sha1.digest()
@@ -173,7 +173,7 @@ def _generate_server_hello(user_id: str, pin: str) -> Dict[str, bytes]:
 
 def _parse_client_hello(
     client_hello: str, data_hash: bytes, aes_key: bytes, user_id: str
-) -> Optional[Dict[str, bytes]]:
+) -> Optional[dict[str, bytes]]:
     USER_ID_POS = 15
     USER_ID_LEN_POS = 11
     GX_SIZE = 0x80
@@ -342,7 +342,7 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
         async with self._web_session.get(url) as response:
             LOGGER.debug("Rx: %s", await response.text())
 
-    async def _second_step_of_pairing(self, pin: str) -> Optional[Dict[str, bytes]]:
+    async def _second_step_of_pairing(self, pin: str) -> Optional[dict[str, bytes]]:
         hello_output = _generate_server_hello(self.USER_ID, pin)
         if not hello_output:
             return None

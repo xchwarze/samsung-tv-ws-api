@@ -7,7 +7,7 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
 import typer
 from typer.core import TyperGroup
@@ -17,7 +17,7 @@ from samsungtvws import SamsungTVWS
 
 # this helper is for typer to list the commands correctly
 class SortedTyperGroup(TyperGroup):
-    def list_commands(self, ctx: typer.Context) -> List[str]:
+    def list_commands(self, ctx: typer.Context) -> list[str]:
         return sorted(self.commands)
 
 

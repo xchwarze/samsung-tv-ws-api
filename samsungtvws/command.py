@@ -7,15 +7,15 @@ SPDX-License-Identifier: LGPL-3.0
 """
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 
 class SamsungTVCommand:
-    def __init__(self, method: str, params: Dict[str, Any]) -> None:
+    def __init__(self, method: str, params: dict[str, Any]) -> None:
         self.method = method
         self.params = params
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "method": self.method,
             "params": self.params,
@@ -30,7 +30,7 @@ class SamsungTVSleepCommand(SamsungTVCommand):
         super().__init__("sleep", {})
         self.delay = delay
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         raise NotImplementedError("Cannot use as_dict on SamsungTVSleepCommand")
 
     def get_payload(self) -> str:

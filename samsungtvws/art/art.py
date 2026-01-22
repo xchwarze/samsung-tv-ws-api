@@ -7,12 +7,13 @@ Copyright (C) 2021 Matthew Garrett <mjg59@srcf.ucam.org>
 SPDX-License-Identifier: LGPL-3.0
 """
 
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 import json
 import logging
 import os
 import socket
-from typing import IO, Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
+from typing import IO, Any, Optional, Union, cast
 import uuid
 
 import websocket
@@ -25,19 +26,19 @@ from ..helper import generate_connection_id, get_ssl_context
 from ..rest import SamsungTVRest
 
 # for typing
-JsonObj = Dict[str, Any]
-WsFrame = Dict[str, Any]
+JsonObj = dict[str, Any]
+WsFrame = dict[str, Any]
 
 _LOGGING = logging.getLogger(__name__)
 ART_ENDPOINT = "com.samsung.art-app"
 
 
 class ArtChannelEmitCommand(SamsungTVCommand):
-    def __init__(self, params: Dict[str, Any]) -> None:
+    def __init__(self, params: dict[str, Any]) -> None:
         super().__init__("ms.channel.emit", params)
 
     @staticmethod
-    def art_app_request(data: Dict[str, Any]) -> "ArtChannelEmitCommand":
+    def art_app_request(data: dict[str, Any]) -> "ArtChannelEmitCommand":
         return ArtChannelEmitCommand(
             {
                 "event": "art_app_request",
@@ -91,7 +92,7 @@ class SamsungTVArt(SamsungTVWSConnection):
     # -------------------------
     # WebSocket primitives
     # -------------------------
-    def _recv_frame(self) -> Tuple[str, WsFrame]:
+    def _recv_frame(self) -> tuple[str, WsFrame]:
         """Receive one websocket frame, process + emit websocket event."""
         assert self.connection
         try:
@@ -154,7 +155,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         return sock
 
-    def _recv_d2d_file(self, sock: socket.socket) -> Tuple[str, bytearray, int, int]:
+    def _recv_d2d_file(self, sock: socket.socket) -> tuple[str, bytearray, int, int]:
         """Receive a single D2D file payload."""
         header_len = int.from_bytes(self._recv_exact(sock, 4), "big")
         header = json.loads(self._recv_exact(sock, header_len))
@@ -490,7 +491,7 @@ class SamsungTVArt(SamsungTVWSConnection):
 
     def get_thumbnail_list(
         self, content_id_list: Optional[Union[str, Sequence[str]]] = None
-    ) -> Dict[str, bytearray]:
+    ) -> dict[str, bytearray]:
         """Fetch one or more thumbnails via D2D socket."""
         if content_id_list is None:
             content_id_list = []
@@ -516,7 +517,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         assert payload
         sock = self._open_d2d_socket(self._parse_conn_info(payload))
 
-        thumbnails: Dict[str, bytearray] = {}
+        thumbnails: dict[str, bytearray] = {}
         try:
             total = 1
             current = -1
@@ -533,14 +534,14 @@ class SamsungTVArt(SamsungTVWSConnection):
         self,
         content_id_list: Optional[Union[str, Sequence[str]]] = None,
         as_dict: bool = False,
-    ) -> Union[Dict[str, bytearray], List[bytearray], Optional[bytearray]]:
+    ) -> Union[dict[str, bytearray], list[bytearray], Optional[bytearray]]:
         """Fetch thumbnail(s) via D2D socket."""
         if content_id_list is None:
             content_id_list = []
         if isinstance(content_id_list, str):
             content_id_list = [content_id_list]
 
-        result: Dict[str, bytearray] = {}
+        result: dict[str, bytearray] = {}
 
         for cid in content_id_list:
             d2d_id = self._new_request_uuid()
@@ -685,7 +686,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         if not isinstance(returned, list):
             return False
 
-        return cast(List[object], returned) == cast(List[object], content_id_list)
+        return cast(list[object], returned) == cast(list[object], content_id_list)
 
     def select_image(
         self, content_id: str, category: Optional[str] = None, show: bool = True
