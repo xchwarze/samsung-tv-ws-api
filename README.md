@@ -57,7 +57,7 @@ pip install "samsungtvws[async,encrypted,cli]"
 ### Optional extras
 
 - `async`: async I/O support (`aiohttp`, `websockets`)
-- `encrypted`: v1 encrypted API support (older Orsay TVs)
+- `encrypted`: v1 encrypted API support for older Orsay TVs (`cryptography`, `py3rijndael`)
 - `cli`: installs the `samsungtv` command (`typer`, `wakeonlan`)
 
 Examples:
