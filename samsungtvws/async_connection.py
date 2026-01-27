@@ -9,14 +9,13 @@ SPDX-License-Identifier: LGPL-3.0
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 import contextlib
 import json
 import logging
 from types import TracebackType
 from typing import (
     Any,
-    Callable,
 )
 
 from websockets.asyncio.client import ClientConnection, connect

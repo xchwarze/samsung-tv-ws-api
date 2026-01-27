@@ -8,13 +8,14 @@ SPDX-License-Identifier: LGPL-3.0
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
 import logging
 import ssl
 import threading
 import time
 from types import TracebackType
-from typing import Any, Callable
+from typing import Any
 
 import websocket
 

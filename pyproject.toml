@@ -9,7 +9,7 @@ license = "LGPL-3.0"
 description = "Samsung Smart TV WS API wrapper"
 readme = "README.md"
 authors = [{ name = "Xchwarze" }]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Development Status :: 5 - Production/Stable",
@@ -53,7 +53,7 @@ include = ["samsungtvws*"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 ignore = [
@@ -85,7 +85,7 @@ combine-as-imports = true
 max-complexity = 18
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_incomplete_defs = true
