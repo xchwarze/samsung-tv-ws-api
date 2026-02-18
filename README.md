@@ -204,6 +204,31 @@ Official Samsung compatibility references:
 - [https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html](https://developer.samsung.com/smarttv/develop/extension-libraries/smart-view-sdk/supported-device/supported-tvs.html)
 - [https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html](https://developer.samsung.com/smarttv/develop/specifications/tv-model-groups.html)
 
+## Known issues and restrictions
+
+### Subnet / VLAN
+
+Samsung Smart TVs do not allow WebSocket connections across different subnets or VLANs.
+If your TV is not on the same subnet as Home Assistant, the connection may fail.
+
+Depending on the network setup, this limitation might be mitigated using:
+
+- IP masquerading (NAT)
+- A proxy
+
+### Samsung TV keeps asking for permission
+
+The default setting on newer televisions is to ask for permission on every connection
+attempt.
+
+To avoid this behavior, adjust:
+
+**Device Connection Manager → Access Notification Settings → First Time Only**
+
+It is also recommended to clean up previous attempts in:
+
+**Device Connection Manager → Device List**
+
 ## Patreon and Tips!
 
 (I have this block in all my GPL projects)
