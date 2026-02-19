@@ -153,10 +153,15 @@ def _iter_image_paths(
     return image_paths
 
 
-def _resolve_pick_mode(upload_all: bool, pick_random: bool) -> bool:
+def _resolve_pick_mode(upload_all: bool, sync_all: bool, pick_random: bool) -> bool:
+    if upload_all and sync_all:
+        raise typer.BadParameter("Use either --upload-all or --sync-all, not both.")
     if upload_all and pick_random:
         raise typer.BadParameter("Use either --upload-all or --random, not both.")
-    if not upload_all and not pick_random:
+    if sync_all and pick_random:
+        raise typer.BadParameter("Use either --sync-all or --random, not both.")
+    # Default mode: pick random if no explicit mode is chosen
+    if not upload_all and not sync_all and not pick_random:
         return True
     return pick_random
 
@@ -381,6 +386,11 @@ def art_sync(
     upload_all: bool = typer.Option(
         False, "--upload-all", help="Upload all new/changed images"
     ),
+    sync_all: bool = typer.Option(
+        False,
+        "--sync-all",
+        help="Upload all new/changed images and delete missing ones from TV (requires state file)",
+    ),
     pick_random: bool = typer.Option(
         False, "--random", help="Pick one image (default if no mode)"
     ),
@@ -415,7 +425,12 @@ def art_sync(
     _require_art_supported(ctx)
     folder = os.path.abspath(folder)
 
-    pick_random = _resolve_pick_mode(upload_all, pick_random)
+    pick_random = _resolve_pick_mode(upload_all, sync_all, pick_random)
+
+    if sync_all and no_state:
+        raise typer.BadParameter(
+            "--sync-all requires a state file (do not use --no-state)."
+        )
 
     if not os.path.isdir(folder):
         raise typer.BadParameter(f"Folder not found: {folder}")
@@ -450,7 +465,7 @@ def art_sync(
     image_paths = _iter_image_paths(
         folder, recursive=recursive, allowed_extensions=allowed_extensions
     )
-    if not image_paths:
+    if not image_paths and not sync_all:
         typer.echo("OK: no images found")
         raise typer.Exit(code=0)
 
@@ -469,6 +484,35 @@ def art_sync(
             show_flag=show_flag,
         )
         return
+
+    # --sync-all: delete entries that exist in cache but no longer exist on disk
+    deleted_count = 0
+    delete_failed_count = 0
+    if sync_all:
+        # Iterate over a snapshot since we may mutate cached_files
+        for cached_path, cached_entry in list(cached_files.items()):
+            if os.path.exists(cached_path):
+                continue
+            content_id = None
+            if isinstance(cached_entry, dict):
+                cid = cached_entry.get("content_id")
+                if isinstance(cid, str):
+                    content_id = cid
+
+            if content_id:
+                ok = art.delete(content_id)
+                if not ok:
+                    delete_failed_count += 1
+                    typer.echo(
+                        f"ERROR: failed to delete missing {cached_path} -> {content_id}",
+                        err=True,
+                    )
+                    continue
+                typer.echo(f"OK: deleted missing {cached_path} -> {content_id}")
+                deleted_count += 1
+
+            # Remove from cache even if there was no content_id
+            cached_files.pop(cached_path, None)
 
     uploaded_count = 0
     skipped_count = 0
@@ -497,6 +541,14 @@ def art_sync(
 
     if not no_state:
         _save_state_file(resolved_state_file, state)
+
+    if sync_all:
+        typer.echo(
+            f"OK: done (uploaded={uploaded_count}, skipped={skipped_count}, deleted={deleted_count})"
+        )
+        if delete_failed_count:
+            raise typer.Exit(code=1)
+        return
 
     typer.echo(f"OK: done (uploaded={uploaded_count}, skipped={skipped_count})")
 
