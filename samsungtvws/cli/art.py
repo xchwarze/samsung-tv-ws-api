@@ -68,25 +68,29 @@ def _download_url_to_temp_path(image_url: str) -> tuple[str, str]:
     return temp_path, inferred_file_type
 
 
+def _versioned_state(files: None | dict[str, Any] = None) -> dict[str, Any]:
+    return {"version": 1, "files": {} if not files else files}
+
+
 def _state_file_path_for_folder(folder_path: str) -> str:
     return os.path.join(folder_path, ".samsungtvws-art-sync.json")
 
 
 def _load_state_file(state_file_path: str) -> dict[str, Any]:
     if not os.path.isfile(state_file_path):
-        return {"version": 1, "files": {}}
+        return _versioned_state()
 
     try:
         with open(state_file_path, encoding="utf-8") as f:
             data = json.load(f)
     except Exception:
-        return {"version": 1, "files": {}}
+        return _versioned_state()
 
     files = data.get("files")
     if not isinstance(files, dict):
         files = {}
 
-    return {"version": 1, "files": files}
+    return _versioned_state(files)
 
 
 def _save_state_file(state_file_path: str, state: dict[str, Any]) -> None:
@@ -153,10 +157,21 @@ def _iter_image_paths(
     return image_paths
 
 
-def _resolve_pick_mode(upload_all: bool, pick_random: bool) -> bool:
+def _resolve_pick_mode(
+    upload_all: bool, sync_all: bool, pick_random: bool, no_state: bool
+) -> bool:
+    if upload_all and sync_all:
+        raise typer.BadParameter("Use either --upload-all or --sync-all, not both.")
     if upload_all and pick_random:
         raise typer.BadParameter("Use either --upload-all or --random, not both.")
-    if not upload_all and not pick_random:
+    if sync_all and pick_random:
+        raise typer.BadParameter("Use either --sync-all or --random, not both.")
+    if sync_all and no_state:
+        raise typer.BadParameter(
+            "--sync-all requires a state file (do not use --no-state)."
+        )
+    # Default mode: pick random if no explicit mode is chosen
+    if not upload_all and not sync_all and not pick_random:
         return True
     return pick_random
 
@@ -172,12 +187,11 @@ def _handle_random_pick(
     image_paths: list[str],
     cached_files: dict[str, Any],
     refresh: bool,
-    no_state: bool,
-    resolved_state_file: str,
-    state: dict[str, Any],
     upload_arguments: dict[str, Any],
     show_flag: bool,
-) -> None:
+) -> tuple[int, int]:
+    uploaded_count = 0
+    skipped_count = 0
     chosen_path = random.choice(image_paths)
     chosen_fingerprint = _file_fingerprint(chosen_path)
 
@@ -189,22 +203,88 @@ def _handle_random_pick(
         and isinstance(cached_entry.get("content_id"), str)
     ):
         content_id_to_display = cached_entry["content_id"]
+        skipped_count = 1
         typer.echo(f"OK: cached {chosen_path} -> {content_id_to_display}")
     else:
         uploaded_content_id = art.upload(chosen_path, **upload_arguments)
+        uploaded_count = 1
         typer.echo(f"OK: uploaded {chosen_path} -> {uploaded_content_id}")
 
-        if not no_state:
-            cached_files[chosen_path] = {
-                "content_id": uploaded_content_id,
-                **chosen_fingerprint,
-            }
-            _save_state_file(resolved_state_file, state)
+        cached_files[chosen_path] = {
+            "content_id": uploaded_content_id,
+            **chosen_fingerprint,
+        }
 
         content_id_to_display = uploaded_content_id
 
     art.select_image(content_id_to_display, show=show_flag)
     typer.echo(f"OK: displayed {content_id_to_display}")
+
+    return (uploaded_count, skipped_count)
+
+
+def _handle_sync_removal(art: Any, cached_files: dict[str, Any]) -> tuple[int, int]:
+    deleted_count = 0
+    delete_failed_count = 0
+
+    for cached_path, cached_entry in list(cached_files.items()):
+        if os.path.exists(cached_path):
+            continue
+        content_id = None
+        if isinstance(cached_entry, dict):
+            cid = cached_entry.get("content_id")
+            if isinstance(cid, str):
+                content_id = cid
+
+        if content_id:
+            ok = art.delete(content_id)
+            if not ok:
+                delete_failed_count += 1
+                typer.echo(
+                    f"ERROR: failed to delete missing {cached_path} -> {content_id}",
+                    err=True,
+                )
+                continue
+            typer.echo(f"OK: deleted missing {cached_path} -> {content_id}")
+            deleted_count += 1
+
+        # Remove from cache even if there was no content_id
+        cached_files.pop(cached_path, None)
+    return (deleted_count, delete_failed_count)
+
+
+def _handle_upload_all(
+    art: Any,
+    image_paths: list[str],
+    cached_files: dict[str, Any],
+    refresh: bool,
+    upload_arguments: dict[str, Any],
+) -> tuple[int, int]:
+    uploaded_count = 0
+    skipped_count = 0
+
+    for image_path in image_paths:
+        fingerprint = _file_fingerprint(image_path)
+        existing_id = _cached_content_id(
+            cached_files,
+            image_path,
+            fingerprint,
+            refresh=refresh,
+        )
+        if existing_id is not None:
+            skipped_count += 1
+            continue
+
+        uploaded_content_id = art.upload(image_path, **upload_arguments)
+        uploaded_count += 1
+        typer.echo(f"OK: uploaded {image_path} -> {uploaded_content_id}")
+
+        cached_files[image_path] = {
+            "content_id": uploaded_content_id,
+            **fingerprint,
+        }
+
+    return (uploaded_count, skipped_count)
 
 
 @cli.command("art-supported")
@@ -381,6 +461,11 @@ def art_sync(
     upload_all: bool = typer.Option(
         False, "--upload-all", help="Upload all new/changed images"
     ),
+    sync_all: bool = typer.Option(
+        False,
+        "--sync-all",
+        help="Upload all new/changed images and delete missing ones from TV (requires state file)",
+    ),
     pick_random: bool = typer.Option(
         False, "--random", help="Pick one image (default if no mode)"
     ),
@@ -413,10 +498,11 @@ def art_sync(
     ),
 ) -> None:
     _require_art_supported(ctx)
+
+    # Verify arguments
+    pick_random = _resolve_pick_mode(upload_all, sync_all, pick_random, no_state)
+
     folder = os.path.abspath(folder)
-
-    pick_random = _resolve_pick_mode(upload_all, pick_random)
-
     if not os.path.isdir(folder):
         raise typer.BadParameter(f"Folder not found: {folder}")
 
@@ -426,20 +512,22 @@ def art_sync(
     if not allowed_extensions:
         raise typer.BadParameter("No valid extensions provided.")
 
+    show_flag = _resolve_show_flag(show, pick_random)
+
+    # Prepare file cache
     resolved_state_file = ""
+    state = _versioned_state()
     if not no_state:
         resolved_state_file = state_file or _state_file_path_for_folder(folder)
-
-    state = {"version": 1, "files": {}}
-    if not no_state:
         state = _load_state_file(resolved_state_file)
-
     cached_files = state["files"]
     assert isinstance(cached_files, dict)
 
+    # Frame connection
     tv = get_tv(ctx)
     art = tv.art()
 
+    # Compose upload arguments
     upload_arguments: dict[str, Any] = {
         "matte": matte,
         "portrait_matte": portrait_matte,
@@ -447,58 +535,43 @@ def art_sync(
     if file_type is not None:
         upload_arguments["file_type"] = file_type
 
+    # Parse image paths
     image_paths = _iter_image_paths(
         folder, recursive=recursive, allowed_extensions=allowed_extensions
     )
-    if not image_paths:
+    if not image_paths and not sync_all:
         typer.echo("OK: no images found")
         raise typer.Exit(code=0)
 
-    show_flag = _resolve_show_flag(show, pick_random)
+    deleted_count = 0
+    delete_failed_count = 0
+    if sync_all:
+        (deleted_count, delete_failed_count) = _handle_sync_removal(art, cached_files)
 
     if pick_random:
-        _handle_random_pick(
+        (uploaded_count, skipped_count) = _handle_random_pick(
             art=art,
             image_paths=image_paths,
             cached_files=cached_files,
             refresh=refresh,
-            no_state=no_state,
-            resolved_state_file=resolved_state_file,
-            state=state,
             upload_arguments=upload_arguments,
             show_flag=show_flag,
         )
-        return
-
-    uploaded_count = 0
-    skipped_count = 0
-
-    for image_path in image_paths:
-        fingerprint = _file_fingerprint(image_path)
-        existing_id = _cached_content_id(
-            cached_files,
-            image_path,
-            fingerprint,
-            refresh=refresh,
+    else:
+        (uploaded_count, skipped_count) = _handle_upload_all(
+            art, image_paths, cached_files, refresh, upload_arguments
         )
-        if existing_id is not None:
-            skipped_count += 1
-            continue
-
-        uploaded_content_id = art.upload(image_path, **upload_arguments)
-        uploaded_count += 1
-        typer.echo(f"OK: uploaded {image_path} -> {uploaded_content_id}")
-
-        if not no_state:
-            cached_files[image_path] = {
-                "content_id": uploaded_content_id,
-                **fingerprint,
-            }
 
     if not no_state:
         _save_state_file(resolved_state_file, state)
 
-    typer.echo(f"OK: done (uploaded={uploaded_count}, skipped={skipped_count})")
+    typer.echo(
+        f"OK: done (uploaded={uploaded_count}, skipped={skipped_count}, deleted={deleted_count})"
+    )
+
+    if delete_failed_count:
+        raise typer.Exit(code=1)
+    return
 
 
 @cli.command("art-delete")
