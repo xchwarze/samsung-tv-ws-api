@@ -21,6 +21,8 @@ MS_CHANNEL_READY_EVENT = "ms.channel.ready"
 MS_CHANNEL_UNAUTHORIZED = "ms.channel.unauthorized"
 MS_ERROR_EVENT = "ms.error"
 MS_VOICEAPP_HIDE_EVENT = "ms.voiceApp.hide"
+MS_REMOTE_IME_START_EVENT = "ms.remote.imeStart"
+MS_REMOTE_IME_END_EVENT = "ms.remote.imeEnd"
 
 IGNORE_EVENTS_AT_STARTUP = (ED_EDENTV_UPDATE_EVENT, MS_VOICEAPP_HIDE_EVENT)
 

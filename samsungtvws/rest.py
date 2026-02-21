@@ -8,6 +8,7 @@ SPDX-License-Identifier: LGPL-3.0
 
 from __future__ import annotations
 
+import base64
 import logging
 from typing import Any
 
@@ -68,3 +69,17 @@ class SamsungTVRest(connection.SamsungTVWSBaseConnection):
     def rest_app_install(self, app_id: str) -> dict[str, Any]:
         _LOGGING.debug("Install app %s via rest api", app_id)
         return self._rest_request("applications/" + app_id, "PUT")
+
+    def rest_ime_input(self, text: str, token: str | None = None) -> bool:
+        if not text:
+            return False
+
+        if not token:
+            raise ValueError("IME input requires a valid security token")
+
+        encoded = (
+            base64.b64encode(text.encode("utf-8")).decode("ascii").replace("\n", "")
+        )
+        url = self._format_rest_url(f"remoteControl/imeInput/{encoded}?token={token}")
+        resp = requests.post(url, timeout=self.timeout, verify=False)
+        return resp.status_code == 200

@@ -8,12 +8,18 @@ SPDX-License-Identifier: LGPL-3.0
 
 from __future__ import annotations
 
+import base64
 import logging
 import time
 from typing import Any
 import warnings
 
-from samsungtvws.event import ED_INSTALLED_APP_EVENT, parse_installed_app
+from samsungtvws.event import (
+    ED_INSTALLED_APP_EVENT,
+    MS_REMOTE_IME_END_EVENT,
+    MS_REMOTE_IME_START_EVENT,
+    parse_installed_app,
+)
 
 from . import art, connection, helper, rest, shortcuts
 from .command import SamsungTVCommand, SamsungTVSleepCommand
@@ -56,6 +62,15 @@ class ChannelEmitCommand(SamsungTVCommand):
                     "appId": app_id,
                     "metaTag": meta_tag,
                 },
+            }
+        )
+
+    @staticmethod
+    def text_received() -> ChannelEmitCommand:
+        return ChannelEmitCommand(
+            {
+                "event": "custom.remote.textReceived",
+                "to": "broadcast",
             }
         )
 
@@ -218,6 +233,24 @@ class SendRemoteKey(RemoteControlCommand):
         return SendRemoteKey.click("KEY_FACTORY")
 
 
+class SendInputString(RemoteControlCommand):
+    @staticmethod
+    def send(text: str) -> SendInputString:
+        encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+        return SendInputString(
+            {
+                "Cmd": encoded,
+                "DataOfCmd": "base64",
+                "TypeOfRemote": "SendInputString",
+            }
+        )
+
+
+class SendInputEnd(RemoteControlCommand):
+    def __init__(self) -> None:
+        super().__init__({"TypeOfRemote": "SendInputEnd"})
+
+
 class SamsungTVWS(connection.SamsungTVWSConnection):
     def __init__(
         self,
@@ -241,6 +274,7 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
         )
         self._rest_api: rest.SamsungTVRest | None = None
         self._app_list: list[dict[str, Any]] | None = None
+        self._first_text_sent: bool = False
 
     def _ws_send(
         self,
@@ -252,8 +286,20 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
     def _websocket_event(self, event: str, response: dict[str, Any]) -> None:
         """Handle websocket event."""
         super()._websocket_event(event, response)
+
+        if event == MS_REMOTE_IME_START_EVENT:
+            self._first_text_sent = False
+
+        if event == MS_REMOTE_IME_END_EVENT:
+            self._first_text_sent = False
+
         if event == ED_INSTALLED_APP_EVENT:
             self._app_list = parse_installed_app(response)
+
+    def _get_rest_api(self) -> rest.SamsungTVRest:
+        if self._rest_api is None:
+            self._rest_api = rest.SamsungTVRest(self.host, self.port, self.timeout)
+        return self._rest_api
 
     # TODO: I don't see much point in having SendRemoteKey now...
     def send_key(
@@ -328,10 +374,25 @@ class SamsungTVWS(connection.SamsungTVWSConnection):
 
         return self._app_list
 
-    def _get_rest_api(self) -> rest.SamsungTVRest:
-        if self._rest_api is None:
-            self._rest_api = rest.SamsungTVRest(self.host, self.port, self.timeout)
-        return self._rest_api
+    def send_text(self, text: str) -> None:
+        if not text:
+            return
+
+        if not self._first_text_sent:
+            # Some TVs require this broadcast before accepting text
+            self._ws_send(ChannelEmitCommand.text_received())
+            self._first_text_sent = True
+
+        self._ws_send(SendInputString.send(text))
+
+    def end_text(self) -> None:
+        self._ws_send(SendInputEnd())
+        self._first_text_sent = False
+
+    def send_password(self, password: str) -> bool:
+        # A piece of code would be missing to determine whether to use send_text or send_password and use them automatically...
+        token = self._get_token()
+        return self._get_rest_api().rest_ime_input(password, token=token)
 
     def rest_device_info(self) -> dict[str, Any]:
         return self._get_rest_api().rest_device_info()
