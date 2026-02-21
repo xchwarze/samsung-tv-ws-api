@@ -12,6 +12,8 @@ with open("tests/fixtures/event_d2d_service_message_send_image_success.json") as
     D2D_SERVICE_MESSAGE_SEND_IMAGE_SUCCESS_SAMPLE = file.read()
 with open("tests/fixtures/event_d2d_service_message_image_added.json") as file:
     D2D_SERVICE_MESSAGE_IMAGE_ADDED_SAMPLE = file.read()
+with open("tests/fixtures/event_d2d_service_message_thumbnail_inline.bin", "rb") as file:
+    D2D_SERVICE_MESSAGE_THUMBNAIL_INLINE_SAMPLE = file.read()
 with open("tests/fixtures/event_ms_channel_connect.json") as file:
     MS_CHANNEL_CONNECT_SAMPLE = file.read()
 with open("tests/fixtures/event_ms_channel_disconnect.json") as file:

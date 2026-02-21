@@ -198,6 +198,11 @@ class SamsungTVArt(SamsungTVWSConnection):
             if request_uuid and msg_uuid != request_uuid:
                 continue
 
+            # this adds support for the 0.97 API that attaches to the end of the binary response
+            inline = frame.get("binary")
+            if isinstance(inline, (bytes, bytearray)) and inline:
+                payload["binary"] = inline
+
             sub_event = payload.get("event", "*")
             _LOGGING.debug(
                 "sub_event: %s, wait_for_sub_event: %s", sub_event, wait_for_sub_event
@@ -561,8 +566,15 @@ class SamsungTVArt(SamsungTVWSConnection):
             )
 
             assert payload
-            sock = self._open_d2d_socket(self._parse_conn_info(payload))
 
+            # API 0.97: thumbnail bytes come inline in the WS frame
+            inline = payload.get("binary")
+            if isinstance(inline, (bytes, bytearray)) and inline:
+                result[cid] = bytearray(inline)
+                continue
+
+            # Newer APIs: thumbnail comes via D2D socket
+            sock = self._open_d2d_socket(self._parse_conn_info(payload))
             try:
                 name, data, _, _ = self._recv_d2d_file(sock)
                 result[name] = data

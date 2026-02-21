@@ -15,6 +15,7 @@ from .const import (
     D2D_SERVICE_MESSAGE_OK_SAMPLE,
     D2D_SERVICE_MESSAGE_READY_TO_USE_SAMPLE,
     D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR,
+    D2D_SERVICE_MESSAGE_THUMBNAIL_INLINE_SAMPLE,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_CHANNEL_READY_SAMPLE,
 )
@@ -223,3 +224,25 @@ def test_send_image_success_sends_binary_frame(connection: Mock) -> None:
         assert header["fileType"] == "png"
         assert header["fileLength"] == len(file_bytes)
         assert header["secKey"] == "TESTKEY"
+
+
+def test_get_thumbnail_inline_binary_skips_socket(connection: Mock) -> None:
+    """Art API 0.97: thumbnail is returned inline as WS bytes (JSON + \\n + JPEG)."""
+    with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID):
+        connection.recv.side_effect = [
+            MS_CHANNEL_CONNECT_SAMPLE,
+            MS_CHANNEL_READY_SAMPLE,
+            D2D_SERVICE_MESSAGE_THUMBNAIL_INLINE_SAMPLE,
+        ]
+
+        tv_art = SamsungTVArt("127.0.0.1")
+
+        with patch.object(SamsungTVArt, "_open_d2d_socket") as open_sock:
+            thumb = tv_art.get_thumbnail("MY_F0073")
+            open_sock.assert_not_called()
+
+        assert isinstance(thumb, bytearray)
+
+        # Assert JPEG signature (SOI ... EOI)
+        assert bytes(thumb).startswith(b"\xff\xd8")
+        assert bytes(thumb).endswith(b"\xff\xd9")
