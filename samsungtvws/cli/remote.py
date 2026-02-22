@@ -99,3 +99,30 @@ def factory(
         raise typer.Exit(code=1)
 
     get_tv(ctx).send_key("KEY_FACTORY")
+
+
+@cli.command("send-text")
+def send_text(
+    ctx: typer.Context,
+    text: str = typer.Argument(..., help="Text to send (UTF-8)"),
+    end: bool = typer.Option(
+        False,
+        "--end",
+        help="Also send input end (SendInputEnd) after text",
+    ),
+) -> None:
+    """
+    Send text to the TV input (IME).
+    """
+    tv = get_tv(ctx)
+    tv.send_text(text)
+    if end:
+        tv.end_text()
+
+
+@cli.command("end-text")
+def end_text(ctx: typer.Context) -> None:
+    """
+    End current text input session (SendInputEnd).
+    """
+    get_tv(ctx).end_text()

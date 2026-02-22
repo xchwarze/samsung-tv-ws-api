@@ -226,7 +226,7 @@ def test_send_image_success_sends_binary_frame(connection: Mock) -> None:
         assert header["secKey"] == "TESTKEY"
 
 
-def test_send_image_api_097_uses_ws_binary_payload(connection: Mock) -> None:
+def test_send_image_success_binary_payload(connection: Mock) -> None:
     """Art API 0.97: upload is a WS binary frame: u16-len + JSON header + JPEG bytes."""
     file_bytes = b"\xff\xd8\xff\xe0JFIF\x00\x01FAKEJPEGDATA\xff\xd9"
 
