@@ -4,7 +4,7 @@ requires = ["setuptools>=77.0"]
 
 [project]
 name = "samsungtvws"
-version = "3.0.3"
+version = "3.0.4"
 license = "LGPL-3.0"
 description = "Samsung Smart TV WS API wrapper"
 readme = "README.md"

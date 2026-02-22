@@ -1,10 +1,13 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/xchwarze/samsung-tv-ws-api/master/assets/logo.png" width="300px" border="0" />
-    <br/>
-    Samsung Smart TV WS API wrapper
-    <a href="https://github.com/xchwarze/samsung-tv-ws-api/releases/latest">
-        <img src="https://img.shields.io/badge/version-3.0.3-brightgreen.svg?style=flat-square" alt="Version">
-    </a>
+  <img src="https://raw.githubusercontent.com/xchwarze/samsung-tv-ws-api/master/assets/logo.png" width="300px" border="0" />
+  <br/>
+  Samsung Smart TV WS API wrapper
+  <a href="https://github.com/xchwarze/samsung-tv-ws-api/releases/latest">
+    <img src="https://img.shields.io/github/v/release/xchwarze/samsung-tv-ws-api?display_name=tag&sort=semver&style=flat-square" alt="Version">
+  </a>
+  <a href="https://github.com/xchwarze/samsung-tv-ws-api/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/xchwarze/samsung-tv-ws-api/ci.yml?branch=master&style=flat-square" alt="Lint & Tests">
+  </a>
 </p>
 
 This project is a Python library for remotely controlling Samsung televisions via a TCP/IP connection.
