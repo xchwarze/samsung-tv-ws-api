@@ -126,6 +126,7 @@ def test_send_image_failure(connection: Mock) -> None:
     with (
         patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID),
         patch("samsungtvws.helper.random.randrange", return_value=4091151321),
+        patch.object(SamsungTVArt, "get_api_version", return_value="2.01"),
     ):
         connection.recv.side_effect = [
             MS_CHANNEL_CONNECT_SAMPLE,
@@ -180,11 +181,8 @@ def test_send_image_success_sends_binary_frame(connection: Mock) -> None:
     with (
         patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID),
         patch("samsungtvws.helper.random.randrange", return_value=4091151321),
-        patch.object(
-            SamsungTVArt,
-            "_open_d2d_socket",
-            return_value=sock,
-        ),
+        patch.object(SamsungTVArt, "get_api_version", return_value="0.98"),
+        patch.object(SamsungTVArt, "_open_d2d_socket", return_value=sock),
     ):
         # recv order:
         # - connect + ready (open())
