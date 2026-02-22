@@ -226,6 +226,48 @@ def test_send_image_success_sends_binary_frame(connection: Mock) -> None:
         assert header["secKey"] == "TESTKEY"
 
 
+def test_send_image_api_097_uses_ws_binary_payload(connection: Mock) -> None:
+    """Art API 0.97: upload is a WS binary frame: u16-len + JSON header + JPEG bytes."""
+    file_bytes = b"\xff\xd8\xff\xe0JFIF\x00\x01FAKEJPEGDATA\xff\xd9"
+
+    with (
+        patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID),
+        patch.object(SamsungTVArt, "get_api_version", return_value="0.97"),
+    ):
+        connection.recv.side_effect = [
+            MS_CHANNEL_CONNECT_SAMPLE,
+            MS_CHANNEL_READY_SAMPLE,
+            D2D_SERVICE_MESSAGE_IMAGE_ADDED_SAMPLE,
+        ]
+
+        tv_art = SamsungTVArt("127.0.0.1")
+        content_id = tv_art.upload(
+            file_bytes, file_type="jpg", matte="none", date="2023:05:02 15:06:39"
+        )
+        assert content_id == "MY_F0001"
+
+        assert connection.send_binary.call_count == 1
+        payload = connection.send_binary.call_args.args[0]
+        assert isinstance(payload, (bytes, bytearray))
+
+        header_len = int.from_bytes(payload[0:2], "big")
+        header_bytes = payload[2 : 2 + header_len]
+        img_bytes = payload[2 + header_len :]
+
+        outer = json.loads(header_bytes.decode("utf-8"))
+        assert outer["method"] == "ms.channel.emit"
+        assert outer["params"]["event"] == "art_app_request"
+        assert outer["params"]["to"] == "host"
+
+        inner = json.loads(outer["params"]["data"])
+        assert inner["request"] == "send_image"
+        assert inner["file_type"] == "JPEG"
+        assert inner["matte_id"] == "none"
+        assert inner["id"] == str(_UUID)
+
+        assert img_bytes == file_bytes
+
+
 def test_get_thumbnail_inline_binary_skips_socket(connection: Mock) -> None:
     """Art API 0.97: thumbnail is returned inline as WS bytes (JSON + \\n + JPEG)."""
     with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID):
