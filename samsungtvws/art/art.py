@@ -590,6 +590,60 @@ class SamsungTVArt(SamsungTVWSConnection):
 
         return None
 
+    def _upload_ws_binary_send_image(
+        self,
+        *,
+        upload_id: str,
+        data: bytes,
+        matte: str,
+        file_type: str,
+    ) -> None:
+        """Upload image bytes using a single WebSocket binary frame.
+
+        Observed (SmartThings, Art API 0.97): the client sends a WebSocket *binary* message
+        whose payload is:
+        - uint16-be header_len
+        - header JSON (utf-8)
+        - raw image bytes (e.g. JPEG)
+
+        This avoids the D2D socket handshake used by newer firmwares.
+        """
+        if self.connection is None:
+            self.open()
+        assert self.connection
+
+        # SmartThings uses e.g. "JPEG" rather than "JPG"
+        ft = file_type.lower()
+        if ft in ("jpg", "jpeg"):
+            ft_hdr = "JPEG"
+        else:
+            ft_hdr = ft.upper()
+
+        # Inner data object that the TV art app expects
+        inner = {
+            "request": "send_image",
+            "file_type": ft_hdr,
+            "matte_id": matte or "none",
+            "id": upload_id,
+        }
+
+        # Outer wrapper for ms.channel.emit
+        outer = {
+            "method": "ms.channel.emit",
+            "params": {
+                "data": json.dumps(inner),
+                "to": "host",
+                "event": "art_app_request",
+            },
+        }
+
+        header = json.dumps(outer, separators=(",", ":")).encode("utf-8")
+        if len(header) > 0xFFFF:
+            raise ValueError("Upload header too large")
+
+        payload = len(header).to_bytes(2, "big") + header + data
+        self.connection.send_binary(payload)
+
     def upload(
         self,
         file: str | bytes | bytearray | IO[bytes],
@@ -598,7 +652,7 @@ class SamsungTVArt(SamsungTVWSConnection):
         file_type: str = "png",
         date: str | None = None,
     ) -> str:
-        """Upload an image via D2D socket and return content_id."""
+        """Upload an image and return the new content_id."""
         # Load bytes
         if isinstance(file, str):
             _, ext = os.path.splitext(file)
@@ -623,6 +677,25 @@ class SamsungTVArt(SamsungTVWSConnection):
             date = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
 
         upload_id = self._new_request_uuid()
+
+        # Art API 0.97 (observed via SmartThings): direct WS binary upload.
+        # Newer firmwares: D2D socket handshake.
+        try:
+            if self.get_api_version() == "0.97":
+                self._upload_ws_binary_send_image(
+                    upload_id=upload_id,
+                    data=data,
+                    matte=matte,
+                    file_type=ft,
+                )
+                done = self._wait_for_d2d(
+                    request_uuid=upload_id,
+                    wait_for_sub_event="image_added",
+                )
+                return cast(str, done["content_id"])
+        except exceptions.ResponseError:
+            # If api_version lookup fails, continue with the socket upload approach.
+            pass
 
         ready = self._send_art_request(
             {
