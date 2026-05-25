@@ -20,9 +20,31 @@ IPV6_HOST = "::1"
 @pytest.mark.parametrize(
     "port, token, method, args, expected_prefix, extra_in",
     [
-        (8001, None, "_format_websocket_url", ("samsung.remote.control",), "ws://[::1]:8001/", None),
-        (8002, "tok", "_format_websocket_url", ("samsung.remote.control",), "wss://[::1]:8002/", "token=tok"),
+        (
+            8001,
+            None,
+            "_format_websocket_url",
+            ("samsung.remote.control",),
+            "ws://[::1]:8001/",
+            None,
+        ),
+        (
+            8002,
+            "tok",
+            "_format_websocket_url",
+            ("samsung.remote.control",),
+            "wss://[::1]:8002/",
+            "token=tok",
+        ),
         (8001, None, "_format_rest_url", ("device",), "http://[::1]:8001/", None),
+        (
+            8001,
+            None,
+            "_format_rest_url",
+            ("device?t=123",),
+            "http://[::1]:8001/",
+            "t=123",
+        ),
         (8002, "tok", "_format_rest_url", ("device",), "https://[::1]:8002/", None),
     ],
 )
@@ -55,7 +77,12 @@ def test_base_conn_url_ipv6(
     [
         ("_format_websocket_url", ("abc123",), "ws://[::1]:8000/", None),
         ("_format_rest_url", ("socket.io/1/",), "http://[::1]:8000/", None),
-        ("_format_rest_url", ("socket.io/1/?t=12345",), "http://[::1]:8000/", "t=12345"),
+        (
+            "_format_rest_url",
+            ("socket.io/1/?t=12345",),
+            "http://[::1]:8000/",
+            "t=12345",
+        ),
     ],
 )
 def test_encrypted_url_ipv6(

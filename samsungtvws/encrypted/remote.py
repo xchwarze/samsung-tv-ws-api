@@ -9,10 +9,10 @@ import time
 from types import TracebackType
 
 import aiohttp
-from yarl import URL
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed
 from websockets.protocol import State
+from yarl import URL
 
 from ..exceptions import ConnectionFailure
 from .command import SamsungTVEncryptedCommand

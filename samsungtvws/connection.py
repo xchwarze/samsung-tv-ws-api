@@ -32,7 +32,6 @@ _LOGGING = logging.getLogger(__name__)
 
 
 class SamsungTVWSBaseConnection:
-
     def __init__(
         self,
         host: str,
