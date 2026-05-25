@@ -9,6 +9,7 @@ import time
 from types import TracebackType
 
 import aiohttp
+from yarl import URL
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed
 from websockets.protocol import State
@@ -38,9 +39,6 @@ class SendRemoteKey:
 
 
 class SamsungTVEncryptedWSAsyncRemote:
-    REST_URL_FORMAT = "http://{host}:{port}/{route}"
-    URL_FORMAT = "ws://{host}:{port}/socket.io/1/websocket/{app}"
-
     _connection: ClientConnection | None
     _recv_loop: asyncio.Task[None] | None
 
@@ -79,22 +77,26 @@ class SamsungTVEncryptedWSAsyncRemote:
         await self.close()
 
     def _format_websocket_url(self, app: str) -> str:
-        params = {
-            "host": self._host,
-            "port": self._port,
-            "app": app,
-        }
-
-        return self.URL_FORMAT.format(**params)
+        return str(
+            URL.build(
+                scheme="ws",
+                host=self._host,
+                port=self._port,
+                path=f"/socket.io/1/websocket/{app}",
+            )
+        )
 
     def _format_rest_url(self, route: str = "") -> str:
-        params = {
-            "host": self._host,
-            "port": self._port,
-            "route": route,
-        }
-
-        return self.REST_URL_FORMAT.format(**params)
+        path, _, query_string = route.partition("?")
+        return str(
+            URL.build(
+                scheme="http",
+                host=self._host,
+                port=self._port,
+                path=f"/{path}",
+                query_string=query_string,
+            )
+        )
 
     async def _open(self) -> None:
         if self._connection:
