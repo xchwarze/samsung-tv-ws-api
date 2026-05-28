@@ -1,6 +1,7 @@
 # sync
 websocket-client>=0.57.0
 requests>=2.21.0
+yarl>=1.9
 
 # async
 websockets>=13

@@ -17,6 +17,7 @@ from types import TracebackType
 from typing import Any, Callable
 
 import websocket
+from yarl import URL
 
 from . import exceptions, helper
 from .command import SamsungTVCommand, SamsungTVSleepCommand
@@ -31,12 +32,6 @@ _LOGGING = logging.getLogger(__name__)
 
 
 class SamsungTVWSBaseConnection:
-    _URL_FORMAT = "ws://{host}:{port}/api/v2/channels/{app}?name={name}"
-    _SSL_URL_FORMAT = (
-        "wss://{host}:{port}/api/v2/channels/{app}?name={name}&token={token}"
-    )
-    _REST_URL_FORMAT = "{protocol}://{host}:{port}/api/v2/{route}"
-
     def __init__(
         self,
         host: str,
@@ -64,28 +59,31 @@ class SamsungTVWSBaseConnection:
         return self.port == 8002
 
     def _format_websocket_url(self, app: str) -> str:
-        params = {
-            "host": self.host,
-            "port": self.port,
-            "app": app,
-            "name": helper.serialize_string(self.name),
-            "token": self._get_token(),
-        }
-
-        if self._is_ssl_connection():
-            return self._SSL_URL_FORMAT.format(**params)
-        else:
-            return self._URL_FORMAT.format(**params)
+        ssl = self._is_ssl_connection()
+        query: dict[str, str] = {"name": helper.serialize_string(self.name)}
+        token = self._get_token()
+        if ssl and token is not None:
+            query["token"] = token
+        return str(
+            URL.build(
+                scheme="wss" if ssl else "ws",
+                host=self.host,
+                port=self.port,
+                path=f"/api/v2/channels/{app}",
+                query=query,
+            )
+        )
 
     def _format_rest_url(self, route: str = "") -> str:
-        params = {
-            "protocol": "https" if self._is_ssl_connection() else "http",
-            "host": self.host,
-            "port": self.port,
-            "route": route,
-        }
-
-        return self._REST_URL_FORMAT.format(**params)
+        ssl = self._is_ssl_connection()
+        return str(
+            URL.build(
+                scheme="https" if ssl else "http",
+                host=self.host,
+                port=self.port,
+                path=f"/api/v2/{route}",
+            )
+        )
 
     def _get_token(self) -> str | None:
         if self.token_file is not None:
