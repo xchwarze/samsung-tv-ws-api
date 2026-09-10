@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
 import struct
@@ -23,6 +24,40 @@ PRIVATE_KEY = "2fd6334713816fae018cdee4656c5033a8d6b00e8eaea07b3624999242e962471
 WB_KEY = "abbb120c09e7114243d1fa0102163b27"
 TRANS_KEY = "6c9474469ddf7578f3e5ad8a4c703d99"
 PRIME = "b361eb0ab01c3439f2c16ffda7b05e3e320701ebee3e249123c3586765fd5bf6c1dfa88bb6bb5da3fde74737cd88b6a26c5ca31d81d18e3515533d08df619317063224cf0943a2f29a5fe60c1c31ddf28334ed76a6478a1122fb24c4a94c8711617ddfe90cf02e643cd82d4748d6d4a7ca2f47d88563aa2baf6482e124acd7dd"
+
+
+class SamsungTVEncryptedError(Exception):
+    """Base error for the encrypted (PIN) pairing flow.
+
+    Subclasses Exception so existing callers doing ``except Exception`` keep
+    working while new callers can catch specific conditions.
+    """
+
+
+class SamsungTVEncryptedPairingExpiredError(SamsungTVEncryptedError):
+    """The TV returned an empty ``auth_data`` payload.
+
+    This means the on-screen PIN / CloudPINPage pairing window has expired or
+    was never validly started. It is retryable: restart pairing
+    (``start_pairing`` -> ``try_pin`` -> ``get_session_id_and_close``).
+    """
+
+
+class SamsungTVEncryptedResponseError(SamsungTVEncryptedError):
+    """The TV returned a non-empty response that could not be parsed."""
+
+
+def _extract_auth_data(response_text: str) -> str:
+    """Return the (possibly empty) ``auth_data`` payload from a pairing response.
+
+    The TV normally replies with ``{"auth_data": "<json string>"}``. When the
+    body is not JSON, fall back to the raw text so the caller's regex can still
+    attempt a match.
+    """
+    try:
+        return json.loads(response_text).get("auth_data", "") or ""
+    except (ValueError, AttributeError):
+        return response_text
 
 
 def _encrypt_parameter_data_with_aes(data: bytes) -> bytes:
@@ -406,24 +441,43 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
         async with self._web_session.post(
             url, data=content, timeout=self._timeout
         ) as response:
-            LOGGER.debug("Rx: %s", await response.text())
             response_text = await response.text()
+        LOGGER.debug("Rx: %s", response_text)
 
-        if "secure-mode" in response_text:
-            raise Exception("TODO: Implement handling of encryption flag!!!!")
+        auth_data = _extract_auth_data(response_text)
+
+        # An empty auth_data means the PIN/pairing window has expired (or was
+        # never validly started) -- a distinct, retryable condition rather than
+        # a malformed response. Surface it clearly so callers can re-pair.
+        if not auth_data:
+            raise SamsungTVEncryptedPairingExpiredError(
+                "TV returned empty auth_data at step 2 -- the PIN/pairing window "
+                f"likely expired; restart pairing. (raw: {response_text!r})"
+            )
+
+        if "secure-mode" in auth_data:
+            raise SamsungTVEncryptedError(
+                "TV requested the secure-mode encryption flag, which is not "
+                f"implemented. (raw: {response_text!r})"
+            )
 
         output = re.search(
             r"ClientAckMsg.*?:.*?(\d[0-9a-zA-Z]*).*?session_id.*?(\d)",
-            response_text,
+            auth_data,
             flags=re.IGNORECASE,
         )
         if output is None:
-            raise Exception("Unable to get session_id and/or ClientAckMsg!!!")
+            raise SamsungTVEncryptedResponseError(
+                "Could not parse ClientAckMsg/session_id from the TV response. "
+                f"(raw: {response_text!r})"
+            )
 
         client_ack = output.group(1)
         assert self._sk_prime
         if not _parse_client_acknowledge(client_ack, self._sk_prime):
-            raise Exception("Parse client ack message failed.")
+            raise SamsungTVEncryptedResponseError(
+                f"Client ack message validation failed. (raw: {response_text!r})"
+            )
 
         session_id = output.group(2)
         LOGGER.info("Got sessionId: %s", session_id)

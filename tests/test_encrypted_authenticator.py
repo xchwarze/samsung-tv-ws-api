@@ -10,6 +10,9 @@ import pytest
 from yarl import URL
 
 from samsungtvws.encrypted.authenticator import (
+    SamsungTVEncryptedError,
+    SamsungTVEncryptedPairingExpiredError,
+    SamsungTVEncryptedResponseError,
     SamsungTVEncryptedWSAsyncAuthenticator,
 )
 
@@ -90,6 +93,100 @@ async def test_authenticator(aiointercept_mock: aiointercept) -> None:
         == '{"auth_Data":{"auth_type":"SPC","request_id":"0","ServerAckMsg":'
         '"01030000000000000000145F38EAFF0F6A6FF062CA652CD6CBAD9AF1EC62470000000000"}}'
     )
+
+
+async def _pair_until_step2(
+    aiointercept_mock: aiointercept, *, step2_body: str
+) -> SamsungTVEncryptedWSAsyncAuthenticator:
+    """Drive pairing up to (but not through) step 2, returning the authenticator.
+
+    ``step2_body`` is the raw body the TV "returns" at step 2, letting each
+    test exercise a different acknowledge-exchange response.
+    """
+    with open("tests/fixtures/auth_pin_status.xml") as file:
+        aiointercept_mock.get(
+            "http://samsungtv.test:8080/ws/apps/CloudPINPage", body=file.read()
+        )
+    aiointercept_mock.post(
+        "http://samsungtv.test:8080/ws/apps/CloudPINPage",
+        body="http:///ws/apps/CloudPINPage/run",
+    )
+    with open("tests/fixtures/auth_empty.json") as file:
+        aiointercept_mock.get(
+            "http://samsungtv.test:8080/ws/pairing?step=0&app_id=12345"
+            "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184&type=1",
+            body=file.read(),
+        )
+    with open("tests/fixtures/auth_generator_client_hello.json") as file:
+        aiointercept_mock.post(
+            "http://samsungtv.test:8080/ws/pairing?step=1&app_id=12345"
+            "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184",
+            body=file.read(),
+        )
+    aiointercept_mock.post(
+        "http://samsungtv.test:8080/ws/pairing?step=2&app_id=12345"
+        "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184",
+        body=step2_body,
+    )
+
+    authenticator = SamsungTVEncryptedWSAsyncAuthenticator(
+        "samsungtv.test", web_session=aiohttp.ClientSession()
+    )
+    await authenticator.start_pairing()
+    token = await authenticator.try_pin("0997")
+    assert token == "545a596ab96b289c60896255e8690288"
+    return authenticator
+
+
+@pytest.mark.asyncio
+async def test_acknowledge_empty_auth_data_raises_pairing_expired(
+    aiointercept_mock: aiointercept,
+) -> None:
+    """Empty auth_data at step 2 => a distinct, retryable expired-pairing error.
+
+    Regression test for fermulator/samsung-tv-ws-api#2.
+    """
+    with open("tests/fixtures/auth_empty.json") as file:
+        empty_body = file.read()
+    authenticator = await _pair_until_step2(aiointercept_mock, step2_body=empty_body)
+
+    with pytest.raises(SamsungTVEncryptedPairingExpiredError) as excinfo:
+        await authenticator.get_session_id_and_close()
+    # The raw response is surfaced in the message (not just at DEBUG).
+    assert "auth_data" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_acknowledge_unparseable_raises_response_error(
+    aiointercept_mock: aiointercept,
+) -> None:
+    """Non-empty but unparseable auth_data => a response error, not expired."""
+    authenticator = await _pair_until_step2(
+        aiointercept_mock,
+        step2_body='{"auth_data": "totally unexpected payload"}',
+    )
+
+    with pytest.raises(SamsungTVEncryptedResponseError):
+        await authenticator.get_session_id_and_close()
+
+
+@pytest.mark.asyncio
+async def test_pairing_errors_remain_catchable_as_exception(
+    aiointercept_mock: aiointercept,
+) -> None:
+    """Backwards-compat: new errors subclass a base that subclasses Exception."""
+    assert issubclass(SamsungTVEncryptedError, Exception)
+    assert issubclass(SamsungTVEncryptedPairingExpiredError, SamsungTVEncryptedError)
+    assert issubclass(SamsungTVEncryptedResponseError, SamsungTVEncryptedError)
+
+    with open("tests/fixtures/auth_empty.json") as file:
+        empty_body = file.read()
+    authenticator = await _pair_until_step2(aiointercept_mock, step2_body=empty_body)
+
+    # Existing callers doing `except Exception` keep working: the raised type
+    # is SamsungTVEncryptedError, which (asserted above) subclasses Exception.
+    with pytest.raises(SamsungTVEncryptedError):
+        await authenticator.get_session_id_and_close()
 
 
 def _mock_session(get_body: str) -> MagicMock:
