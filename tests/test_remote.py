@@ -13,6 +13,8 @@ from .const import (
     ED_INSTALLED_APP_SAMPLE,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_ERROR_SAMPLE,
+    MS_REMOTE_TOUCH_DISABLE_SAMPLE,
+    MS_REMOTE_TOUCH_ENABLE_SAMPLE,
     MS_VOICEAPP_HIDE_SAMPLE,
 )
 
@@ -31,6 +33,21 @@ def test_connect_with_extra_event(connection: Mock) -> None:
         side_effect=[
             MS_VOICEAPP_HIDE_SAMPLE,
             ED_EDENTV_UPDATE_SAMPLE,
+            MS_CHANNEL_CONNECT_SAMPLE,
+        ]
+    )
+    tv = SamsungTVWS("127.0.0.1")
+    tv.open()
+    assert tv.token == 123456789
+
+
+def test_connect_with_touch_events(connection: Mock) -> None:
+    """Ensure touch events sent before connect are ignored."""
+    connection.recv = Mock(
+        side_effect=[
+            MS_REMOTE_TOUCH_DISABLE_SAMPLE,
+            MS_REMOTE_TOUCH_ENABLE_SAMPLE,
+            MS_REMOTE_TOUCH_DISABLE_SAMPLE,
             MS_CHANNEL_CONNECT_SAMPLE,
         ]
     )

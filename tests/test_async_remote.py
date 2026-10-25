@@ -15,6 +15,8 @@ from .const import (
     ED_INSTALLED_APP_SAMPLE,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_ERROR_SAMPLE,
+    MS_REMOTE_TOUCH_DISABLE_SAMPLE,
+    MS_REMOTE_TOUCH_ENABLE_SAMPLE,
     MS_VOICEAPP_HIDE_SAMPLE,
 )
 
@@ -44,6 +46,22 @@ async def test_connect_with_extra_event(async_connection: Mock) -> None:
         side_effect=[
             create_future_with_result(MS_VOICEAPP_HIDE_SAMPLE),
             create_future_with_result(ED_EDENTV_UPDATE_SAMPLE),
+            create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE),
+        ]
+    )
+    async_connection.send = Mock(return_value=create_future_with_result(None))
+    tv = SamsungTVWSAsyncRemote("127.0.0.1")
+    await tv.start_listening()
+    assert tv.token == 123456789
+
+
+@pytest.mark.asyncio
+async def test_connect_with_touch_events(async_connection: Mock) -> None:
+    """Ensure touch events sent before connect are ignored."""
+    async_connection.recv = Mock(
+        side_effect=[
+            create_future_with_result(MS_REMOTE_TOUCH_ENABLE_SAMPLE),
+            create_future_with_result(MS_REMOTE_TOUCH_DISABLE_SAMPLE),
             create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE),
         ]
     )
