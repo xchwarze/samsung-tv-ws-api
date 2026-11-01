@@ -1,12 +1,13 @@
 """Tests for yarl-based URL building, specifically IPv6 host with port."""
 
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import aiohttp
 import pytest
 
 from samsungtvws.connection import SamsungTVWSBaseConnection
 from samsungtvws.encrypted.remote import SamsungTVEncryptedWSAsyncRemote
+from samsungtvws.rest import SamsungTVRest
 
 IPV6_HOST = "::1"
 
@@ -40,9 +41,9 @@ IPV6_HOST = "::1"
             8001,
             None,
             "_format_rest_url",
-            ("device?t=123",),
+            ("device", {"t": "123"}),
             "http://[::1]:8001/",
-            "t=123",
+            "/api/v2/device?t=123",
         ),
         (8002, "tok", "_format_rest_url", ("device",), "https://[::1]:8002/", None),
     ],
@@ -78,9 +79,9 @@ def test_base_conn_url_ipv6(
         ("_format_rest_url", ("socket.io/1/",), "http://[::1]:8000/", None),
         (
             "_format_rest_url",
-            ("socket.io/1/?t=12345",),
+            ("socket.io/1/", {"t": "12345"}),
             "http://[::1]:8000/",
-            "t=12345",
+            "/socket.io/1/?t=12345",
         ),
     ],
 )
@@ -103,3 +104,27 @@ def test_encrypted_url_ipv6(
     assert "[::1]" in url
     if extra_in is not None:
         assert extra_in in url
+
+
+@pytest.mark.parametrize(
+    "port, expected_url",
+    [
+        pytest.param(
+            8001,
+            "http://127.0.0.1:8001/api/v2/remoteControl/imeInput/aGk=?token=tok",
+            id="http",
+        ),
+        pytest.param(
+            8002,
+            "https://127.0.0.1:8002/api/v2/remoteControl/imeInput/aGk=?token=tok",
+            id="https",
+        ),
+    ],
+)
+def test_rest_ime_input_sends_token_as_query(port: int, expected_url: str) -> None:
+    """The IME token must be a query parameter, not part of the path."""
+    rest = SamsungTVRest("127.0.0.1", port=port)
+    with patch("samsungtvws.rest.requests.post") as mock_post:
+        mock_post.return_value.status_code = 200
+        assert rest.rest_ime_input("hi", token="tok")
+    assert mock_post.call_args.args[0] == expected_url

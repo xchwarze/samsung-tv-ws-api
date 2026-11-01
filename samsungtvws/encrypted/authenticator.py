@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import hashlib
 import json
 import logging
@@ -15,6 +16,8 @@ from cryptography.hazmat.primitives.ciphers import (
     algorithms,
     modes,
 )
+
+from .. import helper
 
 LOGGER = logging.getLogger(__name__)
 BLOCK_SIZE = 16
@@ -338,12 +341,20 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
         self._timeout: float | None = None if timeout == 0 else timeout
         self._sk_prime: bytes | None = None
 
-    def _get_full_url(self, route: str) -> str:
-        return f"http://{self._host}:{self._port}/{route}"
+    def _get_full_url(self, route: str, query: Mapping[str, str] | None = None) -> str:
+        return helper.build_encrypted_rest_url(self._host, self._port, route, query)
 
-    def _get_full_request_url(self, step: int) -> str:
+    def _get_full_request_url(
+        self, step: int, extra_query: Mapping[str, str] | None = None
+    ) -> str:
         return self._get_full_url(
-            f"ws/pairing?step={step}&app_id={self.APP_ID}&device_id={self.DEVICE_ID}"
+            "ws/pairing",
+            {
+                "step": str(step),
+                "app_id": self.APP_ID,
+                "device_id": self.DEVICE_ID,
+                **(extra_query or {}),
+            },
         )
 
     async def _show_pin_page_on_tv(self) -> None:
@@ -376,7 +387,7 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
             await self._show_pin_page_on_tv()
 
     async def _first_step_of_pairing(self) -> None:
-        url = self._get_full_request_url(0) + "&type=1"
+        url = self._get_full_request_url(0, {"type": "1"})
         LOGGER.debug("Tx: GET %s", url)
         async with self._web_session.get(url, timeout=self._timeout) as response:
             LOGGER.debug("Rx: %s", await response.text())

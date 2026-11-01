@@ -9,16 +9,36 @@ SPDX-License-Identifier: LGPL-3.0
 from __future__ import annotations
 
 import base64
+from collections.abc import Mapping
 import json
 import logging
 import random
 import ssl
 from typing import Any, cast
 
+from yarl import URL
+
 from . import exceptions
 
 _LOGGING = logging.getLogger(__name__)
 _SSL_CONTEXT: ssl.SSLContext | None = None
+
+
+def build_url(
+    *,
+    scheme: str,
+    host: str,
+    port: int,
+    path: str,
+    query: Mapping[str, str] | None = None,
+) -> str:
+    return str(URL.build(scheme=scheme, host=host, port=port, path=path, query=query))
+
+
+def build_encrypted_rest_url(
+    host: str, port: int, route: str, query: Mapping[str, str] | None = None
+) -> str:
+    return build_url(scheme="http", host=host, port=port, path=f"/{route}", query=query)
 
 
 def serialize_string(string: str | bytes) -> str:
