@@ -32,6 +32,7 @@ Some advanced topics are covered in dedicated documents:
 - WebSocket and REST APIs
 - Sync and async support
 - Encrypted v1 API support for older TVs
+- Legacy remote support for pre-2014 TVs (port 55000)
 - Full Art Mode support (Frame TVs)
 - Command-line interface (CLI)
 
@@ -201,6 +202,21 @@ It also provides support for older **Orsay-based TVs**, specifically:
 - **Part of J series (2015)**
 
 Support for Orsay devices is mainly provided through the encrypted v1 API.
+
+Pre-2014 TVs (C, D, E and F series) only accept key presses through the legacy
+remote protocol on port 55000:
+
+```python
+from samsungtvws.legacy.remote import SamsungTVLegacyAsyncRemote
+
+async with SamsungTVLegacyAsyncRemote("192.168.1.10", timeout=30) as remote:
+    await remote.control("KEY_VOLUP")
+```
+
+The first connection shows a prompt on the TV; `timeout` also bounds how long
+the user has to allow it. A denied or cancelled prompt raises
+`UnauthorizedError`, an unknown reply raises `ResponseError` and a lost
+connection raises `ConnectionFailure`.
 
 Official Samsung compatibility references:
 
