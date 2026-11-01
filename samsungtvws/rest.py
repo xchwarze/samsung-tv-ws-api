@@ -80,6 +80,8 @@ class SamsungTVRest(connection.SamsungTVWSBaseConnection):
         encoded = (
             base64.b64encode(text.encode("utf-8")).decode("ascii").replace("\n", "")
         )
-        url = self._format_rest_url(f"remoteControl/imeInput/{encoded}?token={token}")
+        url = self._format_rest_url(
+            f"remoteControl/imeInput/{encoded}", {"token": token}
+        )
         resp = requests.post(url, timeout=self.timeout, verify=False)
         return resp.status_code == 200

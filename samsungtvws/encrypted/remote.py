@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 import contextlib
 import logging
 import time
@@ -12,8 +13,8 @@ import aiohttp
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed
 from websockets.protocol import State
-from yarl import URL
 
+from .. import helper
 from ..exceptions import ConnectionFailure
 from .command import SamsungTVEncryptedCommand
 from .session import SamsungTVEncryptedSession
@@ -77,26 +78,17 @@ class SamsungTVEncryptedWSAsyncRemote:
         await self.close()
 
     def _format_websocket_url(self, app: str) -> str:
-        return str(
-            URL.build(
-                scheme="ws",
-                host=self._host,
-                port=self._port,
-                path=f"/socket.io/1/websocket/{app}",
-            )
+        return helper.build_url(
+            scheme="ws",
+            host=self._host,
+            port=self._port,
+            path=f"/socket.io/1/websocket/{app}",
         )
 
-    def _format_rest_url(self, route: str = "") -> str:
-        path, _, query_string = route.partition("?")
-        return str(
-            URL.build(
-                scheme="http",
-                host=self._host,
-                port=self._port,
-                path=f"/{path}",
-                query_string=query_string,
-            )
-        )
+    def _format_rest_url(
+        self, route: str = "", query: Mapping[str, str] | None = None
+    ) -> str:
+        return helper.build_encrypted_rest_url(self._host, self._port, route, query)
 
     async def _open(self) -> None:
         if self._connection:
@@ -104,7 +96,7 @@ class SamsungTVEncryptedWSAsyncRemote:
             return
 
         millis = int(round(time.time() * 1000))
-        step4_url = self._format_rest_url(f"socket.io/1/?t={millis}")
+        step4_url = self._format_rest_url("socket.io/1/", {"t": str(millis)})
         LOGGER.debug("Tx: GET %s", step4_url)
 
         async with self._web_session.get(step4_url, timeout=self._timeout) as response:

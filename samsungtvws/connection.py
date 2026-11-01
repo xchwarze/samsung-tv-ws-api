@@ -8,7 +8,7 @@ SPDX-License-Identifier: LGPL-3.0
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 import json
 import logging
 import ssl
@@ -18,7 +18,6 @@ from types import TracebackType
 from typing import Any
 
 import websocket
-from yarl import URL
 
 from . import exceptions, helper
 from .command import SamsungTVCommand, SamsungTVSleepCommand
@@ -65,25 +64,24 @@ class SamsungTVWSBaseConnection:
         token = self._get_token()
         if ssl and token is not None:
             query["token"] = token
-        return str(
-            URL.build(
-                scheme="wss" if ssl else "ws",
-                host=self.host,
-                port=self.port,
-                path=f"/api/v2/channels/{app}",
-                query=query,
-            )
+        return helper.build_url(
+            scheme="wss" if ssl else "ws",
+            host=self.host,
+            port=self.port,
+            path=f"/api/v2/channels/{app}",
+            query=query,
         )
 
-    def _format_rest_url(self, route: str = "") -> str:
+    def _format_rest_url(
+        self, route: str = "", query: Mapping[str, str] | None = None
+    ) -> str:
         ssl = self._is_ssl_connection()
-        return str(
-            URL.build(
-                scheme="https" if ssl else "http",
-                host=self.host,
-                port=self.port,
-                path=f"/api/v2/{route}",
-            )
+        return helper.build_url(
+            scheme="https" if ssl else "http",
+            host=self.host,
+            port=self.port,
+            path=f"/api/v2/{route}",
+            query=query,
         )
 
     def _get_token(self) -> str | None:
