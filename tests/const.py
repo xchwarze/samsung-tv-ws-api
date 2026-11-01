@@ -32,3 +32,7 @@ with open("tests/fixtures/event_ms_error.json") as file:
     MS_ERROR_SAMPLE = file.read()
 with open("tests/fixtures/event_ms_voiceapp_hide.json") as file:
     MS_VOICEAPP_HIDE_SAMPLE = file.read()
+with open("tests/fixtures/event_ms_remote_touch_enable.json") as file:
+    MS_REMOTE_TOUCH_ENABLE_SAMPLE = file.read()
+with open("tests/fixtures/event_ms_remote_touch_disable.json") as file:
+    MS_REMOTE_TOUCH_DISABLE_SAMPLE = file.read()

@@ -23,8 +23,15 @@ MS_ERROR_EVENT = "ms.error"
 MS_VOICEAPP_HIDE_EVENT = "ms.voiceApp.hide"
 MS_REMOTE_IME_START_EVENT = "ms.remote.imeStart"
 MS_REMOTE_IME_END_EVENT = "ms.remote.imeEnd"
+MS_REMOTE_TOUCH_ENABLE_EVENT = "ms.remote.touchEnable"
+MS_REMOTE_TOUCH_DISABLE_EVENT = "ms.remote.touchDisable"
 
-IGNORE_EVENTS_AT_STARTUP = (ED_EDENTV_UPDATE_EVENT, MS_VOICEAPP_HIDE_EVENT)
+IGNORE_EVENTS_AT_STARTUP = (
+    ED_EDENTV_UPDATE_EVENT,
+    MS_VOICEAPP_HIDE_EVENT,
+    MS_REMOTE_TOUCH_ENABLE_EVENT,
+    MS_REMOTE_TOUCH_DISABLE_EVENT,
+)
 
 
 def parse_installed_app(event: dict[str, Any]) -> list[dict[str, Any]]:
