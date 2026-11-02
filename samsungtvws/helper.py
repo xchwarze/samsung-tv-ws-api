@@ -32,7 +32,15 @@ def build_url(
     path: str,
     query: Mapping[str, str] | None = None,
 ) -> str:
-    return str(URL.build(scheme=scheme, host=host, port=port, path=path, query=query))
+    return str(
+        URL.build(
+            scheme=scheme,
+            host=host.strip("[]"),
+            port=port,
+            path=path,
+            query=query,
+        )
+    )
 
 
 def build_encrypted_rest_url(

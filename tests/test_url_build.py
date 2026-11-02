@@ -106,6 +106,22 @@ def test_encrypted_url_ipv6(
         assert extra_in in url
 
 
+@pytest.mark.parametrize("host", ["::1", "[::1]"], ids=["unbracketed", "bracketed"])
+def test_ipv6_host_with_or_without_brackets(host: str) -> None:
+    """An IPv6 host is accepted with or without brackets."""
+    conn = SamsungTVWSBaseConnection(host, endpoint="samsung.remote.control")
+    remote = SamsungTVEncryptedWSAsyncRemote(
+        host,
+        web_session=Mock(aiohttp.ClientSession),
+        token="037739871315caef138547b03e348b72",
+        session_id="1",
+        port=8000,
+    )
+
+    assert conn._format_rest_url("device") == "http://[::1]:8001/api/v2/device"
+    assert remote._format_rest_url("socket.io/1/") == "http://[::1]:8000/socket.io/1/"
+
+
 @pytest.mark.parametrize(
     "port, expected_url",
     [
