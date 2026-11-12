@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Pytest tests",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+      },
+      "args": ["-m", "pytest", "tests/"],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Pytest tests with coverage",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+      },
+      "args": [
+        "-m",
+        "pytest",
+        "tests/",
+        "--cov=samsungtvws",
+        "--cov-report=term-missing:skip-covered"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
