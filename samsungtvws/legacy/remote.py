@@ -121,8 +121,7 @@ class SamsungTVLegacyAsyncRemote:
         await self._read_response()
 
     async def _send(self, payload: bytes) -> None:
-        if self._writer is None:
-            raise ConnectionFailure("Connection is not open")
+        assert self._writer
         # Frame: type byte, empty application string, then the payload.
         self._writer.write(
             b"\x00" + _serialize(b"", raw=True) + _serialize(payload, raw=True)
