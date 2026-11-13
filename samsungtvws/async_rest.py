@@ -45,11 +45,15 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
         try:
             future = self.session.request(method, url, timeout=timeout, ssl=False)
             async with future as resp:
-                return helper.process_api_response(await resp.text())
+                status = resp.status
+                body = await resp.text()
         except aiohttp.ClientConnectionError as err:
             raise exceptions.HttpApiError(
                 "TV unreachable or feature not supported on this model."
             ) from err
+        if status >= 400:
+            raise exceptions.HttpApiError(f"HTTP {status}: {body}")
+        return helper.process_api_response(body)
 
     async def rest_device_info(self) -> dict[str, Any]:
         _LOGGING.debug("Get device info via rest api")
