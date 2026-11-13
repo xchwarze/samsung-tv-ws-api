@@ -7,6 +7,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 from typing import Any
 from unittest.mock import Mock, _Call, call, patch
@@ -23,6 +24,9 @@ STATE_FILE_NAME = ".samsungtvws-art-sync.json"
 
 runner = CliRunner()
 
+# CI forces rich terminal output: colored and wrapped in a box
+_RICH_MARKUP = re.compile(r"\x1b\[[0-9;]*m|[\u2500-\u257f]")
+
 
 @pytest.fixture(name="art")
 def mock_art() -> Iterator[Mock]:
@@ -37,6 +41,11 @@ def mock_art() -> Iterator[Mock]:
 def invoke(*args: str) -> Any:
     """Run the CLI with the base connection options."""
     return runner.invoke(cli, [*BASE_ARGS, *args])
+
+
+def plain_text(text: str) -> str:
+    """Return CLI output without rich markup, on a single line."""
+    return " ".join(_RICH_MARKUP.sub("", text).split())
 
 
 def write_image(path: Path, data: bytes = b"img") -> str:
@@ -447,7 +456,7 @@ def test_upload_bad_parameter(art: Mock, args: list[str], message: str) -> None:
     result = invoke(*args)
 
     assert result.exit_code == 2
-    assert message in " ".join(result.stderr.split())
+    assert message in plain_text(result.stderr)
     art.upload.assert_not_called()
 
 
@@ -595,7 +604,7 @@ def test_sync_bad_parameter(
     result = invoke("art-sync", str(tmp_path), *flags)
 
     assert result.exit_code == 2
-    assert message in " ".join(result.stderr.split())
+    assert message in plain_text(result.stderr)
     art.upload.assert_not_called()
 
 
