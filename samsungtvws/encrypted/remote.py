@@ -91,10 +91,6 @@ class SamsungTVEncryptedWSAsyncRemote:
         return helper.build_encrypted_rest_url(self._host, self._port, route, query)
 
     async def _open(self) -> None:
-        if self._connection:
-            # someone else already created a new connection
-            return
-
         millis = int(round(time.time() * 1000))
         step4_url = self._format_rest_url("socket.io/1/", {"t": str(millis)})
         LOGGER.debug("Tx: GET %s", step4_url)

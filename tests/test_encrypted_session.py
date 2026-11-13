@@ -2,8 +2,10 @@
 
 import binascii
 
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
 from samsungtvws.encrypted.command import SamsungTVEncryptedCommand
-from samsungtvws.encrypted.session import SamsungTVEncryptedSession
+from samsungtvws.encrypted.session import Padding, SamsungTVEncryptedSession
 
 from .const import (
     SESSION_ID,
@@ -22,8 +24,11 @@ def test_simple_encrypt() -> None:
         == b"\xf9\xe8\x1c++:i\xb0\xd4\xc4\x12o$\x9e\x017\x9c\x9cS\x88\xd9\xbb"
         b"\x82/\xfb\xee\x0fD\xc2\xb9\x19\x03"
     )
-    decrypted_bytes = session._decrypt(binascii.hexlify(encrypted_bytes))
-    assert decrypted_bytes == message
+    decryptor = Cipher(
+        algorithms.AES(binascii.unhexlify(TOKEN)), modes.ECB()
+    ).decryptor()
+    decrypted = decryptor.update(encrypted_bytes) + decryptor.finalize()
+    assert Padding.unpad(decrypted) == message
 
 
 def test_command_encryption() -> None:
