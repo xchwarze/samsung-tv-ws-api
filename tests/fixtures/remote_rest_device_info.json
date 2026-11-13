@@ -1,0 +1,10 @@
+{
+  "device": {
+    "PowerState": "on",
+    "TokenAuthSupport": "true",
+    "modelName": "QE55Q60TAU"
+  },
+  "id": "uuid:12345678-1234-1234-1234-123456789abc",
+  "name": "Samsung TV",
+  "type": "Samsung SmartTV"
+}
