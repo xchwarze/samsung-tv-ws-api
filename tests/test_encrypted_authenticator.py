@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
@@ -237,3 +238,120 @@ async def test_authenticator_forwards_timeout(
 
     assert session.get.call_args.kwargs["timeout"] == expected
     assert session.post.call_args.kwargs["timeout"] == expected
+
+
+PIN_PAGE_URL = "http://samsungtv.test:8080/ws/apps/CloudPINPage"
+PAIRING_URL = (
+    "http://samsungtv.test:8080/ws/pairing?step={step}&app_id=12345"
+    "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184"
+)
+
+
+def _client_hello_body(trailer: str) -> str:
+    """Return the step 1 fixture with the 5 flag bytes after the hash replaced."""
+    with open("tests/fixtures/auth_generator_client_hello.json") as file:
+        auth_data = json.loads(json.load(file)["auth_data"])
+    hello = auth_data["GeneratorClientHello"]
+    auth_data["GeneratorClientHello"] = hello[:-10] + trailer
+    return json.dumps({"auth_data": json.dumps(auth_data)})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "page",
+    [
+        pytest.param("<service><state>running</state></service>", id="running"),
+        pytest.param("<service></service>", id="no-state"),
+    ],
+)
+async def test_start_pairing_pin_page_already_shown(
+    aiointercept_mock: aiointercept, page: str
+) -> None:
+    """Test the PIN page is not requested again unless the TV reports it stopped."""
+    aiointercept_mock.get(PIN_PAGE_URL, body=page)
+
+    async with aiohttp.ClientSession() as session:
+        authenticator = SamsungTVEncryptedWSAsyncAuthenticator(
+            "samsungtv.test", web_session=session
+        )
+        await authenticator.start_pairing()
+
+    assert list(aiointercept_mock.requests) == [("GET", URL(PIN_PAGE_URL))]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("pin", "step1_body"),
+    [
+        pytest.param("1234", _client_hello_body("0000000000"), id="wrong-pin"),
+        pytest.param("0997", _client_hello_body("0100000000"), id="first-flag"),
+        pytest.param("0997", _client_hello_body("0000000001"), id="second-flag"),
+        pytest.param("0997", '{"auth_data": ""}', id="no-client-hello"),
+    ],
+)
+async def test_try_pin_rejected(
+    aiointercept_mock: aiointercept, pin: str, step1_body: str
+) -> None:
+    """Test a rejected client hello returns no token and stops the pairing."""
+    with open("tests/fixtures/auth_empty.json") as file:
+        aiointercept_mock.get(PAIRING_URL.format(step=0) + "&type=1", body=file.read())
+    aiointercept_mock.post(PAIRING_URL.format(step=1), body=step1_body)
+
+    async with aiohttp.ClientSession() as session:
+        authenticator = SamsungTVEncryptedWSAsyncAuthenticator(
+            "samsungtv.test", web_session=session
+        )
+        token = await authenticator.try_pin(pin)
+
+    assert token is None
+    assert len(aiointercept_mock.requests) == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("step2_body", "error", "match"),
+    [
+        pytest.param(
+            "not json", SamsungTVEncryptedResponseError, "Could not parse", id="text"
+        ),
+        pytest.param(
+            "[]", SamsungTVEncryptedResponseError, "Could not parse", id="json-list"
+        ),
+        pytest.param(
+            json.dumps({"auth_data": json.dumps({"secure-mode": True})}),
+            SamsungTVEncryptedError,
+            "secure-mode",
+            id="secure-mode",
+        ),
+        pytest.param(
+            json.dumps(
+                {
+                    "auth_data": json.dumps(
+                        {
+                            "ClientAckMsg": "0104000000000000000014"
+                            + "00" * 20
+                            + "0000000000",
+                            "session_id": "1",
+                        }
+                    )
+                }
+            ),
+            SamsungTVEncryptedResponseError,
+            "validation failed",
+            id="invalid-ack",
+        ),
+    ],
+)
+async def test_acknowledge_errors(
+    aiointercept_mock: aiointercept,
+    step2_body: str,
+    error: type[SamsungTVEncryptedError],
+    match: str,
+) -> None:
+    """Test unusable step 2 responses raise the matching pairing error."""
+    authenticator = await _pair_until_step2(aiointercept_mock, step2_body=step2_body)
+
+    with pytest.raises(error, match=match) as excinfo:
+        await authenticator.get_session_id_and_close()
+
+    assert not isinstance(excinfo.value, SamsungTVEncryptedPairingExpiredError)
