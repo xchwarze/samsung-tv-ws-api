@@ -1,0 +1,19 @@
+{
+  "device": {
+    "FrameTVSupport": "false",
+    "PowerState": "on",
+    "TokenAuthSupport": "true",
+    "modelName": "QE55Q60TAUXZG",
+    "name": "Samsung Q60 Series (55)",
+    "networkType": "wireless",
+    "type": "Samsung SmartTV",
+    "wifiMac": "aa:bb:cc:dd:ee:ff"
+  },
+  "id": "uuid:12345678-1234-1234-1234-123456789abc",
+  "isSupport": "{\"remote_available\":\"true\"}",
+  "name": "Samsung Q60 Series (55)",
+  "remote": "1.0",
+  "type": "Samsung SmartTV",
+  "uri": "http://samsungtv.test:8001/api/v2/",
+  "version": "2.0.25"
+}
