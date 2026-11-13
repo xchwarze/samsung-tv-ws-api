@@ -45,9 +45,6 @@ def get_tv(ctx: typer.Context) -> SamsungTVWS:
 
 
 def bootstrap_token_if_needed(ctx: typer.Context) -> None:
-    if ctx.invoked_subcommand is None:
-        return
-
     if not ctx.obj.get("print_token", True):
         return
 

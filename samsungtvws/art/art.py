@@ -226,17 +226,14 @@ class SamsungTVArt(SamsungTVWSConnection):
     def _send_art_request(
         self,
         request_data: JsonObj,
-        wait_for_event: str | None = D2D_SERVICE_MESSAGE_EVENT,
         wait_for_sub_event: str | None = None,
         *,
         request_uuid: str | None = None,
-    ) -> Any | None:
+    ) -> Any:
         """
-        Send a request and optionally wait for a response.
+        Send a request and wait for its D2D response.
 
-        Notes:
-        - id and request_id are set to a per-request uuid for correct correlation.
-        - When waiting for a non-D2D websocket event, the raw frame is returned.
+        id and request_id are set to a per-request uuid for correct correlation.
         """
         payload = dict(request_data)
 
@@ -245,21 +242,6 @@ class SamsungTVArt(SamsungTVWSConnection):
         payload["request_id"] = req_id
 
         self.send_command(ArtChannelEmitCommand.art_app_request(payload))
-
-        if not wait_for_event:
-            return None
-
-        # Non-D2D waits return the websocket frame as-is.
-        if wait_for_event != D2D_SERVICE_MESSAGE_EVENT:
-            if wait_for_sub_event:
-                raise ValueError(
-                    "wait_for_sub_event is only valid for D2D_SERVICE_MESSAGE_EVENT"
-                )
-
-            while True:
-                event, frame = self._recv_frame()
-                if event == wait_for_event:
-                    return frame
 
         return self._wait_for_d2d(
             request_uuid=req_id,
@@ -756,9 +738,6 @@ class SamsungTVArt(SamsungTVWSConnection):
         """Delete multiple artworks by content id."""
         content_id_list = [{"content_id": cid} for cid in content_ids]
         data = self._request_json("delete_image_list", content_id_list=content_id_list)
-
-        if not isinstance(data, dict):
-            return False
 
         returned = data.get("content_id_list")
         if not returned:
