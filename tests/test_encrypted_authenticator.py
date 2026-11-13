@@ -18,7 +18,9 @@ from samsungtvws.encrypted.authenticator import (
 
 
 @pytest.mark.asyncio
-async def test_authenticator(aiointercept_mock: aiointercept) -> None:
+async def test_authenticator(
+    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
+) -> None:
     with open("tests/fixtures/auth_pin_status.xml") as file:
         aiointercept_mock.get(
             "http://samsungtv.test:8080/ws/apps/CloudPINPage", body=file.read()
@@ -51,7 +53,7 @@ async def test_authenticator(aiointercept_mock: aiointercept) -> None:
     )
 
     authenticator = SamsungTVEncryptedWSAsyncAuthenticator(
-        "samsungtv.test", web_session=aiohttp.ClientSession()
+        "samsungtv.test", web_session=web_session
     )
     await authenticator.start_pairing()
     token = await authenticator.try_pin("0997")
@@ -96,7 +98,10 @@ async def test_authenticator(aiointercept_mock: aiointercept) -> None:
 
 
 async def _pair_until_step2(
-    aiointercept_mock: aiointercept, *, step2_body: str
+    aiointercept_mock: aiointercept,
+    web_session: aiohttp.ClientSession,
+    *,
+    step2_body: str,
 ) -> SamsungTVEncryptedWSAsyncAuthenticator:
     """Drive pairing up to (but not through) step 2, returning the authenticator.
 
@@ -130,7 +135,7 @@ async def _pair_until_step2(
     )
 
     authenticator = SamsungTVEncryptedWSAsyncAuthenticator(
-        "samsungtv.test", web_session=aiohttp.ClientSession()
+        "samsungtv.test", web_session=web_session
     )
     await authenticator.start_pairing()
     token = await authenticator.try_pin("0997")
@@ -140,7 +145,7 @@ async def _pair_until_step2(
 
 @pytest.mark.asyncio
 async def test_acknowledge_empty_auth_data_raises_pairing_expired(
-    aiointercept_mock: aiointercept,
+    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
 ) -> None:
     """Empty auth_data at step 2 => a distinct, retryable expired-pairing error.
 
@@ -148,7 +153,9 @@ async def test_acknowledge_empty_auth_data_raises_pairing_expired(
     """
     with open("tests/fixtures/auth_empty.json") as file:
         empty_body = file.read()
-    authenticator = await _pair_until_step2(aiointercept_mock, step2_body=empty_body)
+    authenticator = await _pair_until_step2(
+        aiointercept_mock, web_session, step2_body=empty_body
+    )
 
     with pytest.raises(SamsungTVEncryptedPairingExpiredError) as excinfo:
         await authenticator.get_session_id_and_close()
@@ -158,11 +165,12 @@ async def test_acknowledge_empty_auth_data_raises_pairing_expired(
 
 @pytest.mark.asyncio
 async def test_acknowledge_unparseable_raises_response_error(
-    aiointercept_mock: aiointercept,
+    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
 ) -> None:
     """Non-empty but unparseable auth_data => a response error, not expired."""
     authenticator = await _pair_until_step2(
         aiointercept_mock,
+        web_session,
         step2_body='{"auth_data": "totally unexpected payload"}',
     )
 
@@ -172,7 +180,7 @@ async def test_acknowledge_unparseable_raises_response_error(
 
 @pytest.mark.asyncio
 async def test_pairing_errors_remain_catchable_as_exception(
-    aiointercept_mock: aiointercept,
+    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
 ) -> None:
     """Backwards-compat: new errors subclass a base that subclasses Exception."""
     assert issubclass(SamsungTVEncryptedError, Exception)
@@ -181,7 +189,9 @@ async def test_pairing_errors_remain_catchable_as_exception(
 
     with open("tests/fixtures/auth_empty.json") as file:
         empty_body = file.read()
-    authenticator = await _pair_until_step2(aiointercept_mock, step2_body=empty_body)
+    authenticator = await _pair_until_step2(
+        aiointercept_mock, web_session, step2_body=empty_body
+    )
 
     # Existing callers doing `except Exception` keep working: the raised type
     # is SamsungTVEncryptedError, which (asserted above) subclasses Exception.
