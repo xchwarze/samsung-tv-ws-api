@@ -55,3 +55,5 @@ with open("tests/fixtures/event_ms_remote_ime_end.json") as file:
     MS_REMOTE_IME_END_SAMPLE = file.read()
 with open("tests/fixtures/rest_device_info.json") as file:
     REST_DEVICE_INFO_SAMPLE = file.read()
+with open("tests/fixtures/rest_app_status.json") as file:
+    REST_APP_STATUS_SAMPLE = file.read()
