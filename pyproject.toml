@@ -52,6 +52,13 @@ samsungtv = "samsungtvws.cli:cli"
 [tool.setuptools.packages.find]
 include = ["samsungtvws*"]
 
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    # aiointercept upgrades aiohttp requests in place, which aiohttp discourages
+    "ignore:Setting custom .* attribute is discouraged:DeprecationWarning:aiointercept",
+]
+
 [tool.ruff]
 line-length = 88
 target-version = "py310"
