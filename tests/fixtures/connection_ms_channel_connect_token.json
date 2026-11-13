@@ -1,0 +1,9 @@
+{
+  "data": {
+    "clients": [],
+    "id": "abcdef12-3456-7890-abcd-ef1234567890",
+    "token": "12345678"
+  },
+  "event": "ms.channel.connect",
+  "from": "host"
+}
