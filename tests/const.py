@@ -49,3 +49,9 @@ with open("tests/fixtures/event_ms_remote_touch_enable.json") as file:
     MS_REMOTE_TOUCH_ENABLE_SAMPLE = file.read()
 with open("tests/fixtures/event_ms_remote_touch_disable.json") as file:
     MS_REMOTE_TOUCH_DISABLE_SAMPLE = file.read()
+with open("tests/fixtures/event_ms_remote_ime_start.json") as file:
+    MS_REMOTE_IME_START_SAMPLE = file.read()
+with open("tests/fixtures/event_ms_remote_ime_end.json") as file:
+    MS_REMOTE_IME_END_SAMPLE = file.read()
+with open("tests/fixtures/rest_device_info.json") as file:
+    REST_DEVICE_INFO_SAMPLE = file.read()
