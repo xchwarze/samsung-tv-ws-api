@@ -2,6 +2,7 @@
 
 from unittest.mock import Mock, patch
 
+import aiohttp
 from aiointercept import aiointercept
 import pytest
 import pytest_asyncio
@@ -52,3 +53,10 @@ def get_async_connection():
 async def mock_aiointercept():
     async with aiointercept(mock_external_urls=True) as m:
         yield m
+
+
+@pytest_asyncio.fixture(name="web_session")
+async def get_web_session():
+    """Create an aiohttp client session closed after the test."""
+    async with aiohttp.ClientSession() as session:
+        yield session
