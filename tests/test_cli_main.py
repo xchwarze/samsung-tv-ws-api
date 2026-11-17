@@ -13,14 +13,6 @@ from samsungtvws.cli import cli
 HOST = "127.0.0.1"
 
 
-@pytest.fixture(name="mock_tv")
-def get_mock_tv() -> Iterator[MagicMock]:
-    """Patch the SamsungTVWS class instantiated by the CLI."""
-    with patch("samsungtvws.cli.main.SamsungTVWS", autospec=True) as tv_class:
-        tv_class.return_value.token = None
-        yield tv_class
-
-
 @pytest.fixture(name="mock_basic_config")
 def get_mock_basic_config() -> Iterator[Mock]:
     """Patch logging configuration done by the CLI."""
@@ -44,7 +36,7 @@ def test_commands_sorted() -> None:
 
 
 @pytest.mark.usefixtures("mock_basic_config")
-def test_options_passed_to_tv(mock_tv: MagicMock) -> None:
+def test_options_passed_to_tv(mock_tv_class: MagicMock) -> None:
     """Ensure global options are passed to SamsungTVWS."""
     result = CliRunner().invoke(
         cli,
@@ -67,7 +59,7 @@ def test_options_passed_to_tv(mock_tv: MagicMock) -> None:
         ],
     )
     assert result.exit_code == 0
-    mock_tv.assert_called_once_with(
+    mock_tv_class.assert_called_once_with(
         host=HOST,
         port=8001,
         token="abc",
@@ -76,17 +68,17 @@ def test_options_passed_to_tv(mock_tv: MagicMock) -> None:
         key_press_delay=0.5,
         name="MyCli",
     )
-    mock_tv.return_value.end_text.assert_called_once_with()
+    mock_tv_class.return_value.end_text.assert_called_once_with()
 
 
 @pytest.mark.usefixtures("mock_basic_config")
-def test_defaults_and_zero_timeout(mock_tv: MagicMock) -> None:
+def test_defaults_and_zero_timeout(mock_tv_class: MagicMock) -> None:
     """Ensure defaults are used and a zero timeout disables the timeout."""
     result = CliRunner().invoke(
         cli, ["--host", HOST, "--token", "abc", "--timeout", "0", "end-text"]
     )
     assert result.exit_code == 0
-    mock_tv.assert_called_once_with(
+    mock_tv_class.assert_called_once_with(
         host=HOST,
         port=8002,
         token="abc",
@@ -106,7 +98,7 @@ def test_defaults_and_zero_timeout(mock_tv: MagicMock) -> None:
         pytest.param(["-v", "-v", "-v"], logging.DEBUG, id="more-verbose"),
     ],
 )
-@pytest.mark.usefixtures("mock_tv")
+@pytest.mark.usefixtures("mock_tv_class")
 def test_logging_level(
     mock_basic_config: Mock, verbose_args: list[str], level: int
 ) -> None:
@@ -121,35 +113,35 @@ def test_logging_level(
 
 
 @pytest.mark.usefixtures("mock_basic_config")
-def test_bootstrap_token(mock_tv: MagicMock) -> None:
+def test_bootstrap_token(mock_tv_class: MagicMock) -> None:
     """Ensure a new token is fetched, printed and used by the command."""
-    tv = mock_tv.return_value
+    tv = mock_tv_class.return_value
     tv.token = "new-token"
     result = CliRunner().invoke(cli, ["--host", HOST, "end-text"])
     assert result.exit_code == 0
     assert result.stderr == "[*] Auth token (not saved): new-token\n"
     tv.open.assert_called_once_with()
     tv.close.assert_called_once_with()
-    assert mock_tv.call_args_list[0].kwargs["token"] is None
-    assert mock_tv.call_args_list[1].kwargs["token"] == "new-token"
+    assert mock_tv_class.call_args_list[0].kwargs["token"] is None
+    assert mock_tv_class.call_args_list[1].kwargs["token"] == "new-token"
 
 
 @pytest.mark.usefixtures("mock_basic_config")
-def test_bootstrap_no_token(mock_tv: MagicMock) -> None:
+def test_bootstrap_no_token(mock_tv_class: MagicMock) -> None:
     """Ensure nothing is printed when the TV returns no token."""
-    tv = mock_tv.return_value
+    tv = mock_tv_class.return_value
     result = CliRunner().invoke(cli, ["--host", HOST, "end-text"])
     assert result.exit_code == 0
     assert result.stderr == ""
     tv.open.assert_called_once_with()
     tv.close.assert_called_once_with()
-    assert mock_tv.call_args_list[1].kwargs["token"] is None
+    assert mock_tv_class.call_args_list[1].kwargs["token"] is None
 
 
 @pytest.mark.usefixtures("mock_basic_config")
-def test_bootstrap_open_failure_closes(mock_tv: MagicMock) -> None:
+def test_bootstrap_open_failure_closes(mock_tv_class: MagicMock) -> None:
     """Ensure the connection is closed when opening it fails."""
-    tv = mock_tv.return_value
+    tv = mock_tv_class.return_value
     tv.open.side_effect = OSError("unreachable")
     result = CliRunner().invoke(cli, ["--host", HOST, "end-text"])
     assert isinstance(result.exception, OSError)
@@ -166,11 +158,11 @@ def test_bootstrap_open_failure_closes(mock_tv: MagicMock) -> None:
     ],
 )
 @pytest.mark.usefixtures("mock_basic_config")
-def test_bootstrap_skipped(mock_tv: MagicMock, extra_args: list[str]) -> None:
+def test_bootstrap_skipped(mock_tv_class: MagicMock, extra_args: list[str]) -> None:
     """Ensure no token is fetched when it is not needed."""
-    tv = mock_tv.return_value
+    tv = mock_tv_class.return_value
     result = CliRunner().invoke(cli, ["--host", HOST, *extra_args, "end-text"])
     assert result.exit_code == 0
     tv.open.assert_not_called()
     tv.close.assert_not_called()
-    mock_tv.assert_called_once()
+    mock_tv_class.assert_called_once()
