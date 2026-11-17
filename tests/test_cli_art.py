@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 import io
 import json
 import os
 from pathlib import Path
-import re
 import tempfile
 from typing import Any
-from unittest.mock import Mock, _Call, call, patch
+from unittest.mock import MagicMock, Mock, _Call, call, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -19,33 +17,25 @@ from samsungtvws import exceptions
 from samsungtvws.art import SamsungTVArt
 from samsungtvws.cli import cli
 
-BASE_ARGS = ["--host", "127.0.0.1", "--token", "abc"]
+from .const import BASE_ARGS, plain_text
+
 STATE_FILE_NAME = ".samsungtvws-art-sync.json"
 
 runner = CliRunner()
 
-# CI forces rich terminal output: colored and wrapped in a box
-_RICH_MARKUP = re.compile(r"\x1b\[[0-9;]*m|[\u2500-\u257f]")
-
 
 @pytest.fixture(name="art")
-def mock_art() -> Iterator[Mock]:
-    """Patch SamsungTVWS used by the CLI and return its art API mock."""
+def mock_art(mock_tv: MagicMock) -> Mock:
+    """Return the art API mock of the SamsungTVWS used by the CLI."""
     art = Mock(spec=SamsungTVArt)
     art.supported.return_value = True
-    with patch("samsungtvws.cli.main.SamsungTVWS") as tv_class:
-        tv_class.return_value.art.return_value = art
-        yield art
+    mock_tv.art.return_value = art
+    return art
 
 
 def invoke(*args: str) -> Any:
     """Run the CLI with the base connection options."""
     return runner.invoke(cli, [*BASE_ARGS, *args])
-
-
-def plain_text(text: str) -> str:
-    """Return CLI output without rich markup, on a single line."""
-    return " ".join(_RICH_MARKUP.sub("", text).split())
 
 
 def write_image(path: Path, data: bytes = b"img") -> str:

@@ -1,6 +1,7 @@
 """Tests for remote module."""
 
-from unittest.mock import Mock, patch
+from collections.abc import Iterator
+from unittest.mock import MagicMock, Mock, patch
 
 import aiohttp
 from aiointercept import aiointercept
@@ -60,3 +61,17 @@ async def get_web_session():
     """Create an aiohttp client session closed after the test."""
     async with aiohttp.ClientSession() as session:
         yield session
+
+
+@pytest.fixture(name="mock_tv_class")
+def get_mock_tv_class() -> Iterator[MagicMock]:
+    """Patch the SamsungTVWS class instantiated by the CLI."""
+    with patch("samsungtvws.cli.main.SamsungTVWS", autospec=True) as tv_class:
+        tv_class.return_value.token = None
+        yield tv_class
+
+
+@pytest.fixture(name="mock_tv")
+def get_mock_tv(mock_tv_class: MagicMock) -> MagicMock:
+    """Return the SamsungTVWS instance used by the CLI."""
+    return mock_tv_class.return_value

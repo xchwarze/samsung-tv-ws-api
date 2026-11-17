@@ -1,5 +1,18 @@
 """Constants for tests."""
 
+import re
+
+BASE_ARGS = ["--host", "127.0.0.1", "--token", "abc"]
+
+# CI forces rich terminal output: colored and wrapped in a box
+_RICH_MARKUP = re.compile(r"\x1b\[[0-9;]*m|[\u2500-\u257f]")
+
+
+def plain_text(text: str) -> str:
+    """Return CLI output without rich markup, on a single line."""
+    return " ".join(_RICH_MARKUP.sub("", text).split())
+
+
 with open("tests/fixtures/event_d2d_service_message_ok_sample.json") as file:
     D2D_SERVICE_MESSAGE_OK_SAMPLE = file.read()
 with open("tests/fixtures/event_d2d_service_message_available.json") as file:
