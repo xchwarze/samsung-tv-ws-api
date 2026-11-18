@@ -67,7 +67,7 @@ def test_connection_failure(connection: Mock) -> None:
     """Ensure simple data can be parsed."""
     connection.recv = Mock(side_effect=[MS_ERROR_SAMPLE])
     tv = SamsungTVWS("127.0.0.1")
-    with pytest.raises(ConnectionFailure):
+    with pytest.raises(ConnectionFailure, match="ms.error"):
         tv.open()
 
 

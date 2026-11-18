@@ -128,25 +128,35 @@ async def test_handshake_and_control(fake_tv: StartFakeTV) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("replies", "error"),
+    ("replies", "error", "match"),
     [
-        pytest.param([RESPONSE_ACCESS_DENIED], UnauthorizedError, id="denied"),
-        pytest.param([WAITING, CANCELLED], UnauthorizedError, id="cancelled"),
-        pytest.param([b"\x01\x02"], ResponseError, id="unhandled"),
-        pytest.param([], ConnectionFailure, id="closed"),
-        pytest.param([b""], ConnectionFailure, id="empty"),
+        pytest.param(
+            [RESPONSE_ACCESS_DENIED], UnauthorizedError, "Access denied", id="denied"
+        ),
+        pytest.param(
+            [WAITING, CANCELLED],
+            UnauthorizedError,
+            "Authorization cancelled",
+            id="cancelled",
+        ),
+        pytest.param(
+            [b"\x01\x02"], ResponseError, "Unhandled response: 0102", id="unhandled"
+        ),
+        pytest.param([], ConnectionFailure, "Connection closed", id="closed"),
+        pytest.param([b""], ConnectionFailure, "Connection closed", id="empty"),
     ],
 )
 async def test_handshake_errors(
     fake_tv: StartFakeTV,
     replies: list[bytes],
     error: type[Exception],
+    match: str,
 ) -> None:
     """Test handshake failures raise and leave the remote disconnected."""
     tv = await fake_tv(replies)
     remote = _remote(tv.port)
 
-    with pytest.raises(error):
+    with pytest.raises(error, match=match):
         await remote.open()
 
     assert not remote.is_connected
@@ -178,7 +188,7 @@ async def test_control_after_tv_closes(fake_tv: StartFakeTV) -> None:
     remote = _remote(tv.port)
     await remote.open()
 
-    with pytest.raises(ConnectionFailure):
+    with pytest.raises(ConnectionFailure, match="Connection closed"):
         await remote.control("KEY_MUTE")
     assert not remote.is_connected
 

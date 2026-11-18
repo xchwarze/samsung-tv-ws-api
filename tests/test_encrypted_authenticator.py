@@ -150,29 +150,18 @@ async def test_acknowledge_empty_auth_data_raises_pairing_expired(
         aiointercept_mock, web_session, step2_body=AUTH_EMPTY_SAMPLE
     )
 
-    with pytest.raises(SamsungTVEncryptedPairingExpiredError) as excinfo:
-        await authenticator.get_session_id_and_close()
     # The raw response is surfaced in the message (not just at DEBUG).
-    assert "auth_data" in str(excinfo.value)
+    with pytest.raises(
+        SamsungTVEncryptedPairingExpiredError, match=r"empty auth_data.*\(raw: "
+    ):
+        await authenticator.get_session_id_and_close()
 
 
-@pytest.mark.asyncio
-async def test_pairing_errors_remain_catchable_as_exception(
-    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
-) -> None:
+def test_pairing_errors_remain_catchable_as_exception() -> None:
     """Backwards-compat: new errors subclass a base that subclasses Exception."""
     assert issubclass(SamsungTVEncryptedError, Exception)
     assert issubclass(SamsungTVEncryptedPairingExpiredError, SamsungTVEncryptedError)
     assert issubclass(SamsungTVEncryptedResponseError, SamsungTVEncryptedError)
-
-    authenticator = await _pair_until_step2(
-        aiointercept_mock, web_session, step2_body=AUTH_EMPTY_SAMPLE
-    )
-
-    # Existing callers doing `except Exception` keep working: the raised type
-    # is SamsungTVEncryptedError, which (asserted above) subclasses Exception.
-    with pytest.raises(SamsungTVEncryptedError):
-        await authenticator.get_session_id_and_close()
 
 
 def _mock_session(get_body: str) -> MagicMock:

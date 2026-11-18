@@ -89,7 +89,7 @@ def test_art_not_supported(art: Mock, args: list[str]) -> None:
 
     assert result.exit_code == 2
     assert "Art Mode not supported" in result.stderr
-    art.upload.assert_not_called()
+    assert art.mock_calls == [call.supported()]
 
 
 @pytest.mark.parametrize(

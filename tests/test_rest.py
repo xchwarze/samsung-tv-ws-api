@@ -72,7 +72,7 @@ def test_request_connection_error() -> None:
             "samsungtvws.rest.requests.get",
             side_effect=requests.ConnectionError,
         ),
-        pytest.raises(HttpApiError),
+        pytest.raises(HttpApiError, match="TV unreachable"),
     ):
         rest.rest_device_info()
 

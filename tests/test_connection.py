@@ -81,7 +81,7 @@ def test_open_unauthorized(connection: Mock) -> None:
     """Ensure an unauthorized event raises UnauthorizedError."""
     connection.recv.side_effect = [MS_CHANNEL_UNAUTHORIZED_SAMPLE]
     tv = _connection()
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(UnauthorizedError, match="ms.channel.unauthorized"):
         tv.open()
     assert tv.connection is None
 
@@ -102,7 +102,10 @@ def test_open_error_event(
     """Ensure an error event fails the connection and hints at the v1 API."""
     connection.recv.side_effect = [sample]
     tv = _connection()
-    with caplog.at_level(logging.ERROR), pytest.raises(ConnectionFailure):
+    with (
+        caplog.at_level(logging.ERROR),
+        pytest.raises(ConnectionFailure, match="ms.error"),
+    ):
         tv.open()
     assert (
         "Your TV does not seem to support v2 API, please try v1 API" in caplog.text

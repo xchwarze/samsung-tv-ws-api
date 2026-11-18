@@ -69,5 +69,5 @@ async def test_rest_unreachable(
     """Ensure connection errors are raised as HttpApiError."""
     aiointercept_mock.get("http://samsungtv.test:8001/api/v2/", exception=True)
     tv = SamsungTVAsyncRest("samsungtv.test", session=web_session)
-    with pytest.raises(HttpApiError):
+    with pytest.raises(HttpApiError, match="TV unreachable"):
         await tv.rest_device_info()
