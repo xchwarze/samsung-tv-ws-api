@@ -7,12 +7,15 @@ from typer.testing import CliRunner
 
 from samsungtvws.cli import cli
 
-from .const import BASE_ARGS
+from .const import (
+    APP_ID,
+    BASE_ARGS,
+)
 
 
 def test_apps(mock_tv: MagicMock) -> None:
     """Ensure the installed app list is printed."""
-    mock_tv.app_list.return_value = [{"appId": "111299001912", "name": "YouTube"}]
+    mock_tv.app_list.return_value = [{"appId": APP_ID, "name": "YouTube"}]
     result = CliRunner().invoke(cli, [*BASE_ARGS, "apps"])
     assert result.exit_code == 0
     assert result.stdout == "[{'appId': '111299001912', 'name': 'YouTube'}]\n"
@@ -35,12 +38,10 @@ def test_app_run_ws(
     mock_tv: MagicMock, extra_args: list[str], app_type: str, meta_tag: str
 ) -> None:
     """Ensure an app is launched over the websocket."""
-    result = CliRunner().invoke(
-        cli, [*BASE_ARGS, "app-run-ws", "111299001912", *extra_args]
-    )
+    result = CliRunner().invoke(cli, [*BASE_ARGS, "app-run-ws", APP_ID, *extra_args])
     assert result.exit_code == 0
     mock_tv.run_app.assert_called_once_with(
-        "111299001912", app_type=app_type, meta_tag=meta_tag
+        APP_ID, app_type=app_type, meta_tag=meta_tag
     )
 
 

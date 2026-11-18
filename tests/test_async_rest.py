@@ -10,9 +10,11 @@ from yarl import URL
 from samsungtvws.async_rest import SamsungTVAsyncRest
 from samsungtvws.exceptions import HttpApiError
 
-from .const import REST_APP_STATUS_SAMPLE, REST_DEVICE_INFO_SAMPLE
-
-APP_ID = "111299001912"
+from .const import (
+    APP_ID,
+    REST_APP_STATUS_SAMPLE,
+    REST_DEVICE_INFO_SAMPLE,
+)
 
 
 @pytest.mark.asyncio

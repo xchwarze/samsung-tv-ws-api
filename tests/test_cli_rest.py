@@ -7,9 +7,10 @@ from typer.testing import CliRunner
 
 from samsungtvws.cli import cli
 
-from .const import BASE_ARGS
-
-APP_ID = "111299001912"
+from .const import (
+    APP_ID,
+    BASE_ARGS,
+)
 
 
 def test_device_info(mock_tv: MagicMock) -> None:

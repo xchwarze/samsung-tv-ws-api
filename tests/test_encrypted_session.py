@@ -5,8 +5,10 @@ import binascii
 from samsungtvws.encrypted.command import SamsungTVEncryptedCommand
 from samsungtvws.encrypted.session import SamsungTVEncryptedSession
 
-TOKEN = "037739871315caef138547b03e348b72"
-SESSION_ID = "1"
+from .const import (
+    SESSION_ID,
+    TOKEN,
+)
 
 
 def test_simple_encrypt() -> None:

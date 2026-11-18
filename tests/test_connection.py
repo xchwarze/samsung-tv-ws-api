@@ -14,15 +14,14 @@ from samsungtvws.connection import SamsungTVWSConnection
 from samsungtvws.exceptions import ConnectionFailure, UnauthorizedError
 
 from .const import (
+    ENDPOINT,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_CHANNEL_CONNECT_TOKEN_SAMPLE,
     MS_CHANNEL_UNAUTHORIZED_SAMPLE,
     MS_ERROR_REMOTE_CONTROL_SAMPLE,
     MS_ERROR_SAMPLE,
+    NAME_B64,
 )
-
-ENDPOINT = "samsung.remote.control"
-NAME_B64 = "U2Ftc3VuZ1R2UmVtb3Rl"
 
 
 def _connection(**kwargs: object) -> SamsungTVWSConnection:

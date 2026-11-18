@@ -21,9 +21,11 @@ from samsungtvws.remote import (
 from samsungtvws.shortcuts import SamsungTVShortcuts
 
 from .const import (
+    APP_ID,
     ED_APPS_LAUNCH_SAMPLE,
     ED_EDENTV_UPDATE_SAMPLE,
     ED_INSTALLED_APP_SAMPLE,
+    INSTALLED_APPS,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_ERROR_SAMPLE,
     MS_REMOTE_IME_END_SAMPLE,
@@ -31,6 +33,7 @@ from .const import (
     MS_REMOTE_TOUCH_DISABLE_SAMPLE,
     MS_REMOTE_TOUCH_ENABLE_SAMPLE,
     MS_VOICEAPP_HIDE_SAMPLE,
+    REST_APP_STATUS_SAMPLE,
     REST_DEVICE_INFO_SAMPLE,
 )
 
@@ -102,22 +105,7 @@ def test_app_list(connection: Mock) -> None:
         ED_INSTALLED_APP_SAMPLE,
     ]
     tv = SamsungTVWS("127.0.0.1")
-    assert tv.app_list() == [
-        {
-            "appId": "111299001912",
-            "app_type": 2,
-            "icon": "/opt/share/webappservice/apps_icon/FirstScreen/111299001912/250x250.png",
-            "is_lock": 0,
-            "name": "YouTube",
-        },
-        {
-            "appId": "3201608010191",
-            "app_type": 2,
-            "icon": "/opt/share/webappservice/apps_icon/FirstScreen/3201608010191/250x250.png",
-            "is_lock": 0,
-            "name": "Deezer",
-        },
-    ]
+    assert tv.app_list() == INSTALLED_APPS
 
 
 def test_app_list_invalid(connection: Mock) -> None:
@@ -141,7 +129,6 @@ def test_send_hold_key(connection: Mock) -> None:
     with patch("samsungtvws.connection.time.sleep") as patch_sleep:
         tv.hold_key("KEY_POWER", 3)
 
-    assert patch_sleep.call_count == 3
     assert patch_sleep.call_args_list == [call(1), call(3), call(1)]
 
 
@@ -280,13 +267,13 @@ def test_move_cursor(connection: Mock) -> None:
     ("args", "expected_data"),
     [
         pytest.param(
-            ("111299001912",),
-            {"action_type": "DEEP_LINK", "appId": "111299001912", "metaTag": ""},
+            (APP_ID,),
+            {"action_type": "DEEP_LINK", "appId": APP_ID, "metaTag": ""},
             id="default",
         ),
         pytest.param(
-            ("111299001912", "NATIVE_LAUNCH", "tag"),
-            {"action_type": "NATIVE_LAUNCH", "appId": "111299001912", "metaTag": "tag"},
+            (APP_ID, "NATIVE_LAUNCH", "tag"),
+            {"action_type": "NATIVE_LAUNCH", "appId": APP_ID, "metaTag": "tag"},
             id="native-launch",
         ),
     ],
@@ -463,11 +450,11 @@ def test_rest_app(method: str, http_method: str) -> None:
     tv = SamsungTVWS("127.0.0.1")
     with patch(
         f"samsungtvws.rest.requests.{http_method}",
-        return_value=Mock(text='{"id": "111299001912", "running": true}'),
+        return_value=Mock(text=REST_APP_STATUS_SAMPLE),
     ) as mock_request:
-        result: dict[str, Any] = getattr(tv, method)("111299001912")
+        result: dict[str, Any] = getattr(tv, method)(APP_ID)
 
-    assert result == {"id": "111299001912", "running": True}
+    assert result == json.loads(REST_APP_STATUS_SAMPLE)
     mock_request.assert_called_once_with(
         "http://127.0.0.1:8001/api/v2/applications/111299001912",
         timeout=None,

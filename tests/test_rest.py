@@ -8,9 +8,12 @@ import requests
 from samsungtvws.exceptions import HttpApiError
 from samsungtvws.rest import SamsungTVRest
 
-from .const import REST_APP_STATUS_SAMPLE, REST_DEVICE_INFO_SAMPLE
+from .const import (
+    APP_ID,
+    REST_APP_STATUS_SAMPLE,
+    REST_DEVICE_INFO_SAMPLE,
+)
 
-APP_ID = "111299001912"
 APP_URL = f"http://127.0.0.1:8001/api/v2/applications/{APP_ID}"
 
 
