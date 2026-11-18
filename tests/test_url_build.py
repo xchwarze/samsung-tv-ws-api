@@ -9,6 +9,11 @@ from samsungtvws.connection import SamsungTVWSBaseConnection
 from samsungtvws.encrypted.remote import SamsungTVEncryptedWSAsyncRemote
 from samsungtvws.rest import SamsungTVRest
 
+from .const import (
+    ENDPOINT,
+    TOKEN,
+)
+
 IPV6_HOST = "::1"
 
 
@@ -24,7 +29,7 @@ IPV6_HOST = "::1"
             8001,
             None,
             "_format_websocket_url",
-            ("samsung.remote.control",),
+            (ENDPOINT,),
             "ws://[::1]:8001/",
             None,
         ),
@@ -32,7 +37,7 @@ IPV6_HOST = "::1"
             8002,
             "tok",
             "_format_websocket_url",
-            ("samsung.remote.control",),
+            (ENDPOINT,),
             "wss://[::1]:8002/",
             "token=tok",
         ),
@@ -58,7 +63,7 @@ def test_base_conn_url_ipv6(
 ) -> None:
     """IPv6 host must be bracketed in all SamsungTVWSBaseConnection URLs."""
     conn = SamsungTVWSBaseConnection(
-        IPV6_HOST, endpoint="samsung.remote.control", port=port, token=token
+        IPV6_HOST, endpoint=ENDPOINT, port=port, token=token
     )
     url = getattr(conn, method)(*args)
     assert url.startswith(expected_prefix)
@@ -95,7 +100,7 @@ def test_encrypted_url_ipv6(
     remote = SamsungTVEncryptedWSAsyncRemote(
         IPV6_HOST,
         web_session=Mock(aiohttp.ClientSession),
-        token="037739871315caef138547b03e348b72",
+        token=TOKEN,
         session_id="1",
         port=8000,
     )
@@ -109,11 +114,11 @@ def test_encrypted_url_ipv6(
 @pytest.mark.parametrize("host", ["::1", "[::1]"], ids=["unbracketed", "bracketed"])
 def test_ipv6_host_with_or_without_brackets(host: str) -> None:
     """An IPv6 host is accepted with or without brackets."""
-    conn = SamsungTVWSBaseConnection(host, endpoint="samsung.remote.control")
+    conn = SamsungTVWSBaseConnection(host, endpoint=ENDPOINT)
     remote = SamsungTVEncryptedWSAsyncRemote(
         host,
         web_session=Mock(aiohttp.ClientSession),
-        token="037739871315caef138547b03e348b72",
+        token=TOKEN,
         session_id="1",
         port=8000,
     )

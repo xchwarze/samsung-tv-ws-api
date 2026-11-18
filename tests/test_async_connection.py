@@ -13,12 +13,12 @@ from samsungtvws.exceptions import ConnectionFailure, UnauthorizedError
 
 from .const import (
     ED_APPS_LAUNCH_SAMPLE,
+    ENDPOINT,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_CHANNEL_READY_SAMPLE,
     MS_CHANNEL_UNAUTHORIZED_SAMPLE,
+    NAME_B64,
 )
-
-ENDPOINT = "samsung.remote.control"
 
 
 def _create_tv(port: int = 8001) -> SamsungTVWSAsyncConnection:
@@ -50,15 +50,13 @@ def _block_recv_until_close(async_connection: Mock, *messages: str) -> None:
     [
         pytest.param(
             8001,
-            "ws://127.0.0.1:8001/api/v2/channels/samsung.remote.control"
-            "?name=U2Ftc3VuZ1R2UmVtb3Rl",
+            f"ws://127.0.0.1:8001/api/v2/channels/{ENDPOINT}?name={NAME_B64}",
             False,
             id="ws",
         ),
         pytest.param(
             8002,
-            "wss://127.0.0.1:8002/api/v2/channels/samsung.remote.control"
-            "?name=U2Ftc3VuZ1R2UmVtb3Rl",
+            f"wss://127.0.0.1:8002/api/v2/channels/{ENDPOINT}?name={NAME_B64}",
             True,
             id="wss",
         ),
@@ -82,7 +80,7 @@ async def test_open_reuses_existing_connection(async_connection: Mock) -> None:
     """Ensure open returns the existing connection without reconnecting."""
     async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
     tv = _create_tv()
-    tv.connection = await tv.open()
+    await tv.open()
     assert await tv.open() is async_connection
     async_connection.recv.assert_awaited_once()
 

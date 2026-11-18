@@ -598,7 +598,8 @@ def test_sync_bad_parameter(
     art.upload.assert_not_called()
 
 
-def test_sync_folder_not_found(art: Mock, tmp_path: Path) -> None:
+@pytest.mark.usefixtures("art")
+def test_sync_folder_not_found(tmp_path: Path) -> None:
     """A missing folder is rejected."""
     missing = tmp_path / "missing"
 

@@ -13,6 +13,7 @@ from .const import (
     ED_APPS_LAUNCH_SAMPLE,
     ED_EDENTV_UPDATE_SAMPLE,
     ED_INSTALLED_APP_SAMPLE,
+    INSTALLED_APPS,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_ERROR_SAMPLE,
     MS_REMOTE_TOUCH_DISABLE_SAMPLE,
@@ -114,22 +115,7 @@ async def test_app_list(async_connection: Mock) -> None:
     async_connection.send = Mock(return_value=create_future_with_result(None))
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
     await tv.start_listening()
-    assert await tv.app_list() == [
-        {
-            "appId": "111299001912",
-            "app_type": 2,
-            "icon": "/opt/share/webappservice/apps_icon/FirstScreen/111299001912/250x250.png",
-            "is_lock": 0,
-            "name": "YouTube",
-        },
-        {
-            "appId": "3201608010191",
-            "app_type": 2,
-            "icon": "/opt/share/webappservice/apps_icon/FirstScreen/3201608010191/250x250.png",
-            "is_lock": 0,
-            "name": "Deezer",
-        },
-    ]
+    assert await tv.app_list() == INSTALLED_APPS
 
 
 @pytest.mark.asyncio
@@ -145,22 +131,7 @@ async def test_app_list_bad_order(async_connection: Mock) -> None:
     async_connection.send = Mock(return_value=create_future_with_result(None))
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
     await tv.start_listening()
-    assert await tv.app_list() == [
-        {
-            "appId": "111299001912",
-            "app_type": 2,
-            "icon": "/opt/share/webappservice/apps_icon/FirstScreen/111299001912/250x250.png",
-            "is_lock": 0,
-            "name": "YouTube",
-        },
-        {
-            "appId": "3201608010191",
-            "app_type": 2,
-            "icon": "/opt/share/webappservice/apps_icon/FirstScreen/3201608010191/250x250.png",
-            "is_lock": 0,
-            "name": "Deezer",
-        },
-    ]
+    assert await tv.app_list() == INSTALLED_APPS
 
 
 @pytest.mark.asyncio
@@ -178,7 +149,6 @@ async def test_send_hold_key(async_connection: Mock) -> None:
     ) as patch_sleep:
         await tv.send_command(SendRemoteKey.hold("KEY_POWER", 3))
 
-    assert patch_sleep.call_count == 3
     assert patch_sleep.call_args_list == [call(1), call(3), call(1)]
 
 

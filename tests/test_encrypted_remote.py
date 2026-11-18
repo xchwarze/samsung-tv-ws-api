@@ -18,8 +18,11 @@ from samsungtvws.encrypted.remote import SamsungTVEncryptedWSAsyncRemote, SendRe
 from samsungtvws.encrypted.session import SamsungTVEncryptedSession
 from samsungtvws.exceptions import ConnectionFailure
 
-TOKEN = "037739871315caef138547b03e348b72"
-SESSION_ID = "1"
+from .const import (
+    SESSION_ID,
+    TOKEN,
+)
+
 STEP4_URL = re.compile(r"http://samsungtv\.test:8000/socket\.io/1/\?t=\d+$")
 WS_URL = "ws://samsungtv.test:8000/socket.io/1/websocket/abcdef"
 HANDSHAKE = "1::/com.samsung.companion"
@@ -192,10 +195,10 @@ async def test_start_listening(
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("sleep")
 async def test_is_alive_closed_by_tv(
     aiointercept_mock: aiointercept,
     encrypted_connection: Mock,
-    sleep: AsyncMock,
     web_session: aiohttp.ClientSession,
 ) -> None:
     """Test the remote is not alive once the TV closed the websocket."""

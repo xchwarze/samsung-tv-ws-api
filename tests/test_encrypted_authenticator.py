@@ -17,38 +17,41 @@ from samsungtvws.encrypted.authenticator import (
     SamsungTVEncryptedWSAsyncAuthenticator,
 )
 
+from .const import (
+    AUTH_CLIENT_ACK_MSG_SAMPLE,
+    AUTH_EMPTY_SAMPLE,
+    AUTH_GENERATOR_CLIENT_HELLO_SAMPLE,
+    AUTH_PIN_STATUS_SAMPLE,
+)
+
+PIN_PAGE_URL = "http://samsungtv.test:8080/ws/apps/CloudPINPage"
+PAIRING_URL = (
+    "http://samsungtv.test:8080/ws/pairing?step={step}&app_id=12345"
+    "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184"
+)
+
 
 @pytest.mark.asyncio
 async def test_authenticator(
     aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
 ) -> None:
-    with open("tests/fixtures/auth_pin_status.xml") as file:
-        aiointercept_mock.get(
-            "http://samsungtv.test:8080/ws/apps/CloudPINPage", body=file.read()
-        )
-    with open("tests/fixtures/auth_pin_status.xml") as file:
-        aiointercept_mock.post(
-            "http://samsungtv.test:8080/ws/apps/CloudPINPage",
-            body="http:///ws/apps/CloudPINPage/run",
-        )
-    with open("tests/fixtures/auth_empty.json") as file:
-        aiointercept_mock.get(
-            "http://samsungtv.test:8080/ws/pairing?step=0&app_id=12345"
-            "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184&type=1",
-            body=file.read(),
-        )
-    with open("tests/fixtures/auth_generator_client_hello.json") as file:
-        aiointercept_mock.post(
-            "http://samsungtv.test:8080/ws/pairing?step=1&app_id=12345"
-            "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184",
-            body=file.read(),
-        )
-    with open("tests/fixtures/auth_client_ack_msg.json") as file:
-        aiointercept_mock.post(
-            "http://samsungtv.test:8080/ws/pairing?step=2&app_id=12345"
-            "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184",
-            body=file.read(),
-        )
+    aiointercept_mock.get(PIN_PAGE_URL, body=AUTH_PIN_STATUS_SAMPLE)
+    aiointercept_mock.post(
+        PIN_PAGE_URL,
+        body="http:///ws/apps/CloudPINPage/run",
+    )
+    aiointercept_mock.get(
+        PAIRING_URL.format(step=0) + "&type=1",
+        body=AUTH_EMPTY_SAMPLE,
+    )
+    aiointercept_mock.post(
+        PAIRING_URL.format(step=1),
+        body=AUTH_GENERATOR_CLIENT_HELLO_SAMPLE,
+    )
+    aiointercept_mock.post(
+        PAIRING_URL.format(step=2),
+        body=AUTH_CLIENT_ACK_MSG_SAMPLE,
+    )
     aiointercept_mock.delete(
         "http://samsungtv.test:8080/ws/apps/CloudPINPage/run", body=""
     )
@@ -64,7 +67,6 @@ async def test_authenticator(
     assert session_id == "1"
 
     assert len(aiointercept_mock.requests) == 6
-    print(aiointercept_mock.requests)
 
     request = aiointercept_mock.requests[
         (
@@ -109,29 +111,21 @@ async def _pair_until_step2(
     ``step2_body`` is the raw body the TV "returns" at step 2, letting each
     test exercise a different acknowledge-exchange response.
     """
-    with open("tests/fixtures/auth_pin_status.xml") as file:
-        aiointercept_mock.get(
-            "http://samsungtv.test:8080/ws/apps/CloudPINPage", body=file.read()
-        )
+    aiointercept_mock.get(PIN_PAGE_URL, body=AUTH_PIN_STATUS_SAMPLE)
     aiointercept_mock.post(
-        "http://samsungtv.test:8080/ws/apps/CloudPINPage",
+        PIN_PAGE_URL,
         body="http:///ws/apps/CloudPINPage/run",
     )
-    with open("tests/fixtures/auth_empty.json") as file:
-        aiointercept_mock.get(
-            "http://samsungtv.test:8080/ws/pairing?step=0&app_id=12345"
-            "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184&type=1",
-            body=file.read(),
-        )
-    with open("tests/fixtures/auth_generator_client_hello.json") as file:
-        aiointercept_mock.post(
-            "http://samsungtv.test:8080/ws/pairing?step=1&app_id=12345"
-            "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184",
-            body=file.read(),
-        )
+    aiointercept_mock.get(
+        PAIRING_URL.format(step=0) + "&type=1",
+        body=AUTH_EMPTY_SAMPLE,
+    )
     aiointercept_mock.post(
-        "http://samsungtv.test:8080/ws/pairing?step=2&app_id=12345"
-        "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184",
+        PAIRING_URL.format(step=1),
+        body=AUTH_GENERATOR_CLIENT_HELLO_SAMPLE,
+    )
+    aiointercept_mock.post(
+        PAIRING_URL.format(step=2),
         body=step2_body,
     )
 
@@ -152,10 +146,8 @@ async def test_acknowledge_empty_auth_data_raises_pairing_expired(
 
     Regression test for fermulator/samsung-tv-ws-api#2.
     """
-    with open("tests/fixtures/auth_empty.json") as file:
-        empty_body = file.read()
     authenticator = await _pair_until_step2(
-        aiointercept_mock, web_session, step2_body=empty_body
+        aiointercept_mock, web_session, step2_body=AUTH_EMPTY_SAMPLE
     )
 
     with pytest.raises(SamsungTVEncryptedPairingExpiredError) as excinfo:
@@ -188,10 +180,8 @@ async def test_pairing_errors_remain_catchable_as_exception(
     assert issubclass(SamsungTVEncryptedPairingExpiredError, SamsungTVEncryptedError)
     assert issubclass(SamsungTVEncryptedResponseError, SamsungTVEncryptedError)
 
-    with open("tests/fixtures/auth_empty.json") as file:
-        empty_body = file.read()
     authenticator = await _pair_until_step2(
-        aiointercept_mock, web_session, step2_body=empty_body
+        aiointercept_mock, web_session, step2_body=AUTH_EMPTY_SAMPLE
     )
 
     # Existing callers doing `except Exception` keep working: the raised type
@@ -250,17 +240,9 @@ async def test_authenticator_forwards_timeout(
     assert session.post.call_args.kwargs["timeout"] == expected
 
 
-PIN_PAGE_URL = "http://samsungtv.test:8080/ws/apps/CloudPINPage"
-PAIRING_URL = (
-    "http://samsungtv.test:8080/ws/pairing?step={step}&app_id=12345"
-    "&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184"
-)
-
-
 def _client_hello_body(trailer: str) -> str:
     """Return the step 1 fixture with the 5 flag bytes after the hash replaced."""
-    with open("tests/fixtures/auth_generator_client_hello.json") as file:
-        auth_data = json.loads(json.load(file)["auth_data"])
+    auth_data = json.loads(json.loads(AUTH_GENERATOR_CLIENT_HELLO_SAMPLE)["auth_data"])
     hello = auth_data["GeneratorClientHello"]
     auth_data["GeneratorClientHello"] = hello[:-10] + trailer
     return json.dumps({"auth_data": json.dumps(auth_data)})
@@ -305,8 +287,9 @@ async def test_try_pin_rejected(
     step1_body: str,
 ) -> None:
     """Test a rejected client hello returns no token and stops the pairing."""
-    with open("tests/fixtures/auth_empty.json") as file:
-        aiointercept_mock.get(PAIRING_URL.format(step=0) + "&type=1", body=file.read())
+    aiointercept_mock.get(
+        PAIRING_URL.format(step=0) + "&type=1", body=AUTH_EMPTY_SAMPLE
+    )
     aiointercept_mock.post(PAIRING_URL.format(step=1), body=step1_body)
 
     authenticator = SamsungTVEncryptedWSAsyncAuthenticator(
