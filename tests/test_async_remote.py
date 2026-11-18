@@ -180,3 +180,18 @@ async def test_send_hold_key(async_connection: Mock) -> None:
 
     assert patch_sleep.call_count == 3
     assert patch_sleep.call_args_list == [call(1), call(3), call(1)]
+
+
+@pytest.mark.asyncio
+async def test_app_list_timeout(async_connection: Mock) -> None:
+    """Ensure app_list returns None when the TV does not answer in time."""
+    async_connection.recv = Mock(
+        side_effect=[create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE)]
+    )
+    async_connection.send = Mock(return_value=create_future_with_result(None))
+    tv = SamsungTVWSAsyncRemote("127.0.0.1", timeout=0.01)
+    assert await tv.app_list() is None
+    async_connection.send.assert_called_once_with(
+        '{"method": "ms.channel.emit", "params": {'
+        '"event": "ed.installedApp.get", "to": "host"}}'
+    )
