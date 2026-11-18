@@ -24,6 +24,7 @@ from .const import (
     D2D_SERVICE_MESSAGE_THUMBNAIL_INLINE_SAMPLE,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_CHANNEL_READY_SAMPLE,
+    NAME_B64,
 )
 
 _UUID = "07e72228-7110-4655-aaa6-d81b5188c219"
@@ -103,29 +104,26 @@ def _feed_socket(sock: Mock, data: bytes, chunk: int = 5) -> None:
         pytest.param(lambda: SamsungTVArt("127.0.0.1"), id="direct"),
     ],
 )
-def test_create_connection(create_art: Callable[[], SamsungTVArt]) -> None:
+def test_create_connection(
+    connection: Mock,
+    mock_create_connection: Mock,
+    create_art: Callable[[], SamsungTVArt],
+) -> None:
     """Ensure the art channel is opened on the art-app endpoint."""
-    connection = Mock()
-    with (
-        patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID),
-        patch("samsungtvws.connection.websocket.create_connection") as connection_class,
-    ):
-        connection_class.return_value = connection
-        connection.recv.side_effect = [
-            MS_CHANNEL_CONNECT_SAMPLE,
-            MS_CHANNEL_READY_SAMPLE,
-            D2D_SERVICE_MESSAGE_OK_SAMPLE,
-        ]
+    connection.recv.side_effect = [
+        MS_CHANNEL_CONNECT_SAMPLE,
+        MS_CHANNEL_READY_SAMPLE,
+        D2D_SERVICE_MESSAGE_OK_SAMPLE,
+    ]
+    with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID):
+        create_art().set_artmode(True)
 
-        tv_art = create_art()
-        tv_art.set_artmode(True)
-
-        connection_class.assert_called_once_with(
-            "ws://127.0.0.1:8001/api/v2/channels/com.samsung.art-app?name=U2Ftc3VuZ1R2UmVtb3Rl",
-            None,
-            sslopt={},
-            connection="Connection: Upgrade",
-        )
+    mock_create_connection.assert_called_once_with(
+        f"ws://127.0.0.1:8001/api/v2/channels/com.samsung.art-app?name={NAME_B64}",
+        None,
+        sslopt={},
+        connection="Connection: Upgrade",
+    )
 
 
 def test_set_artmode(connection: Mock) -> None:

@@ -11,17 +11,16 @@ from typing import Any
 from unittest.mock import MagicMock, Mock, _Call, call, patch
 
 import pytest
-from typer.testing import CliRunner
 
 from samsungtvws import exceptions
 from samsungtvws.art import SamsungTVArt
-from samsungtvws.cli import cli
 
-from .const import BASE_ARGS, plain_text
+from .const import (
+    invoke,
+    plain_text,
+)
 
 STATE_FILE_NAME = ".samsungtvws-art-sync.json"
-
-runner = CliRunner()
 
 
 @pytest.fixture(name="art")
@@ -31,11 +30,6 @@ def mock_art(mock_tv: MagicMock) -> Mock:
     art.supported.return_value = True
     mock_tv.art.return_value = art
     return art
-
-
-def invoke(*args: str) -> Any:
-    """Run the CLI with the base connection options."""
-    return runner.invoke(cli, [*BASE_ARGS, *args])
 
 
 def write_image(path: Path, data: bytes = b"img") -> str:
@@ -49,6 +43,15 @@ def fingerprint(path: str) -> dict[str, int]:
     """Return the size/mtime fingerprint the CLI stores for a file."""
     stat = os.stat(path)
     return {"size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
+
+
+def write_state(path: Path, content_ids: dict[str, str]) -> None:
+    """Write a sync state file mapping each image to its uploaded content id."""
+    files = {
+        image: {"content_id": content_id, **fingerprint(image)}
+        for image, content_id in content_ids.items()
+    }
+    path.write_text(json.dumps({"files": files}))
 
 
 def fake_response(data: bytes) -> io.BytesIO:
@@ -649,9 +652,7 @@ def test_sync_random_cached(art: Mock, tmp_path: Path) -> None:
     """Random mode displays a cached image without uploading it again."""
     image = write_image(tmp_path / "a.jpg")
     state_file = tmp_path / "state.json"
-    state_file.write_text(
-        json.dumps({"files": {image: {"content_id": "MY_F0021", **fingerprint(image)}}})
-    )
+    write_state(state_file, {image: "MY_F0021"})
 
     result = invoke("art-sync", str(tmp_path), "--state-file", str(state_file))
 
@@ -668,9 +669,7 @@ def test_sync_random_cached(art: Mock, tmp_path: Path) -> None:
 def test_sync_random_refresh(art: Mock, tmp_path: Path) -> None:
     """Random mode with --refresh re-uploads a cached image."""
     image = write_image(tmp_path / "a.jpg")
-    (tmp_path / STATE_FILE_NAME).write_text(
-        json.dumps({"files": {image: {"content_id": "MY_F0021", **fingerprint(image)}}})
-    )
+    write_state(tmp_path / STATE_FILE_NAME, {image: "MY_F0021"})
     art.upload.return_value = "MY_F0022"
 
     result = invoke("art-sync", str(tmp_path), "--refresh", "--file-type", "jpg")
@@ -740,9 +739,7 @@ def test_sync_upload_all(art: Mock, tmp_path: Path) -> None:
 def test_sync_upload_all_refresh(art: Mock, tmp_path: Path) -> None:
     """Upload-all with --refresh re-uploads cached images."""
     image = write_image(tmp_path / "a.jpg")
-    (tmp_path / STATE_FILE_NAME).write_text(
-        json.dumps({"files": {image: {"content_id": "OLD", **fingerprint(image)}}})
-    )
+    write_state(tmp_path / STATE_FILE_NAME, {image: "OLD"})
     art.upload.return_value = "NEW"
 
     result = invoke("art-sync", str(tmp_path), "--upload-all", "--refresh")
@@ -778,9 +775,7 @@ def test_sync_upload_all_no_recursive(art: Mock, tmp_path: Path) -> None:
 def test_sync_no_state(art: Mock, tmp_path: Path) -> None:
     """--no-state neither reads nor writes the state file."""
     image = write_image(tmp_path / "a.jpg")
-    (tmp_path / STATE_FILE_NAME).write_text(
-        json.dumps({"files": {image: {"content_id": "OLD", **fingerprint(image)}}})
-    )
+    write_state(tmp_path / STATE_FILE_NAME, {image: "OLD"})
     original_state = (tmp_path / STATE_FILE_NAME).read_text()
     art.upload.return_value = "NEW"
 

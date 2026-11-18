@@ -46,13 +46,6 @@ def get_encrypted_connection(ws_connect: AsyncMock) -> Mock:
     return connection
 
 
-@pytest.fixture(name="sleep")
-def get_sleep() -> Iterator[AsyncMock]:
-    """Skip the delay between key presses."""
-    with patch("samsungtvws.encrypted.remote.asyncio.sleep") as sleep:
-        yield sleep
-
-
 def _encrypt(command: SamsungTVEncryptedCommand) -> str:
     return SamsungTVEncryptedSession(TOKEN, SESSION_ID).encrypt_command(command)
 
@@ -107,7 +100,7 @@ async def test_send_command(
     aiointercept_mock: aiointercept,
     ws_connect: AsyncMock,
     encrypted_connection: Mock,
-    sleep: AsyncMock,
+    mock_async_sleep: AsyncMock,
     web_session: aiohttp.ClientSession,
     timeout: float,
     open_timeout: float | None,
@@ -128,7 +121,7 @@ async def test_send_command(
         call(_encrypt(command)),
     ]
     encrypted_connection.close.assert_awaited_once()
-    sleep.assert_awaited_once_with(1)
+    mock_async_sleep.assert_awaited_once_with(1)
 
 
 @pytest.mark.asyncio
@@ -143,7 +136,7 @@ async def test_send_commands_reuses_connection(
     aiointercept_mock: aiointercept,
     ws_connect: AsyncMock,
     encrypted_connection: Mock,
-    sleep: AsyncMock,
+    mock_async_sleep: AsyncMock,
     web_session: aiohttp.ClientSession,
     remote_delay: float,
     call_delay: float | None,
@@ -164,7 +157,7 @@ async def test_send_commands_reuses_connection(
         call(_encrypt(commands[1])),
         call(_encrypt(commands[0])),
     ]
-    assert sleep.await_args_list == [call(expected_delay)] * 3
+    assert mock_async_sleep.await_args_list == [call(expected_delay)] * 3
 
 
 @pytest.mark.asyncio
@@ -195,7 +188,6 @@ async def test_start_listening(
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("sleep")
 async def test_is_alive_closed_by_tv(
     aiointercept_mock: aiointercept,
     encrypted_connection: Mock,

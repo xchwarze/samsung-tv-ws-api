@@ -109,15 +109,14 @@ def test_app_list_invalid(connection: Mock) -> None:
     )
 
 
-def test_send_hold_key(connection: Mock) -> None:
+def test_send_hold_key(connection: Mock, mock_sleep: Mock) -> None:
     """Ensure simple data can be parsed."""
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE]
 
     tv = SamsungTVWS("127.0.0.1")
-    with patch("samsungtvws.connection.time.sleep") as patch_sleep:
-        tv.hold_key("KEY_POWER", 3)
+    tv.hold_key("KEY_POWER", 3)
 
-    assert patch_sleep.call_args_list == [call(1), call(3), call(1)]
+    assert mock_sleep.call_args_list == [call(1), call(3), call(1)]
 
 
 TEXT_RECEIVED_PAYLOAD = (
@@ -234,12 +233,11 @@ def test_send_key_times(connection: Mock) -> None:
     assert connection.send.call_args_list == [call(expected), call(expected)]
 
 
-def test_move_cursor(connection: Mock) -> None:
+def test_move_cursor(connection: Mock, mock_sleep: Mock) -> None:
     """Ensure moving the cursor sends a mouse command without delay."""
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE]
     tv = SamsungTVWS("127.0.0.1")
-    with patch("samsungtvws.connection.time.sleep") as mock_sleep:
-        tv.move_cursor(10, 20, 5)
+    tv.move_cursor(10, 20, 5)
 
     connection.send.assert_called_once_with(
         '{"method": "ms.remote.control", "params": {'
@@ -299,7 +297,7 @@ def test_open_browser(connection: Mock) -> None:
     )
 
 
-def test_app_list_while_listening(connection: Mock) -> None:
+def test_app_list_while_listening(connection: Mock, mock_sleep: Mock) -> None:
     """Ensure the app list is filled by the listening thread."""
     sent = threading.Event()
 
@@ -315,21 +313,20 @@ def test_app_list_while_listening(connection: Mock) -> None:
     received = threading.Event()
     tv = SamsungTVWS("127.0.0.1")
     tv.start_listening(lambda event, response: received.set())
-    with patch("samsungtvws.remote.time.sleep", side_effect=lambda _: received.wait(5)):
-        app_list = tv.app_list()
+    mock_sleep.side_effect = lambda _: received.wait(5)
+    app_list = tv.app_list()
     tv.close()
 
     assert app_list is not None
     assert [app["name"] for app in app_list] == ["YouTube", "Deezer"]
 
 
-def test_app_list_while_listening_no_reply(connection: Mock) -> None:
+def test_app_list_while_listening_no_reply(connection: Mock, mock_sleep: Mock) -> None:
     """Ensure the app list gives up after ten attempts without a reply."""
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE, ""]
     tv = SamsungTVWS("127.0.0.1", key_press_delay=0)
     tv.start_listening()
-    with patch("samsungtvws.remote.time.sleep") as mock_sleep:
-        assert tv.app_list() is None
+    assert tv.app_list() is None
     tv.close()
 
     # one key press delay after sending, then ten one-second polls

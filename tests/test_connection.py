@@ -6,7 +6,7 @@ from pathlib import Path
 import ssl
 import threading
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -49,38 +49,32 @@ def _connection(**kwargs: object) -> SamsungTVWSConnection:
     ],
 )
 def test_open_url(
+    connection: Mock,
+    mock_create_connection: Mock,
     options: dict[str, Any],
     url: str,
     timeout: float | None,
     sslopt: dict[str, Any],
 ) -> None:
     """Ensure open uses the right URL, timeout and SSL options."""
-    connection = Mock()
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE]
-    with patch(
-        "samsungtvws.connection.websocket.create_connection",
-        return_value=connection,
-    ) as create_connection:
-        tv = _connection(**options)
-        assert tv.open() is connection
+    tv = _connection(**options)
+    assert tv.open() is connection
 
-    create_connection.assert_called_once_with(
+    mock_create_connection.assert_called_once_with(
         url, timeout, sslopt=sslopt, connection="Connection: Upgrade"
     )
     assert tv.token == 123456789
 
 
-def test_open_reuses_connection(connection: Mock) -> None:
+def test_open_reuses_connection(connection: Mock, mock_create_connection: Mock) -> None:
     """Ensure open returns the existing connection."""
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE]
     tv = _connection()
     first = tv.open()
-    with patch(
-        "samsungtvws.connection.websocket.create_connection"
-    ) as create_connection:
-        assert tv.open() is first
+    assert tv.open() is first
 
-    create_connection.assert_not_called()
+    mock_create_connection.assert_called_once()
 
 
 def test_open_unauthorized(connection: Mock) -> None:
@@ -115,32 +109,28 @@ def test_open_error_event(
     ) is log_error
 
 
-def test_token_file_read(connection: Mock, tmp_path: Path) -> None:
+def test_token_file_read(
+    connection: Mock, mock_create_connection: Mock, tmp_path: Path
+) -> None:
     """Ensure the token is read from the token file."""
     token_file = tmp_path / "token.txt"
     token_file.write_text("filetoken")
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_TOKEN_SAMPLE]
-    with patch(
-        "samsungtvws.connection.websocket.create_connection",
-        return_value=connection,
-    ) as create_connection:
-        _connection(port=8002, token_file=str(token_file)).open()
+    _connection(port=8002, token_file=str(token_file)).open()
 
-    assert create_connection.call_args.args[0].endswith("&token=filetoken")
+    assert mock_create_connection.call_args.args[0].endswith("&token=filetoken")
 
 
-def test_token_file_missing(connection: Mock, tmp_path: Path) -> None:
+def test_token_file_missing(
+    connection: Mock, mock_create_connection: Mock, tmp_path: Path
+) -> None:
     """Ensure a missing token file is ignored and created with the new token."""
     token_file = tmp_path / "token.txt"
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_TOKEN_SAMPLE]
-    with patch(
-        "samsungtvws.connection.websocket.create_connection",
-        return_value=connection,
-    ) as create_connection:
-        tv = _connection(port=8002, token_file=str(token_file))
-        tv.open()
+    tv = _connection(port=8002, token_file=str(token_file))
+    tv.open()
 
-    assert "token=" not in create_connection.call_args.args[0]
+    assert "token=" not in mock_create_connection.call_args.args[0]
     assert tv.token is None
     assert token_file.read_text() == "12345678"
 
@@ -200,26 +190,24 @@ def test_context_manager_closes(connection: Mock) -> None:
     assert tv.connection is None
 
 
-def test_send_command_dict(connection: Mock) -> None:
+def test_send_command_dict(connection: Mock, mock_sleep: Mock) -> None:
     """Ensure a dict command is sent as JSON followed by the key press delay."""
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE]
     tv = _connection(key_press_delay=0.5)
-    with patch("samsungtvws.connection.time.sleep") as mock_sleep:
-        tv.send_command({"method": "ms.test", "params": {}})
+    tv.send_command({"method": "ms.test", "params": {}})
 
     connection.send.assert_called_once_with('{"method": "ms.test", "params": {}}')
     mock_sleep.assert_called_once_with(0.5)
 
 
-def test_send_command_list(connection: Mock) -> None:
+def test_send_command_list(connection: Mock, mock_sleep: Mock) -> None:
     """Ensure a list of commands is sent in order, honoring sleep commands."""
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE]
     tv = _connection()
-    with patch("samsungtvws.connection.time.sleep") as mock_sleep:
-        tv.send_command(
-            [{"method": "a"}, SamsungTVSleepCommand(3), {"method": "b"}],
-            key_press_delay=0,
-        )
+    tv.send_command(
+        [{"method": "a"}, SamsungTVSleepCommand(3), {"method": "b"}],
+        key_press_delay=0,
+    )
 
     assert [c.args[0] for c in connection.send.call_args_list] == [
         '{"method": "a"}',
