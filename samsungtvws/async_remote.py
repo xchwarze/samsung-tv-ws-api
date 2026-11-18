@@ -13,9 +13,9 @@ import logging
 import sys
 from typing import Any
 
-if sys.version_info >= (3, 11):
+if sys.version_info >= (3, 11):  # pragma: no cover
     from asyncio import timeout
-else:
+else:  # pragma: no cover
     from async_timeout import timeout
 
 from . import async_connection, remote, rest
