@@ -57,3 +57,9 @@ with open("tests/fixtures/rest_device_info.json") as file:
     REST_DEVICE_INFO_SAMPLE = file.read()
 with open("tests/fixtures/rest_app_status.json") as file:
     REST_APP_STATUS_SAMPLE = file.read()
+with open("tests/fixtures/event_ms_channel_connect_token.json") as file:
+    MS_CHANNEL_CONNECT_TOKEN_SAMPLE = file.read()
+with open("tests/fixtures/event_ms_channel_unauthorized.json") as file:
+    MS_CHANNEL_UNAUTHORIZED_SAMPLE = file.read()
+with open("tests/fixtures/event_ms_error_remote_control.json") as file:
+    MS_ERROR_REMOTE_CONTROL_SAMPLE = file.read()
