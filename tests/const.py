@@ -53,15 +53,8 @@ def plain_text(text: str) -> str:
 
 
 D2D_SERVICE_MESSAGE_OK_SAMPLE = _load("event_d2d_service_message_ok_sample.json")
-D2D_SERVICE_MESSAGE_AVAILABLE_SAMPLE = _load("event_d2d_service_message_available.json")
 D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR = _load(
     "event_d2d_service_message_send_image_error.json"
-)
-D2D_SERVICE_MESSAGE_READY_TO_USE_SAMPLE = _load(
-    "event_d2d_service_message_ready_to_use.json"
-)
-D2D_SERVICE_MESSAGE_IMAGE_ADDED_SAMPLE = _load(
-    "event_d2d_service_message_image_added.json"
 )
 D2D_SERVICE_MESSAGE_THUMBNAIL_INLINE_SAMPLE = (
     FIXTURES_DIR / "event_d2d_service_message_thumbnail_inline.bin"
