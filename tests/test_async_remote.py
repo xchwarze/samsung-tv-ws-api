@@ -1,4 +1,4 @@
-"""Tests for remote module."""
+"""Tests for the async remote module."""
 
 from collections.abc import Callable
 from unittest.mock import AsyncMock, Mock, call
@@ -48,7 +48,7 @@ async def test_connect(
 
 @pytest.mark.asyncio
 async def test_connection_failure(async_connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
+    """Ensure an error event while listening raises ConnectionFailure."""
     async_connection.recv = AsyncMock(return_value=MS_ERROR_SAMPLE)
     async_connection.send = AsyncMock()
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
@@ -58,7 +58,7 @@ async def test_connection_failure(async_connection: Mock) -> None:
 
 @pytest.mark.asyncio
 async def test_send_key(async_connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
+    """Ensure a key is sent as a SendRemoteKey click."""
     async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
     async_connection.send = AsyncMock()
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
@@ -98,7 +98,7 @@ async def test_app_list(
 async def test_send_hold_key(
     async_connection: Mock, mock_async_sleep: AsyncMock
 ) -> None:
-    """Ensure simple data can be parsed."""
+    """Ensure holding a key presses, waits and releases it."""
     async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
     async_connection.send = AsyncMock()
 
