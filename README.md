@@ -121,6 +121,31 @@ The `examples/` directory contains **ready-to-run programmatic examples**, inclu
 
 Reviewing these examples is the recommended starting point for manual integrations.
 
+#### Monitor Art Mode
+
+With the `async` extra installed, `SamsungTVAsyncArtMode` tracks status replies and
+mode changes on a persistent Art Mode WebSocket. Use the port and token from your
+TV connection.
+
+```python
+import asyncio
+
+from samsungtvws.art.async_art_mode import SamsungTVAsyncArtMode
+
+
+async def monitor_art_mode(host: str, port: int, token: str | None) -> None:
+    async with SamsungTVAsyncArtMode(host, port=port, token=token, timeout=5) as art:
+        await art.start_listening()
+        while art.is_alive():
+            await art.request_status()
+            await asyncio.sleep(10)
+            print(art.status)
+```
+
+`request_status()` sends a query without waiting for a reply. `status` is `True`
+or `False` after a recent confirmation. It becomes `None` on standby,
+disconnection, or after 60 seconds without confirmation.
+
 ---
 
 ### CLI usage

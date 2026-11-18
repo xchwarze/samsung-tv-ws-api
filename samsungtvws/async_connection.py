@@ -60,26 +60,27 @@ class SamsungTVWSAsyncConnection(connection.SamsungTVWSBaseConnection):
             connect_kwargs["ssl"] = get_ssl_context()
         connection = await connect(url, open_timeout=self.timeout, **connect_kwargs)
 
-        event: str | None = None
-        while event is None or event in IGNORE_EVENTS_AT_STARTUP:
-            data = await connection.recv()
-            response = helper.process_api_response(data)
-            event = response.get("event", "*")
-            assert event
-            self._websocket_event(event, response)
+        try:
+            event: str | None = None
+            while event is None or event in IGNORE_EVENTS_AT_STARTUP:
+                data = await connection.recv()
+                response = helper.process_api_response(data)
+                event = response.get("event", "*")
+                assert event
+                self._websocket_event(event, response)
 
-        if event == MS_CHANNEL_UNAUTHORIZED:
-            await self.close()
-            raise exceptions.UnauthorizedError(response)
+            if event == MS_CHANNEL_UNAUTHORIZED:
+                raise exceptions.UnauthorizedError(response)
 
-        if event != MS_CHANNEL_CONNECT_EVENT:
-            # Unexpected event received during connection routine
-            await self.close()
-            raise exceptions.ConnectionFailure(response)
+            if event != MS_CHANNEL_CONNECT_EVENT:
+                raise exceptions.ConnectionFailure(response)
 
-        self._check_for_token(response)
+            self._check_for_token(response)
+            self.connection = connection
+        finally:
+            if self.connection is not connection:
+                await connection.close()
 
-        self.connection = connection
         return connection
 
     async def start_listening(
