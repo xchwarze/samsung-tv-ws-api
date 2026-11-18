@@ -1,4 +1,4 @@
-"""SamsungTV Encrypted."""
+"""Tests for the encrypted authenticator module."""
 
 from __future__ import annotations
 
@@ -35,6 +35,7 @@ PAIRING_URL = (
 async def test_authenticator(
     aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
 ) -> None:
+    """Ensure a full PIN pairing returns the token and session id."""
     aiointercept_mock.get(PIN_PAGE_URL, body=AUTH_PIN_STATUS_SAMPLE)
     aiointercept_mock.post(
         PIN_PAGE_URL,

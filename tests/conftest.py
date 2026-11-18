@@ -1,7 +1,7 @@
-"""Tests for remote module."""
+"""Shared fixtures for tests."""
 
 import asyncio
-from collections.abc import Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import aiohttp
@@ -84,13 +84,14 @@ def get_block_recv_until_close(async_connection: Mock) -> Callable[..., None]:
 
 
 @pytest_asyncio.fixture(name="aiointercept_mock")
-async def mock_aiointercept():
+async def mock_aiointercept() -> AsyncIterator[aiointercept]:
+    """Intercept aiohttp requests made during the test."""
     async with aiointercept(mock_external_urls=True) as m:
         yield m
 
 
 @pytest_asyncio.fixture(name="web_session")
-async def get_web_session():
+async def get_web_session() -> AsyncIterator[aiohttp.ClientSession]:
     """Create an aiohttp client session closed after the test."""
     async with aiohttp.ClientSession() as session:
         yield session

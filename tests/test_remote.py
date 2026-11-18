@@ -1,4 +1,4 @@
-"""Tests for remote module."""
+"""Tests for the remote module."""
 
 from collections.abc import Iterator
 import json
@@ -64,7 +64,7 @@ def test_connect(connection: Mock, events: list[str]) -> None:
 
 
 def test_connection_failure(connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
+    """Ensure an error event while opening raises ConnectionFailure."""
     connection.recv = Mock(side_effect=[MS_ERROR_SAMPLE])
     tv = SamsungTVWS("127.0.0.1")
     with pytest.raises(ConnectionFailure, match="ms.error"):
@@ -72,7 +72,7 @@ def test_connection_failure(connection: Mock) -> None:
 
 
 def test_send_key(connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
+    """Ensure a key is sent as a SendRemoteKey click."""
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE]
     tv = SamsungTVWS("127.0.0.1")
     tv.send_key("KEY_POWER")
@@ -97,7 +97,7 @@ def test_app_list(connection: Mock) -> None:
 
 
 def test_app_list_invalid(connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
+    """Ensure app_list returns None when the TV replies with another event."""
     connection.recv.side_effect = [
         MS_CHANNEL_CONNECT_SAMPLE,
         ED_APPS_LAUNCH_SAMPLE,
@@ -110,7 +110,7 @@ def test_app_list_invalid(connection: Mock) -> None:
 
 
 def test_send_hold_key(connection: Mock, mock_sleep: Mock) -> None:
-    """Ensure simple data can be parsed."""
+    """Ensure holding a key presses, waits and releases it."""
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE]
 
     tv = SamsungTVWS("127.0.0.1")

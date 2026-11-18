@@ -1,3 +1,5 @@
+"""Tests for the event module."""
+
 import json
 
 from samsungtvws import event
@@ -7,6 +9,7 @@ from .const import ED_INSTALLED_APP_SAMPLE, MS_ERROR_SAMPLE
 
 
 def test_parse_installed_app() -> None:
+    """Ensure the installed app list is extracted from the event."""
     json_response = json.loads(ED_INSTALLED_APP_SAMPLE)
     assert event.parse_installed_app(json_response) == [
         {
@@ -27,6 +30,7 @@ def test_parse_installed_app() -> None:
 
 
 def test_parse_ms_error() -> None:
+    """Ensure an ms.error event is turned into a MessageError."""
     json_response = json.loads(MS_ERROR_SAMPLE)
     error = event.parse_ms_error(json_response)
     assert isinstance(error, MessageError)
