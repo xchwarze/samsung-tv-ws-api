@@ -28,12 +28,6 @@ class SamsungTVEncryptedSession:
         self._session_id = session_id
         self._cipher = Cipher(algorithms.AES(self._token), modes.ECB())
 
-    def _decrypt(self, enc: bytes) -> str:
-        decryptor = self._cipher.decryptor()
-        return Padding.unpad(
-            decryptor.update(binascii.unhexlify(enc)) + decryptor.finalize()
-        )
-
     def _encrypt(self, raw: str) -> bytes:
         encryptor = self._cipher.encryptor()
         return (

@@ -137,21 +137,9 @@ def _apply_samy_go_key_transform(data: bytes) -> bytes:
                     ^ (r_con[r_con_pointer] & 0xFF) << 24
                 )
                 r_con_pointer += 1
-                if k_c != 8:
-                    for i in range(1, k_c):
-                        tk[i] ^= tk[i - 1]
-                else:
-                    for i in range(1, k_c // 2):
-                        tk[i] ^= tk[i - 1]
-                    tt = tk[k_c // 2 - 1]
-                    tk[k_c // 2] ^= (
-                        (S[tt & 0xFF] & 0xFF)
-                        ^ (S[(tt >> 8) & 0xFF] & 0xFF) << 8
-                        ^ (S[(tt >> 16) & 0xFF] & 0xFF) << 16
-                        ^ (S[(tt >> 24) & 0xFF] & 0xFF) << 24
-                    )
-                    for i in range(k_c // 2 + 1, k_c):
-                        tk[i] ^= tk[i - 1]
+                # TRANS_KEY is 16 bytes, so the 32-byte key schedule step is not needed
+                for i in range(1, k_c):
+                    tk[i] ^= tk[i - 1]
                 # copy values into round key arrays
                 j = 0
                 while j < k_c and t < round_key_count:
@@ -394,8 +382,6 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
 
     async def _second_step_of_pairing(self, pin: str) -> dict[str, bytes] | None:
         hello_output = _generate_server_hello(self.USER_ID, pin)
-        if not hello_output:
-            return None
 
         content = (
             '{"auth_Data":{"auth_type":"SPC","GeneratorServerHello":"'
