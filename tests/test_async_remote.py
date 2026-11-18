@@ -29,41 +29,25 @@ def create_future_with_result(result) -> asyncio.Future:
 
 
 @pytest.mark.asyncio
-async def test_connect(async_connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE)]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
-    tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    await tv.start_listening()
-    assert tv.token == 123456789
-
-
-@pytest.mark.asyncio
-async def test_connect_with_extra_event(async_connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[
-            create_future_with_result(MS_VOICEAPP_HIDE_SAMPLE),
-            create_future_with_result(ED_EDENTV_UPDATE_SAMPLE),
-            create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE),
-        ]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
-    tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    await tv.start_listening()
-    assert tv.token == 123456789
-
-
-@pytest.mark.asyncio
-async def test_connect_with_touch_events(async_connection: Mock) -> None:
-    """Ensure touch events sent before connect are ignored."""
+@pytest.mark.parametrize(
+    "events",
+    [
+        pytest.param([], id="connect-only"),
+        pytest.param(
+            [MS_VOICEAPP_HIDE_SAMPLE, ED_EDENTV_UPDATE_SAMPLE], id="extra-events"
+        ),
+        pytest.param(
+            [MS_REMOTE_TOUCH_ENABLE_SAMPLE, MS_REMOTE_TOUCH_DISABLE_SAMPLE],
+            id="touch-events",
+        ),
+    ],
+)
+async def test_connect(async_connection: Mock, events: list[str]) -> None:
+    """Ensure events sent before ms.channel.connect are ignored."""
     async_connection.recv = Mock(
         side_effect=[
-            create_future_with_result(MS_REMOTE_TOUCH_ENABLE_SAMPLE),
-            create_future_with_result(MS_REMOTE_TOUCH_DISABLE_SAMPLE),
-            create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE),
+            create_future_with_result(event)
+            for event in [*events, MS_CHANNEL_CONNECT_SAMPLE]
         ]
     )
     async_connection.send = Mock(return_value=create_future_with_result(None))
@@ -104,28 +88,19 @@ async def test_send_key(async_connection: Mock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_list(async_connection: Mock) -> None:
-    """Ensure valid app_list data can be parsed."""
+@pytest.mark.parametrize(
+    "events",
+    [
+        pytest.param([], id="in-order"),
+        pytest.param([ED_APPS_LAUNCH_SAMPLE], id="unrelated-event-first"),
+    ],
+)
+async def test_app_list(async_connection: Mock, events: list[str]) -> None:
+    """Ensure app_list data is parsed, even after an unrelated event."""
     async_connection.recv = Mock(
         side_effect=[
-            create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE),
-            create_future_with_result(ED_INSTALLED_APP_SAMPLE),
-        ]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
-    tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    await tv.start_listening()
-    assert await tv.app_list() == INSTALLED_APPS
-
-
-@pytest.mark.asyncio
-async def test_app_list_bad_order(async_connection: Mock) -> None:
-    """Ensure valid app_list data can be parsed, even if we get events in the wrong order."""
-    async_connection.recv = Mock(
-        side_effect=[
-            create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE),
-            create_future_with_result(ED_APPS_LAUNCH_SAMPLE),
-            create_future_with_result(ED_INSTALLED_APP_SAMPLE),
+            create_future_with_result(event)
+            for event in [MS_CHANNEL_CONNECT_SAMPLE, *events, ED_INSTALLED_APP_SAMPLE]
         ]
     )
     async_connection.send = Mock(return_value=create_future_with_result(None))

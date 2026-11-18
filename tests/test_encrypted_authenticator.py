@@ -157,21 +157,6 @@ async def test_acknowledge_empty_auth_data_raises_pairing_expired(
 
 
 @pytest.mark.asyncio
-async def test_acknowledge_unparseable_raises_response_error(
-    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
-) -> None:
-    """Non-empty but unparseable auth_data => a response error, not expired."""
-    authenticator = await _pair_until_step2(
-        aiointercept_mock,
-        web_session,
-        step2_body='{"auth_data": "totally unexpected payload"}',
-    )
-
-    with pytest.raises(SamsungTVEncryptedResponseError):
-        await authenticator.get_session_id_and_close()
-
-
-@pytest.mark.asyncio
 async def test_pairing_errors_remain_catchable_as_exception(
     aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
 ) -> None:
@@ -310,6 +295,12 @@ async def test_try_pin_rejected(
         ),
         pytest.param(
             "[]", SamsungTVEncryptedResponseError, "Could not parse", id="json-list"
+        ),
+        pytest.param(
+            '{"auth_data": "totally unexpected payload"}',
+            SamsungTVEncryptedResponseError,
+            "Could not parse",
+            id="unparseable-auth-data",
         ),
         pytest.param(
             json.dumps({"auth_data": json.dumps({"secure-mode": True})}),

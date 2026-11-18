@@ -1,6 +1,6 @@
 """Tests for art module."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 import io
 import json
 from pathlib import Path
@@ -96,7 +96,15 @@ def _feed_socket(sock: Mock, data: bytes, chunk: int = 5) -> None:
     sock.recv.side_effect = lambda size: stream.read(min(size, chunk))
 
 
-def test_create_connection_from_remote() -> None:
+@pytest.mark.parametrize(
+    "create_art",
+    [
+        pytest.param(lambda: SamsungTVWS("127.0.0.1").art(), id="from-remote"),
+        pytest.param(lambda: SamsungTVArt("127.0.0.1"), id="direct"),
+    ],
+)
+def test_create_connection(create_art: Callable[[], SamsungTVArt]) -> None:
+    """Ensure the art channel is opened on the art-app endpoint."""
     connection = Mock()
     with (
         patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID),
@@ -109,31 +117,7 @@ def test_create_connection_from_remote() -> None:
             D2D_SERVICE_MESSAGE_OK_SAMPLE,
         ]
 
-        tv_art = SamsungTVWS("127.0.0.1").art()
-        tv_art.set_artmode(True)
-
-        connection_class.assert_called_once_with(
-            "ws://127.0.0.1:8001/api/v2/channels/com.samsung.art-app?name=U2Ftc3VuZ1R2UmVtb3Rl",
-            None,
-            sslopt={},
-            connection="Connection: Upgrade",
-        )
-
-
-def test_create_connection_direct() -> None:
-    connection = Mock()
-    with (
-        patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID),
-        patch("samsungtvws.connection.websocket.create_connection") as connection_class,
-    ):
-        connection_class.return_value = connection
-        connection.recv.side_effect = [
-            MS_CHANNEL_CONNECT_SAMPLE,
-            MS_CHANNEL_READY_SAMPLE,
-            D2D_SERVICE_MESSAGE_OK_SAMPLE,
-        ]
-
-        tv_art = SamsungTVArt("127.0.0.1")
+        tv_art = create_art()
         tv_art.set_artmode(True)
 
         connection_class.assert_called_once_with(
@@ -175,22 +159,6 @@ def test_set_available(connection: Mock) -> None:
 
         connection.send.assert_called_once_with(
             '{"method": "ms.channel.emit", "params": {"event": "art_app_request", "to": "host", "data": "{\\"request\\": \\"get_content_list\\", \\"category\\": null, \\"id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\", \\"request_id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\"}"}}'
-        )
-
-
-def test_change_matte(connection: Mock) -> None:
-    with patch("samsungtvws.art.art.uuid.uuid4", return_value=_UUID):
-        connection.recv.side_effect = [
-            MS_CHANNEL_CONNECT_SAMPLE,
-            MS_CHANNEL_READY_SAMPLE,
-            D2D_SERVICE_MESSAGE_OK_SAMPLE,
-        ]
-
-        tv_art = SamsungTVArt("127.0.0.1")
-        tv_art.change_matte("test", "none")
-
-        connection.send.assert_called_once_with(
-            '{"method": "ms.channel.emit", "params": {"event": "art_app_request", "to": "host", "data": "{\\"request\\": \\"change_matte\\", \\"content_id\\": \\"test\\", \\"matte_id\\": \\"none\\", \\"id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\", \\"request_id\\": \\"07e72228-7110-4655-aaa6-d81b5188c219\\"}"}}'
         )
 
 
@@ -581,6 +549,16 @@ def test_error_response(
                 "portrait_matte_id": "flexible_black",
             },
             id="change-matte-portrait",
+        ),
+        pytest.param(
+            "change_matte",
+            ("MY_F0001", "none"),
+            {
+                "request": "change_matte",
+                "content_id": "MY_F0001",
+                "matte_id": "none",
+            },
+            id="change-matte",
         ),
     ],
 )

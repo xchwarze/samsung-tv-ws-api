@@ -12,15 +12,16 @@ from samsungtvws.helper import get_ssl_context, process_api_response
 from .const import ED_APPS_LAUNCH_SAMPLE
 
 
-def test_data_simple() -> None:
-    """Ensure simple data can be parsed."""
-    parsed_response = process_api_response(ED_APPS_LAUNCH_SAMPLE)
-    assert parsed_response == {"data": 200, "event": "ed.apps.launch", "from": "host"}
-
-
-def test_data_bytes() -> None:
-    """Ensure pure JSON bytes can be parsed."""
-    parsed_response = process_api_response(ED_APPS_LAUNCH_SAMPLE.encode())
+@pytest.mark.parametrize(
+    "data",
+    [
+        pytest.param(ED_APPS_LAUNCH_SAMPLE, id="str"),
+        pytest.param(ED_APPS_LAUNCH_SAMPLE.encode(), id="bytes"),
+    ],
+)
+def test_data(data: str | bytes) -> None:
+    """Ensure JSON text and bytes can be parsed."""
+    parsed_response = process_api_response(data)
     assert parsed_response == {"data": 200, "event": "ed.apps.launch", "from": "host"}
 
 

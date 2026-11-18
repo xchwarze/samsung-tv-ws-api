@@ -112,30 +112,29 @@ def test_logging_level(
     )
 
 
+@pytest.mark.parametrize(
+    ("token", "stderr"),
+    [
+        pytest.param(
+            "new-token", "[*] Auth token (not saved): new-token\n", id="token"
+        ),
+        pytest.param(None, "", id="no-token"),
+    ],
+)
 @pytest.mark.usefixtures("mock_basic_config")
-def test_bootstrap_token(mock_tv_class: MagicMock) -> None:
-    """Ensure a new token is fetched, printed and used by the command."""
+def test_bootstrap_token(
+    mock_tv_class: MagicMock, token: str | None, stderr: str
+) -> None:
+    """Ensure the token fetched from the TV is printed and used by the command."""
     tv = mock_tv_class.return_value
-    tv.token = "new-token"
+    tv.token = token
     result = CliRunner().invoke(cli, ["--host", HOST, "end-text"])
     assert result.exit_code == 0
-    assert result.stderr == "[*] Auth token (not saved): new-token\n"
+    assert result.stderr == stderr
     tv.open.assert_called_once_with()
     tv.close.assert_called_once_with()
     assert mock_tv_class.call_args_list[0].kwargs["token"] is None
-    assert mock_tv_class.call_args_list[1].kwargs["token"] == "new-token"
-
-
-@pytest.mark.usefixtures("mock_basic_config")
-def test_bootstrap_no_token(mock_tv_class: MagicMock) -> None:
-    """Ensure nothing is printed when the TV returns no token."""
-    tv = mock_tv_class.return_value
-    result = CliRunner().invoke(cli, ["--host", HOST, "end-text"])
-    assert result.exit_code == 0
-    assert result.stderr == ""
-    tv.open.assert_called_once_with()
-    tv.close.assert_called_once_with()
-    assert mock_tv_class.call_args_list[1].kwargs["token"] is None
+    assert mock_tv_class.call_args_list[1].kwargs["token"] == token
 
 
 @pytest.mark.usefixtures("mock_basic_config")
