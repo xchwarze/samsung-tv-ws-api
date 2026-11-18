@@ -1,7 +1,7 @@
 """Tests for remote module."""
 
-import asyncio
-from unittest.mock import Mock, call, patch
+from collections.abc import Callable
+from unittest.mock import AsyncMock, Mock, call
 
 import pytest
 
@@ -22,12 +22,6 @@ from .const import (
 )
 
 
-def create_future_with_result(result) -> asyncio.Future:
-    future = asyncio.Future()
-    future.set_result(result)
-    return future
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "events",
@@ -42,27 +36,21 @@ def create_future_with_result(result) -> asyncio.Future:
         ),
     ],
 )
-async def test_connect(async_connection: Mock, events: list[str]) -> None:
+async def test_connect(
+    block_recv_until_close: Callable[..., None], events: list[str]
+) -> None:
     """Ensure events sent before ms.channel.connect are ignored."""
-    async_connection.recv = Mock(
-        side_effect=[
-            create_future_with_result(event)
-            for event in [*events, MS_CHANNEL_CONNECT_SAMPLE]
-        ]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
-    tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    await tv.start_listening()
-    assert tv.token == 123456789
+    block_recv_until_close(*events, MS_CHANNEL_CONNECT_SAMPLE)
+    async with SamsungTVWSAsyncRemote("127.0.0.1") as tv:
+        await tv.start_listening()
+        assert tv.token == 123456789
 
 
 @pytest.mark.asyncio
 async def test_connection_failure(async_connection: Mock) -> None:
     """Ensure simple data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[create_future_with_result(MS_ERROR_SAMPLE)]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
+    async_connection.recv = AsyncMock(return_value=MS_ERROR_SAMPLE)
+    async_connection.send = AsyncMock()
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
     with pytest.raises(ConnectionFailure):
         await tv.start_listening()
@@ -71,10 +59,8 @@ async def test_connection_failure(async_connection: Mock) -> None:
 @pytest.mark.asyncio
 async def test_send_key(async_connection: Mock) -> None:
     """Ensure simple data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE)]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
+    async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
+    async_connection.send = AsyncMock()
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
     await tv.send_command(SendRemoteKey.click("KEY_POWER"))
     async_connection.send.assert_called_once_with(
@@ -95,45 +81,38 @@ async def test_send_key(async_connection: Mock) -> None:
         pytest.param([ED_APPS_LAUNCH_SAMPLE], id="unrelated-event-first"),
     ],
 )
-async def test_app_list(async_connection: Mock, events: list[str]) -> None:
+async def test_app_list(
+    async_connection: Mock,
+    block_recv_until_close: Callable[..., None],
+    events: list[str],
+) -> None:
     """Ensure app_list data is parsed, even after an unrelated event."""
-    async_connection.recv = Mock(
-        side_effect=[
-            create_future_with_result(event)
-            for event in [MS_CHANNEL_CONNECT_SAMPLE, *events, ED_INSTALLED_APP_SAMPLE]
-        ]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
-    tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    await tv.start_listening()
-    assert await tv.app_list() == INSTALLED_APPS
+    block_recv_until_close(MS_CHANNEL_CONNECT_SAMPLE, *events, ED_INSTALLED_APP_SAMPLE)
+    async_connection.send = AsyncMock()
+    async with SamsungTVWSAsyncRemote("127.0.0.1") as tv:
+        await tv.start_listening()
+        assert await tv.app_list() == INSTALLED_APPS
 
 
 @pytest.mark.asyncio
-async def test_send_hold_key(async_connection: Mock) -> None:
+async def test_send_hold_key(
+    async_connection: Mock, mock_async_sleep: AsyncMock
+) -> None:
     """Ensure simple data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE)]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
+    async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
+    async_connection.send = AsyncMock()
 
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    with patch(
-        "samsungtvws.async_connection.asyncio.sleep",
-        return_value=create_future_with_result(None),
-    ) as patch_sleep:
-        await tv.send_command(SendRemoteKey.hold("KEY_POWER", 3))
+    await tv.send_command(SendRemoteKey.hold("KEY_POWER", 3))
 
-    assert patch_sleep.call_args_list == [call(1), call(3), call(1)]
+    assert mock_async_sleep.call_args_list == [call(1), call(3), call(1)]
 
 
 @pytest.mark.asyncio
 async def test_app_list_timeout(async_connection: Mock) -> None:
     """Ensure app_list returns None when the TV does not answer in time."""
-    async_connection.recv = Mock(
-        side_effect=[create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE)]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
+    async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
+    async_connection.send = AsyncMock()
     tv = SamsungTVWSAsyncRemote("127.0.0.1", timeout=0.01)
     assert await tv.app_list() is None
     async_connection.send.assert_called_once_with(

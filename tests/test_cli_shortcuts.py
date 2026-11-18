@@ -3,12 +3,12 @@
 from unittest.mock import MagicMock, call
 
 import pytest
-from typer.testing import CliRunner
 
-from samsungtvws.cli import cli
 from samsungtvws.shortcuts import SamsungTVShortcuts
 
-from .const import BASE_ARGS
+from .const import (
+    invoke,
+)
 
 
 @pytest.fixture(name="mock_tv")
@@ -41,6 +41,6 @@ def get_mock_tv(mock_tv: MagicMock) -> MagicMock:
 )
 def test_shortcut(mock_tv: MagicMock, command: list[str], keys: list[str]) -> None:
     """Ensure each shortcut command sends its keys."""
-    result = CliRunner().invoke(cli, [*BASE_ARGS, *command])
+    result = invoke(*command)
     assert result.exit_code == 0
     assert mock_tv.send_key.call_args_list == [call(key) for key in keys]

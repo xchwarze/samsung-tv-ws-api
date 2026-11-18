@@ -1,10 +1,10 @@
 """Tests for async_connection module."""
 
 import asyncio
-from unittest.mock import AsyncMock, Mock, call, patch
+from collections.abc import Callable
+from unittest.mock import AsyncMock, Mock, call
 
 import pytest
-from websockets.exceptions import ConnectionClosed
 from websockets.protocol import State
 
 from samsungtvws.async_connection import SamsungTVWSAsyncConnection
@@ -25,25 +25,6 @@ def _create_tv(port: int = 8001) -> SamsungTVWSAsyncConnection:
     return SamsungTVWSAsyncConnection("127.0.0.1", endpoint=ENDPOINT, port=port)
 
 
-def _block_recv_until_close(async_connection: Mock, *messages: str) -> None:
-    """Return messages, then block recv until close() is called."""
-    closed = asyncio.Event()
-
-    async def _close() -> None:
-        closed.set()
-
-    pending = list(messages)
-
-    async def _recv() -> str:
-        if pending:
-            return pending.pop(0)
-        await closed.wait()
-        raise ConnectionClosed(None, None)
-
-    async_connection.recv = AsyncMock(side_effect=_recv)
-    async_connection.close = AsyncMock(side_effect=_close)
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("port", "url", "ssl"),
@@ -62,16 +43,15 @@ def _block_recv_until_close(async_connection: Mock, *messages: str) -> None:
         ),
     ],
 )
-async def test_open(port: int, url: str, ssl: bool) -> None:
+async def test_open(
+    async_connection: Mock, mock_connect: AsyncMock, port: int, url: str, ssl: bool
+) -> None:
     """Ensure open connects to the right URL, with SSL context on port 8002."""
-    connection = Mock()
-    connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
-    connect = AsyncMock(return_value=connection)
+    async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
     tv = _create_tv(port)
-    with patch("samsungtvws.async_connection.connect", connect):
-        assert await tv.open() is connection
-    assert connect.call_args.args == (url,)
-    assert ("ssl" in connect.call_args.kwargs) is ssl
+    assert await tv.open() is async_connection
+    assert mock_connect.call_args.args == (url,)
+    assert ("ssl" in mock_connect.call_args.kwargs) is ssl
     assert tv.token == 123456789
 
 
@@ -125,13 +105,13 @@ async def test_start_listening_already_connected(async_connection: Mock) -> None
     ],
 )
 async def test_start_listening_callback(
-    async_connection: Mock, callback_class: type[Mock]
+    async_connection: Mock,
+    block_recv_until_close: Callable[..., None],
+    callback_class: type[Mock],
 ) -> None:
     """Ensure received events are passed to sync and async callbacks."""
     callback = callback_class(return_value=None)
-    _block_recv_until_close(
-        async_connection, MS_CHANNEL_CONNECT_SAMPLE, ED_APPS_LAUNCH_SAMPLE
-    )
+    block_recv_until_close(MS_CHANNEL_CONNECT_SAMPLE, ED_APPS_LAUNCH_SAMPLE)
     async with _create_tv() as tv:
         await tv.start_listening(callback)
         await asyncio.sleep(0)
@@ -162,27 +142,26 @@ async def test_is_alive(async_connection: Mock, state: State, alive: bool) -> No
 
 
 @pytest.mark.asyncio
-async def test_send_commands(async_connection: Mock) -> None:
+async def test_send_commands(
+    async_connection: Mock, mock_async_sleep: AsyncMock
+) -> None:
     """Ensure commands, raw dicts and sleep commands are sent in order."""
     async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
     async_connection.send = AsyncMock()
     tv = _create_tv()
-    with patch(
-        "samsungtvws.async_connection.asyncio.sleep", new=AsyncMock()
-    ) as patch_sleep:
-        await tv.send_commands(
-            [
-                SamsungTVCommand("ms.test", {"key": "value"}),
-                SamsungTVSleepCommand(5),
-                {"method": "ms.raw", "params": {}},
-            ],
-            key_press_delay=0.5,
-        )
+    await tv.send_commands(
+        [
+            SamsungTVCommand("ms.test", {"key": "value"}),
+            SamsungTVSleepCommand(5),
+            {"method": "ms.raw", "params": {}},
+        ],
+        key_press_delay=0.5,
+    )
     assert async_connection.send.await_args_list == [
         call('{"method": "ms.test", "params": {"key": "value"}}'),
         call('{"method": "ms.raw", "params": {}}'),
     ]
-    assert patch_sleep.await_args_list == [call(0.5), call(5), call(0.5)]
+    assert mock_async_sleep.await_args_list == [call(0.5), call(5), call(0.5)]
 
 
 @pytest.mark.asyncio
