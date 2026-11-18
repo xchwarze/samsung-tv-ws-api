@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import ssl
 import threading
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -28,41 +29,43 @@ def _connection(**kwargs: object) -> SamsungTVWSConnection:
     return SamsungTVWSConnection("127.0.0.1", endpoint=ENDPOINT, **kwargs)
 
 
-def test_open_url() -> None:
-    """Ensure the plain websocket URL is used on port 8001."""
+@pytest.mark.parametrize(
+    ("options", "url", "timeout", "sslopt"),
+    [
+        pytest.param(
+            {"timeout": 0},
+            f"ws://127.0.0.1:8001/api/v2/channels/{ENDPOINT}?name={NAME_B64}",
+            None,
+            {},
+            id="ws",
+        ),
+        pytest.param(
+            {"port": 8002, "token": "abc", "timeout": 5},
+            f"wss://127.0.0.1:8002/api/v2/channels/{ENDPOINT}?name={NAME_B64}&token=abc",
+            5,
+            {"cert_reqs": ssl.CERT_NONE},
+            id="wss-token",
+        ),
+    ],
+)
+def test_open_url(
+    options: dict[str, Any],
+    url: str,
+    timeout: float | None,
+    sslopt: dict[str, Any],
+) -> None:
+    """Ensure open uses the right URL, timeout and SSL options."""
     connection = Mock()
     connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE]
     with patch(
         "samsungtvws.connection.websocket.create_connection",
         return_value=connection,
     ) as create_connection:
-        tv = _connection(timeout=0)
+        tv = _connection(**options)
         assert tv.open() is connection
 
     create_connection.assert_called_once_with(
-        f"ws://127.0.0.1:8001/api/v2/channels/{ENDPOINT}?name={NAME_B64}",
-        None,
-        sslopt={},
-        connection="Connection: Upgrade",
-    )
-
-
-def test_open_ssl_url_with_token() -> None:
-    """Ensure the secure URL carries the token and disables cert checks."""
-    connection = Mock()
-    connection.recv.side_effect = [MS_CHANNEL_CONNECT_SAMPLE]
-    with patch(
-        "samsungtvws.connection.websocket.create_connection",
-        return_value=connection,
-    ) as create_connection:
-        tv = _connection(port=8002, token="abc", timeout=5)
-        tv.open()
-
-    create_connection.assert_called_once_with(
-        f"wss://127.0.0.1:8002/api/v2/channels/{ENDPOINT}?name={NAME_B64}&token=abc",
-        5,
-        sslopt={"cert_reqs": ssl.CERT_NONE},
-        connection="Connection: Upgrade",
+        url, timeout, sslopt=sslopt, connection="Connection: Upgrade"
     )
     assert tv.token == 123456789
 

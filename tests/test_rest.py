@@ -17,31 +17,23 @@ from .const import (
 APP_URL = f"http://127.0.0.1:8001/api/v2/applications/{APP_ID}"
 
 
-def test_device_info() -> None:
-    """Ensure device info is fetched and parsed."""
-    rest = SamsungTVRest("127.0.0.1", timeout=5)
+@pytest.mark.parametrize(
+    ("port", "timeout", "url"),
+    [
+        pytest.param(8001, 5, "http://127.0.0.1:8001/api/v2/", id="http"),
+        pytest.param(8002, None, "https://127.0.0.1:8002/api/v2/", id="https"),
+    ],
+)
+def test_device_info(port: int, timeout: float | None, url: str) -> None:
+    """Ensure device info is fetched from the right URL and parsed."""
+    rest = SamsungTVRest("127.0.0.1", port=port, timeout=timeout)
     with patch(
         "samsungtvws.rest.requests.get", return_value=Mock(text=REST_DEVICE_INFO_SAMPLE)
     ) as mock_get:
         info = rest.rest_device_info()
 
-    mock_get.assert_called_once_with(
-        "http://127.0.0.1:8001/api/v2/", timeout=5, verify=False
-    )
+    mock_get.assert_called_once_with(url, timeout=timeout, verify=False)
     assert info["device"]["modelName"] == "QE55Q60TAU"
-
-
-def test_device_info_ssl() -> None:
-    """Ensure the secure port uses https."""
-    rest = SamsungTVRest("127.0.0.1", port=8002)
-    with patch(
-        "samsungtvws.rest.requests.get", return_value=Mock(text=REST_DEVICE_INFO_SAMPLE)
-    ) as mock_get:
-        rest.rest_device_info()
-
-    mock_get.assert_called_once_with(
-        "https://127.0.0.1:8002/api/v2/", timeout=None, verify=False
-    )
 
 
 @pytest.mark.parametrize(

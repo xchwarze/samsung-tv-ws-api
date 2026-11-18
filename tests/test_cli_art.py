@@ -332,11 +332,11 @@ def test_categories(art: Mock) -> None:
 @pytest.mark.parametrize(
     ("extra_args", "method", "expected_call"),
     [
-        pytest.param([], "get_thumbnail_list", ("MY_F0001",), id="list"),
+        pytest.param([], "get_thumbnail_list", call("MY_F0001"), id="list"),
         pytest.param(
             ["--legacy"],
             "get_thumbnail",
-            ("MY_F0001",),
+            call("MY_F0001", as_dict=True),
             id="legacy",
         ),
     ],
@@ -346,7 +346,7 @@ def test_thumbnail_to_out_file(
     tmp_path: Path,
     extra_args: list[str],
     method: str,
-    expected_call: tuple[str, ...],
+    expected_call: _Call,
 ) -> None:
     """Thumbnail data is written to the --out path."""
     getattr(art, method).return_value = {"MY_F0001.jpg": bytearray(b"thumb")}
@@ -357,16 +357,7 @@ def test_thumbnail_to_out_file(
     assert result.exit_code == 0
     assert result.output == f"OK: wrote MY_F0001.jpg -> {out}\n"
     assert out.read_bytes() == b"thumb"
-    assert getattr(art, method).call_args.args == expected_call
-
-
-def test_thumbnail_legacy_as_dict(art: Mock, tmp_path: Path) -> None:
-    """Legacy thumbnail is requested as a dict."""
-    art.get_thumbnail.return_value = {"a.png": bytearray(b"x")}
-
-    invoke("art-thumbnail", "MY_F0001", "--legacy", "--out", str(tmp_path / "a"))
-
-    art.get_thumbnail.assert_called_once_with("MY_F0001", as_dict=True)
+    assert getattr(art, method).call_args_list == [expected_call]
 
 
 def test_thumbnail_default_out_name(
