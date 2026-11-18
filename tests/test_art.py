@@ -320,11 +320,7 @@ def test_get_thumbnail_inline_binary_skips_socket(connection: Mock) -> None:
             thumb = tv_art.get_thumbnail("MY_F0073")
             open_sock.assert_not_called()
 
-        assert isinstance(thumb, bytearray)
-
-        # Assert JPEG signature (SOI ... EOI)
-        assert bytes(thumb).startswith(b"\xff\xd8")
-        assert bytes(thumb).endswith(b"\xff\xd9")
+        assert thumb == bytearray(b"\xff\xd8\xff\xd9")
 
 
 def test_open_unexpected_event(connection: Mock) -> None:

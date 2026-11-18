@@ -67,21 +67,29 @@ async def test_open_reuses_existing_connection(async_connection: Mock) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("sample", "exception"),
+    ("sample", "exception", "match"),
     [
         pytest.param(
-            MS_CHANNEL_UNAUTHORIZED_SAMPLE, UnauthorizedError, id="unauthorized"
+            MS_CHANNEL_UNAUTHORIZED_SAMPLE,
+            UnauthorizedError,
+            "ms.channel.unauthorized",
+            id="unauthorized",
         ),
-        pytest.param(MS_CHANNEL_READY_SAMPLE, ConnectionFailure, id="unexpected"),
+        pytest.param(
+            MS_CHANNEL_READY_SAMPLE,
+            ConnectionFailure,
+            "ms.channel.ready",
+            id="unexpected",
+        ),
     ],
 )
 async def test_open_failure(
-    async_connection: Mock, sample: str, exception: type[Exception]
+    async_connection: Mock, sample: str, exception: type[Exception], match: str
 ) -> None:
     """Ensure an unexpected first event raises and leaves no connection."""
     async_connection.recv = AsyncMock(return_value=sample)
     tv = _create_tv()
-    with pytest.raises(exception):
+    with pytest.raises(exception, match=match):
         await tv.open()
     assert tv.connection is None
     assert tv.is_alive() is False

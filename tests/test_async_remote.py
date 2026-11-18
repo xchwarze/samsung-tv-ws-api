@@ -52,7 +52,7 @@ async def test_connection_failure(async_connection: Mock) -> None:
     async_connection.recv = AsyncMock(return_value=MS_ERROR_SAMPLE)
     async_connection.send = AsyncMock()
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    with pytest.raises(ConnectionFailure):
+    with pytest.raises(ConnectionFailure, match="ms.error"):
         await tv.start_listening()
 
 
