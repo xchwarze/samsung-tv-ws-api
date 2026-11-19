@@ -46,6 +46,15 @@ class SamsungTVAsyncIPControl:
 
     The TV keeps a single access token: creating a new one invalidates the
     previous token.
+
+    Samsung does not document this API. The method names and error codes
+    follow the protocol as implemented by the py-samsungtv project
+    (https://pypi.org/project/py-samsungtv/), the behaviour (required
+    ``Accept`` header, bare "Parse error" for a rejected token, single token,
+    reachable in standby) was verified against a real TV:
+    QE77S95CATXXN (S95C OLED, 2023, model code 23_PTM_QD_T09, Tizen 7.0).
+    According to py-samsungtv the same service is present on 2024+ models,
+    on which the WebSocket API (ports 8001/8002) is no longer available.
     """
 
     def __init__(
