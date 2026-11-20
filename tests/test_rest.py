@@ -122,3 +122,28 @@ def test_ime_input_without_token(token: str | None) -> None:
         rest.rest_ime_input("secret", token=token)
 
     mock_post.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("method", "http_method"),
+    [
+        pytest.param("rest_device_info", "get", id="device_info"),
+        pytest.param("rest_app_status", "get", id="status"),
+        pytest.param("rest_app_run", "post", id="run"),
+        pytest.param("rest_app_close", "delete", id="close"),
+        pytest.param("rest_app_install", "put", id="install"),
+    ],
+)
+def test_request_http_error(method: str, http_method: str) -> None:
+    """Ensure an HTTP error status raises HttpApiError with the status and body."""
+    rest = SamsungTVRest("127.0.0.1")
+    body = '{"code": 404, "message": "Not found error.", "status": 404}'
+    args = () if method == "rest_device_info" else (APP_ID,)
+    with (
+        patch(
+            f"samsungtvws.rest.requests.{http_method}",
+            return_value=Mock(ok=False, status_code=404, text=body),
+        ),
+        pytest.raises(HttpApiError, match="HTTP 404: .*Not found error"),
+    ):
+        getattr(rest, method)(*args)

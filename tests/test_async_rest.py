@@ -71,3 +71,32 @@ async def test_rest_unreachable(
     tv = SamsungTVAsyncRest("samsungtv.test", session=web_session)
     with pytest.raises(HttpApiError, match="TV unreachable"):
         await tv.rest_device_info()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method_name", "http_method"),
+    [
+        pytest.param("rest_app_status", "GET", id="status"),
+        pytest.param("rest_app_run", "POST", id="run"),
+        pytest.param("rest_app_close", "DELETE", id="close"),
+        pytest.param("rest_app_install", "PUT", id="install"),
+    ],
+)
+async def test_rest_http_error(
+    aiointercept_mock: aiointercept,
+    web_session: aiohttp.ClientSession,
+    method_name: str,
+    http_method: str,
+) -> None:
+    """Ensure an HTTP error status raises HttpApiError with the status and body."""
+    url = f"http://samsungtv.test:8001/api/v2/applications/{APP_ID}"
+    aiointercept_mock.add(
+        url,
+        method=http_method,
+        status=404,
+        body='{"code": 404, "message": "Not found error.", "status": 404}',
+    )
+    tv = SamsungTVAsyncRest("samsungtv.test", session=web_session)
+    with pytest.raises(HttpApiError, match="HTTP 404: .*Not found error"):
+        await getattr(tv, method_name)(APP_ID)
