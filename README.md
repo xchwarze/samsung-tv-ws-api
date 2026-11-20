@@ -123,6 +123,38 @@ Reviewing these examples is the recommended starting point for manual integratio
 
 ---
 
+### IP Remote (JSON-RPC, port 1516 or 1515)
+
+Some TVs have an "IP Remote" setting in the expert network settings. When
+enabled, the TV exposes a local JSON-RPC service which, unlike the WebSocket
+API, can report the selected HDMI input, select a specific HDMI input and turn
+on the TV from standby. It is only available with the `async` extra.
+
+```python
+import aiohttp
+from samsungtvws.async_ip_control import SamsungTVAsyncIPControl
+
+async with aiohttp.ClientSession() as session:
+    tv = SamsungTVAsyncIPControl("192.168.1.10", session=session)
+    # Accept the prompt on the TV, store the token for later use
+    token = await tv.create_access_token()
+
+    states = await tv.get_tv_states()
+    print(states["inputSource"])  # for example "HDMI1"
+
+    await tv.input_source_control("HDMI2")
+    await tv.power_on()
+```
+
+The TV keeps a single access token, pairing again invalidates the previous
+token (`IPControlUnauthorizedError` is raised when using it).
+
+Older models (seen on a 2019 model) use port 1515 instead of 1516. Without a
+`port` argument both are tried on the first request; the port that works is
+then available as `tv.port`, store it with the token and pass it the next
+time to skip the detection. The values reported by `get_tv_states` while the
+TV is in standby are not reliable.
+
 ### CLI usage
 
 For quick testing, automation, or scripting, the library provides a fully featured **command-line interface**.
