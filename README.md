@@ -123,7 +123,7 @@ Reviewing these examples is the recommended starting point for manual integratio
 
 ---
 
-### IP Remote (JSON-RPC, port 1516)
+### IP Remote (JSON-RPC, port 1516 or 1515)
 
 Some TVs have an "IP Remote" setting in the expert network settings. When
 enabled, the TV exposes a local JSON-RPC service which, unlike the WebSocket
@@ -148,6 +148,12 @@ async with aiohttp.ClientSession() as session:
 
 The TV keeps a single access token, pairing again invalidates the previous
 token (`IPControlUnauthorizedError` is raised when using it).
+
+Older models (seen on a 2019 model) use port 1515 instead of 1516. Without a
+`port` argument both are tried on the first request; the port that works is
+then available as `tv.port`, store it with the token and pass it the next
+time to skip the detection. The values reported by `get_tv_states` while the
+TV is in standby are not reliable.
 
 ### CLI usage
 

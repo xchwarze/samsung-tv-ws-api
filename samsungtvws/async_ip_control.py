@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import ssl
 from typing import Any
 
 import aiohttp
@@ -19,6 +20,10 @@ from . import exceptions, helper
 _LOGGING = logging.getLogger(__name__)
 
 IP_CONTROL_PORT = 1516
+# Port used by older models (seen on a 2019 model)
+IP_CONTROL_PORT_LEGACY = 1515
+# Ports tried, in this order, when the port is not known
+IP_CONTROL_PORTS = (IP_CONTROL_PORT, IP_CONTROL_PORT_LEGACY)
 
 POWER_ON = "powerOn"
 POWER_OFF = "powerOff"
@@ -36,13 +41,39 @@ _HEADERS = {"Accept": "application/json"}
 _DEFAULT_TIMEOUT = 10.0
 _PAIRING_TIMEOUT = 60.0
 
+_SSL_CONTEXT: ssl.SSLContext | None = None
+
+
+def get_ssl_context() -> ssl.SSLContext:
+    """Return the SSL context used to connect to the TV.
+
+    The TV uses a self-signed certificate, so it is not verified. Older
+    models (2019) only offer DHE with a 1024-bit key, which is rejected at
+    the default OpenSSL security level.
+
+    The CA store is not loaded, so creating it does not block.
+    """
+    global _SSL_CONTEXT
+    if not _SSL_CONTEXT:
+        _SSL_CONTEXT = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        _SSL_CONTEXT.check_hostname = False
+        _SSL_CONTEXT.verify_mode = ssl.CERT_NONE
+        _SSL_CONTEXT.set_ciphers("DEFAULT:@SECLEVEL=0")
+    return _SSL_CONTEXT
+
 
 class SamsungTVAsyncIPControl:
     """Client for the local "IP Remote" JSON-RPC service of Samsung TVs.
 
     The service is disabled by default and must be enabled on the TV
     ("IP Remote" in the expert network settings). It listens on HTTPS port
-    1516 with a self-signed certificate and stays reachable in standby.
+    1516, or on port 1515 on older models (seen on a 2019 model), with a
+    self-signed certificate and stays reachable in standby.
+
+    Without a `port` both ports are tried on the first request, the port
+    which accepts the connection is then available as `port` and is used
+    for the following requests. Store it together with the access token
+    and pass it the next time to skip this detection.
 
     The TV keeps a single access token: creating a new one invalidates the
     previous token.
@@ -62,20 +93,71 @@ class SamsungTVAsyncIPControl:
         host: str,
         *,
         session: aiohttp.ClientSession,
-        port: int = IP_CONTROL_PORT,
+        port: int | None = None,
         token: str | None = None,
         timeout: float | None = None,
+        ssl_context: ssl.SSLContext | None = None,
     ) -> None:
         self.host = host
         self.port = port
         self.token = token
         self.timeout = _DEFAULT_TIMEOUT if timeout is None else timeout
         self.session = session
+        self._ssl_context = ssl_context or get_ssl_context()
         self._request_id = 0
 
-    def _format_url(self) -> str:
-        return helper.build_url(
-            scheme="https", host=self.host, port=self.port, path="/"
+    def _format_url(self, port: int) -> str:
+        return helper.build_url(scheme="https", host=self.host, port=port, path="/")
+
+    async def _post(
+        self, port: int, payload: dict[str, Any], timeout: float
+    ) -> tuple[int, str]:
+        """Send the payload to a port, return the HTTP status and body."""
+        # A request may take long (pairing), connecting should not
+        client_timeout = aiohttp.ClientTimeout(
+            total=timeout, connect=min(timeout, self.timeout)
+        )
+        try:
+            future = self.session.post(
+                self._format_url(port),
+                json=payload,
+                headers=_HEADERS,
+                timeout=client_timeout,
+                ssl=self._ssl_context,
+            )
+            async with future as resp:
+                return resp.status, await resp.text()
+        except aiohttp.ClientConnectorSSLError as err:
+            raise exceptions.IPControlConnectionError(
+                f"TLS handshake with the TV failed: {err}"
+            ) from err
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise exceptions.IPControlConnectionError(
+                "TV unreachable or IP Remote not enabled on this model."
+            ) from err
+
+    async def _post_detect_port(
+        self, payload: dict[str, Any], timeout: float
+    ) -> tuple[int, str]:
+        """Send the payload to the first port accepting it, and remember it."""
+        errors: list[exceptions.IPControlConnectionError] = []
+        for port in IP_CONTROL_PORTS:
+            try:
+                response = await self._post(port, payload, timeout)
+            except exceptions.IPControlConnectionError as err:
+                errors.append(err)
+                continue
+            _LOGGING.debug("Using ip control port %s for %s", port, self.host)
+            self.port = port
+            return response
+        # A failed TLS handshake tells more than a refused connection
+        raise next(
+            (
+                err
+                for err in errors
+                if isinstance(err.__cause__, aiohttp.ClientConnectorSSLError)
+            ),
+            errors[0],
         )
 
     async def send_request(
@@ -99,24 +181,11 @@ class SamsungTVAsyncIPControl:
         self._request_id += 1
         payload["id"] = self._request_id
 
-        client_timeout = aiohttp.ClientTimeout(
-            self.timeout if timeout is None else timeout
-        )
-        try:
-            future = self.session.post(
-                self._format_url(),
-                json=payload,
-                headers=_HEADERS,
-                timeout=client_timeout,
-                ssl=False,
-            )
-            async with future as resp:
-                status = resp.status
-                text = await resp.text()
-        except (aiohttp.ClientError, TimeoutError) as err:
-            raise exceptions.IPControlConnectionError(
-                "TV unreachable or IP Remote not enabled on this model."
-            ) from err
+        request_timeout = self.timeout if timeout is None else timeout
+        if self.port is None:
+            status, text = await self._post_detect_port(payload, request_timeout)
+        else:
+            status, text = await self._post(self.port, payload, request_timeout)
 
         if status != 200:
             raise exceptions.IPControlError(
@@ -170,7 +239,9 @@ class SamsungTVAsyncIPControl:
     async def get_tv_states(self) -> dict[str, Any]:
         """Get the states, such as `inputSource`, `volume` and `mute`.
 
-        The TV keeps answering in standby, with the last known values.
+        The TV keeps answering in standby, but the values reported in standby
+        are not reliable: `mute` and `speakerSelect` have been seen to differ
+        from the values right before turning off.
         """
         _LOGGING.debug("Get tv states via ip control")
         return await self.send_request("getTVStates")

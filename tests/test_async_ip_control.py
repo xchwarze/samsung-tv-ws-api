@@ -1,13 +1,16 @@
 """Tests for async_ip_control module."""
 
+import ssl
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import aiohttp
 from aiointercept import aiointercept
 import pytest
 from yarl import URL
 
-from samsungtvws.async_ip_control import SamsungTVAsyncIPControl
+from samsungtvws import async_ip_control
+from samsungtvws.async_ip_control import SamsungTVAsyncIPControl, get_ssl_context
 from samsungtvws.exceptions import (
     IPControlConnectionError,
     IPControlError,
@@ -23,6 +26,18 @@ TV_STATES_SAMPLE = (
     '"mute":"muteOff","pictureSize":"16:9","pictureMode":"Dynamic",'
     '"soundMode":"Standard","inputSource":"HDMI1"}}'
 )
+
+
+def _mock_session(exception: Exception | None = None) -> Mock:
+    """Return a session answering with the TV states, or failing to connect."""
+    response = Mock(status=200)
+    response.text = AsyncMock(return_value=TV_STATES_SAMPLE)
+    context = MagicMock()
+    context.__aenter__ = AsyncMock(return_value=response, side_effect=exception)
+    context.__aexit__ = AsyncMock(return_value=False)
+    session = Mock(aiohttp.ClientSession)
+    session.post = Mock(return_value=context)
+    return session
 
 
 def _sent_json(aiointercept_mock: aiointercept, index: int = 0) -> dict[str, Any]:
@@ -223,3 +238,150 @@ async def test_unreachable(
     tv = SamsungTVAsyncIPControl("samsungtv.test", session=web_session, token=TOKEN)
     with pytest.raises(IPControlConnectionError, match="TV unreachable"):
         await tv.get_tv_states()
+
+
+@pytest.mark.asyncio
+async def test_tls_handshake_failure() -> None:
+    """Ensure a TLS failure is not reported as an unreachable TV."""
+    session = _mock_session(
+        aiohttp.ClientConnectorSSLError(Mock(), ssl.SSLError(1, "dh key too small"))
+    )
+    tv = SamsungTVAsyncIPControl("samsungtv.test", session=session, token=TOKEN)
+    with pytest.raises(IPControlConnectionError, match="TLS handshake") as err:
+        await tv.get_tv_states()
+    assert "dh key too small" in str(err.value)
+
+
+def test_get_ssl_context(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ensure the unverified context allowing legacy ciphers is cached."""
+    monkeypatch.setattr(async_ip_control, "_SSL_CONTEXT", None)
+    context = get_ssl_context()
+    assert context.verify_mode is ssl.CERT_NONE
+    assert not context.check_hostname
+    assert context.security_level == 0
+    assert get_ssl_context() is context
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("custom", [False, True], ids=["default", "custom"])
+async def test_ssl_context_used(custom: bool) -> None:
+    """Ensure the default or the given SSL context is used for requests."""
+    session = _mock_session()
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT) if custom else None
+    tv = SamsungTVAsyncIPControl(
+        "samsungtv.test", session=session, token=TOKEN, ssl_context=ssl_context
+    )
+    assert (await tv.get_tv_states())["inputSource"] == "HDMI1"
+    session.post.assert_called_once()
+    assert session.post.call_args.args == (URL_IP_CONTROL,)
+    assert session.post.call_args.kwargs["ssl"] is (ssl_context or get_ssl_context())
+
+
+@pytest.mark.asyncio
+async def test_legacy_port(
+    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
+) -> None:
+    """Ensure the port of older models can be used."""
+    url = "https://samsungtv.test:1515/"
+    aiointercept_mock.post(url, body=TV_STATES_SAMPLE)
+    tv = SamsungTVAsyncIPControl(
+        "samsungtv.test",
+        session=web_session,
+        token=TOKEN,
+        port=async_ip_control.IP_CONTROL_PORT_LEGACY,
+    )
+    await tv.get_tv_states()
+    assert list(aiointercept_mock.requests) == [("POST", URL(url))]
+
+
+@pytest.mark.asyncio
+async def test_port_detected(
+    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
+) -> None:
+    """Ensure the port of older models is found and then kept."""
+    url_legacy = "https://samsungtv.test:1515/"
+    aiointercept_mock.post(URL_IP_CONTROL, exception=True)
+    aiointercept_mock.post(url_legacy, body=TV_STATES_SAMPLE, repeat=True)
+    tv = SamsungTVAsyncIPControl("samsungtv.test", session=web_session, token=TOKEN)
+    assert tv.port is None
+
+    assert (await tv.get_tv_states())["inputSource"] == "HDMI1"
+    assert tv.port == 1515
+    assert list(aiointercept_mock.requests) == [
+        ("POST", URL(URL_IP_CONTROL)),
+        ("POST", URL(url_legacy)),
+    ]
+
+    # The other port is not tried again
+    await tv.get_tv_states()
+    assert len(aiointercept_mock.requests[("POST", URL(URL_IP_CONTROL))]) == 1
+    assert len(aiointercept_mock.requests[("POST", URL(url_legacy))]) == 2
+
+
+@pytest.mark.asyncio
+async def test_port_detected_default(
+    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
+) -> None:
+    """Ensure the legacy port is not tried when the default port answers."""
+    aiointercept_mock.post(URL_IP_CONTROL, body=TV_STATES_SAMPLE)
+    tv = SamsungTVAsyncIPControl("samsungtv.test", session=web_session, token=TOKEN)
+    await tv.get_tv_states()
+    assert tv.port == 1516
+    assert list(aiointercept_mock.requests) == [("POST", URL(URL_IP_CONTROL))]
+
+
+@pytest.mark.asyncio
+async def test_port_not_detected(
+    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
+) -> None:
+    """Ensure both ports are tried again after neither answered."""
+    url_legacy = "https://samsungtv.test:1515/"
+    aiointercept_mock.post(URL_IP_CONTROL, exception=True, repeat=True)
+    aiointercept_mock.post(url_legacy, exception=True, repeat=True)
+    tv = SamsungTVAsyncIPControl("samsungtv.test", session=web_session, token=TOKEN)
+    for _ in range(2):
+        with pytest.raises(IPControlConnectionError, match="TV unreachable"):
+            await tv.get_tv_states()
+        assert tv.port is None
+    assert len(aiointercept_mock.requests[("POST", URL(URL_IP_CONTROL))]) == 2
+    assert len(aiointercept_mock.requests[("POST", URL(url_legacy))]) == 2
+
+
+@pytest.mark.asyncio
+async def test_port_given_is_not_detected(
+    aiointercept_mock: aiointercept, web_session: aiohttp.ClientSession
+) -> None:
+    """Ensure only the given port is used."""
+    aiointercept_mock.post(URL_IP_CONTROL, exception=True)
+    tv = SamsungTVAsyncIPControl(
+        "samsungtv.test", session=web_session, token=TOKEN, port=1516
+    )
+    with pytest.raises(IPControlConnectionError):
+        await tv.get_tv_states()
+    assert tv.port == 1516
+    assert list(aiointercept_mock.requests) == [("POST", URL(URL_IP_CONTROL))]
+
+
+@pytest.mark.asyncio
+async def test_port_detection_reports_tls_failure() -> None:
+    """Ensure a TLS failure is reported when the other port is closed."""
+    response_context = MagicMock()
+    response_context.__aenter__ = AsyncMock(
+        side_effect=[
+            aiohttp.ClientConnectionError("refused"),
+            aiohttp.ClientConnectorSSLError(
+                Mock(), ssl.SSLError(1, "dh key too small")
+            ),
+        ]
+    )
+    response_context.__aexit__ = AsyncMock(return_value=False)
+    session = Mock(aiohttp.ClientSession)
+    session.post = Mock(return_value=response_context)
+    tv = SamsungTVAsyncIPControl("samsungtv.test", session=session, token=TOKEN)
+    with pytest.raises(IPControlConnectionError, match="TLS handshake"):
+        await tv.get_tv_states()
+    assert tv.port is None
+    assert [call.args[0] for call in session.post.call_args_list] == [
+        URL_IP_CONTROL,
+        "https://samsungtv.test:1515/",
+    ]
