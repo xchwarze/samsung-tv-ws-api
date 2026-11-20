@@ -1,86 +1,149 @@
-"""Tests for the REST API wrappers."""
+"""Tests for rest module."""
 
-from __future__ import annotations
+from unittest.mock import Mock, patch
 
-from collections.abc import Iterator
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import json
-import threading
-
-import aiohttp
 import pytest
+import requests
 
-from samsungtvws.async_rest import SamsungTVAsyncRest
 from samsungtvws.exceptions import HttpApiError
 from samsungtvws.rest import SamsungTVRest
 
-_NOT_FOUND: dict[str, object] = {
-    "code": 404,
-    "message": "Not found error.",
-    "status": 404,
-}
-_DEVICE_INFO: dict[str, object] = {"device": {"name": "TV"}}
+from .const import (
+    APP_ID,
+    REST_APP_STATUS_SAMPLE,
+    REST_DEVICE_INFO_SAMPLE,
+)
 
-
-class _Handler(BaseHTTPRequestHandler):
-    def _reply(self) -> None:
-        if self.path == "/api/v2/":
-            status, payload = 200, _DEVICE_INFO
-        else:
-            status, payload = 404, _NOT_FOUND
-        body = json.dumps(payload).encode()
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    do_GET = do_POST = do_PUT = do_DELETE = _reply
-
-    def log_message(self, *args: object) -> None:
-        pass
-
-
-@pytest.fixture(name="tv_port")
-def tv_port_fixture() -> Iterator[int]:
-    server = HTTPServer(("127.0.0.1", 0), _Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    yield server.server_address[1]
-    server.shutdown()
-    server.server_close()
-    thread.join()
-
-
-def test_rest_request_returns_body_on_success(tv_port: int) -> None:
-    rest = SamsungTVRest("127.0.0.1", port=tv_port, timeout=2)
-    assert rest.rest_device_info() == _DEVICE_INFO
+APP_URL = f"http://127.0.0.1:8001/api/v2/applications/{APP_ID}"
 
 
 @pytest.mark.parametrize(
-    "method", ["rest_app_status", "rest_app_run", "rest_app_close", "rest_app_install"]
+    ("port", "timeout", "url"),
+    [
+        pytest.param(8001, 5, "http://127.0.0.1:8001/api/v2/", id="http"),
+        pytest.param(8002, None, "https://127.0.0.1:8002/api/v2/", id="https"),
+    ],
 )
-def test_rest_request_raises_on_http_error(tv_port: int, method: str) -> None:
-    rest = SamsungTVRest("127.0.0.1", port=tv_port, timeout=2)
-    with pytest.raises(HttpApiError, match="HTTP 404: .*Not found error"):
-        getattr(rest, method)("no.such.app")
+def test_device_info(port: int, timeout: float | None, url: str) -> None:
+    """Ensure device info is fetched from the right URL and parsed."""
+    rest = SamsungTVRest("127.0.0.1", port=port, timeout=timeout)
+    with patch(
+        "samsungtvws.rest.requests.get", return_value=Mock(text=REST_DEVICE_INFO_SAMPLE)
+    ) as mock_get:
+        info = rest.rest_device_info()
+
+    mock_get.assert_called_once_with(url, timeout=timeout, verify=False)
+    assert info["device"]["modelName"] == "QE55Q60TAU"
 
 
-@pytest.mark.asyncio
-async def test_async_rest_request_returns_body_on_success(tv_port: int) -> None:
-    async with aiohttp.ClientSession() as session:
-        rest = SamsungTVAsyncRest("127.0.0.1", session=session, port=tv_port, timeout=2)
-        assert await rest.rest_device_info() == _DEVICE_INFO
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "method", ["rest_app_status", "rest_app_run", "rest_app_close", "rest_app_install"]
+    ("method", "http_method"),
+    [
+        pytest.param("rest_app_status", "get", id="status"),
+        pytest.param("rest_app_run", "post", id="run"),
+        pytest.param("rest_app_close", "delete", id="close"),
+        pytest.param("rest_app_install", "put", id="install"),
+    ],
 )
-async def test_async_rest_request_raises_on_http_error(
-    tv_port: int, method: str
-) -> None:
-    async with aiohttp.ClientSession() as session:
-        rest = SamsungTVAsyncRest("127.0.0.1", session=session, port=tv_port, timeout=2)
-        with pytest.raises(HttpApiError, match="HTTP 404: .*Not found error"):
-            await getattr(rest, method)("no.such.app")
+def test_app_requests(method: str, http_method: str) -> None:
+    """Ensure each app action uses the matching HTTP method."""
+    rest = SamsungTVRest("127.0.0.1")
+    with patch(
+        f"samsungtvws.rest.requests.{http_method}",
+        return_value=Mock(text=REST_APP_STATUS_SAMPLE),
+    ) as mock_request:
+        result = getattr(rest, method)(APP_ID)
+
+    mock_request.assert_called_once_with(APP_URL, timeout=None, verify=False)
+    assert result == {
+        "id": APP_ID,
+        "name": "YouTube",
+        "running": True,
+        "version": "1.0.0",
+        "visible": True,
+    }
+
+
+def test_request_connection_error() -> None:
+    """Ensure an unreachable TV raises HttpApiError."""
+    rest = SamsungTVRest("127.0.0.1")
+    with (
+        patch(
+            "samsungtvws.rest.requests.get",
+            side_effect=requests.ConnectionError,
+        ),
+        pytest.raises(HttpApiError, match="TV unreachable"),
+    ):
+        rest.rest_device_info()
+
+
+@pytest.mark.parametrize(
+    ("status_code", "expected"),
+    [
+        pytest.param(200, True, id="ok"),
+        pytest.param(401, False, id="rejected"),
+    ],
+)
+def test_ime_input(status_code: int, expected: bool) -> None:
+    """Ensure IME input posts the encoded text with the token."""
+    rest = SamsungTVRest("127.0.0.1", port=8002)
+    with patch(
+        "samsungtvws.rest.requests.post", return_value=Mock(status_code=status_code)
+    ) as mock_post:
+        assert rest.rest_ime_input("pässword", token="abc") is expected
+
+    mock_post.assert_called_once_with(
+        "https://127.0.0.1:8002/api/v2/remoteControl/imeInput/cMOkc3N3b3Jk?token=abc",
+        timeout=None,
+        verify=False,
+    )
+
+
+def test_ime_input_empty_text() -> None:
+    """Ensure empty text is not sent."""
+    rest = SamsungTVRest("127.0.0.1")
+    with patch("samsungtvws.rest.requests.post") as mock_post:
+        assert rest.rest_ime_input("", token="abc") is False
+
+    mock_post.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "token",
+    [pytest.param(None, id="none"), pytest.param("", id="empty")],
+)
+def test_ime_input_without_token(token: str | None) -> None:
+    """Ensure IME input requires a token."""
+    rest = SamsungTVRest("127.0.0.1")
+    with (
+        patch("samsungtvws.rest.requests.post") as mock_post,
+        pytest.raises(ValueError, match="requires a valid security token"),
+    ):
+        rest.rest_ime_input("secret", token=token)
+
+    mock_post.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("method", "http_method"),
+    [
+        pytest.param("rest_device_info", "get", id="device_info"),
+        pytest.param("rest_app_status", "get", id="status"),
+        pytest.param("rest_app_run", "post", id="run"),
+        pytest.param("rest_app_close", "delete", id="close"),
+        pytest.param("rest_app_install", "put", id="install"),
+    ],
+)
+def test_request_http_error(method: str, http_method: str) -> None:
+    """Ensure an HTTP error status raises HttpApiError with the status and body."""
+    rest = SamsungTVRest("127.0.0.1")
+    body = '{"code": 404, "message": "Not found error.", "status": 404}'
+    args = () if method == "rest_device_info" else (APP_ID,)
+    with (
+        patch(
+            f"samsungtvws.rest.requests.{http_method}",
+            return_value=Mock(ok=False, status_code=404, text=body),
+        ),
+        pytest.raises(HttpApiError, match="HTTP 404: .*Not found error"),
+    ):
+        getattr(rest, method)(*args)

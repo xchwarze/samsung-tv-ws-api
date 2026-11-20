@@ -1,0 +1,110 @@
+"""Tests for cli remote module."""
+
+from unittest.mock import MagicMock, call
+
+import pytest
+
+from .const import (
+    invoke,
+    plain_text,
+)
+
+
+@pytest.mark.parametrize(
+    ("extra_args", "times", "cmd", "delay"),
+    [
+        pytest.param([], 1, "Click", None, id="defaults"),
+        pytest.param(
+            ["--times", "3", "--cmd", " press ", "--delay", "0.2"],
+            3,
+            "Press",
+            0.2,
+            id="press-repeated",
+        ),
+        pytest.param(["--cmd", "RELEASE"], 1, "Release", None, id="release"),
+    ],
+)
+def test_send_key(
+    mock_tv: MagicMock,
+    extra_args: list[str],
+    times: int,
+    cmd: str,
+    delay: float | None,
+) -> None:
+    """Ensure a key is sent with a normalized command."""
+    result = invoke("send-key", "KEY_UP", *extra_args)
+    assert result.exit_code == 0
+    mock_tv.send_key.assert_called_once_with(
+        key="KEY_UP", times=times, cmd=cmd, key_press_delay=delay
+    )
+
+
+def test_send_key_invalid_cmd(mock_tv: MagicMock) -> None:
+    """Ensure an unknown key command is rejected."""
+    result = invoke("send-key", "KEY_UP", "--cmd", "Tap")
+    assert result.exit_code == 2
+    assert "Invalid --cmd. Use: Click|Press|Release" in plain_text(result.stderr)
+    mock_tv.send_key.assert_not_called()
+
+
+def test_hold_key(mock_tv: MagicMock) -> None:
+    """Ensure a key is held for the given duration."""
+    result = invoke("hold-key", "KEY_VOLUP", "1.5")
+    assert result.exit_code == 0
+    mock_tv.hold_key.assert_called_once_with("KEY_VOLUP", 1.5)
+
+
+def test_move_cursor(mock_tv: MagicMock) -> None:
+    """Ensure the cursor is moved to the coordinates."""
+    result = invoke("move-cursor", "100", "200")
+    assert result.exit_code == 0
+    mock_tv.move_cursor.assert_called_once_with(100, 200)
+
+
+@pytest.mark.parametrize(
+    ("command", "key"),
+    [
+        pytest.param(["mouse-click"], "KEY_ENTER", id="mouse-click"),
+        pytest.param(
+            ["factory", "--i-know-what-im-doing"], "KEY_FACTORY", id="factory"
+        ),
+    ],
+)
+def test_single_key_commands(mock_tv: MagicMock, command: list[str], key: str) -> None:
+    """Ensure single key commands send their key."""
+    result = invoke(*command)
+    assert result.exit_code == 0
+    mock_tv.send_key.assert_called_once_with(key)
+
+
+def test_factory_requires_ack(mock_tv: MagicMock) -> None:
+    """Ensure the factory menu is not opened without acknowledgement."""
+    result = invoke("factory")
+    assert result.exit_code == 1
+    assert "Re-run with --i-know-what-im-doing to proceed." in result.stderr
+    mock_tv.send_key.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("extra_args", "expected_calls"),
+    [
+        pytest.param([], [call.send_text("hello")], id="text-only"),
+        pytest.param(
+            ["--end"], [call.send_text("hello"), call.end_text()], id="with-end"
+        ),
+    ],
+)
+def test_send_text(
+    mock_tv: MagicMock, extra_args: list[str], expected_calls: list[object]
+) -> None:
+    """Ensure text is sent, optionally ending the input session."""
+    result = invoke("send-text", "hello", *extra_args)
+    assert result.exit_code == 0
+    assert mock_tv.mock_calls == expected_calls
+
+
+def test_end_text(mock_tv: MagicMock) -> None:
+    """Ensure the text input session is ended."""
+    result = invoke("end-text")
+    assert result.exit_code == 0
+    mock_tv.end_text.assert_called_once_with()

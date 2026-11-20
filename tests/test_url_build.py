@@ -1,5 +1,6 @@
 """Tests for yarl-based URL building, specifically IPv6 host with port."""
 
+from typing import Any
 from unittest.mock import Mock, patch
 
 import aiohttp
@@ -9,111 +10,123 @@ from samsungtvws.connection import SamsungTVWSBaseConnection
 from samsungtvws.encrypted.remote import SamsungTVEncryptedWSAsyncRemote
 from samsungtvws.rest import SamsungTVRest
 
+from .const import (
+    ENDPOINT,
+    NAME_B64,
+    TOKEN,
+)
+
 IPV6_HOST = "::1"
 
 
-# ---------------------------------------------------------------------------
-# SamsungTVWSBaseConnection
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
-    "port, token, method, args, expected_prefix, extra_in",
+    ("port", "token", "method", "args", "expected"),
     [
-        (
+        pytest.param(
             8001,
             None,
             "_format_websocket_url",
-            ("samsung.remote.control",),
-            "ws://[::1]:8001/",
-            None,
+            (ENDPOINT,),
+            f"ws://[::1]:8001/api/v2/channels/{ENDPOINT}?name={NAME_B64}",
+            id="ws",
         ),
-        (
+        pytest.param(
             8002,
             "tok",
             "_format_websocket_url",
-            ("samsung.remote.control",),
-            "wss://[::1]:8002/",
-            "token=tok",
+            (ENDPOINT,),
+            f"wss://[::1]:8002/api/v2/channels/{ENDPOINT}?name={NAME_B64}&token=tok",
+            id="wss-token",
         ),
-        (8001, None, "_format_rest_url", ("device",), "http://[::1]:8001/", None),
-        (
+        pytest.param(
+            8001,
+            None,
+            "_format_rest_url",
+            ("device",),
+            "http://[::1]:8001/api/v2/device",
+            id="http",
+        ),
+        pytest.param(
             8001,
             None,
             "_format_rest_url",
             ("device", {"t": "123"}),
-            "http://[::1]:8001/",
-            "/api/v2/device?t=123",
+            "http://[::1]:8001/api/v2/device?t=123",
+            id="http-query",
         ),
-        (8002, "tok", "_format_rest_url", ("device",), "https://[::1]:8002/", None),
+        pytest.param(
+            8002,
+            "tok",
+            "_format_rest_url",
+            ("device",),
+            "https://[::1]:8002/api/v2/device",
+            id="https",
+        ),
     ],
 )
 def test_base_conn_url_ipv6(
     port: int,
     token: str | None,
     method: str,
-    args: tuple,
-    expected_prefix: str,
-    extra_in: str | None,
+    args: tuple[Any, ...],
+    expected: str,
 ) -> None:
     """IPv6 host must be bracketed in all SamsungTVWSBaseConnection URLs."""
     conn = SamsungTVWSBaseConnection(
-        IPV6_HOST, endpoint="samsung.remote.control", port=port, token=token
+        IPV6_HOST, endpoint=ENDPOINT, port=port, token=token
     )
-    url = getattr(conn, method)(*args)
-    assert url.startswith(expected_prefix)
-    assert "[::1]" in url
-    if extra_in is not None:
-        assert extra_in in url
-
-
-# ---------------------------------------------------------------------------
-# SamsungTVEncryptedWSAsyncRemote
-# ---------------------------------------------------------------------------
+    assert getattr(conn, method)(*args) == expected
 
 
 @pytest.mark.parametrize(
-    "method, args, expected_prefix, extra_in",
+    ("method", "args", "expected"),
     [
-        ("_format_websocket_url", ("abc123",), "ws://[::1]:8000/", None),
-        ("_format_rest_url", ("socket.io/1/",), "http://[::1]:8000/", None),
-        (
+        pytest.param(
+            "_format_websocket_url",
+            ("abc123",),
+            "ws://[::1]:8000/socket.io/1/websocket/abc123",
+            id="ws",
+        ),
+        pytest.param(
+            "_format_rest_url",
+            ("socket.io/1/",),
+            "http://[::1]:8000/socket.io/1/",
+            id="http",
+        ),
+        pytest.param(
             "_format_rest_url",
             ("socket.io/1/", {"t": "12345"}),
-            "http://[::1]:8000/",
-            "/socket.io/1/?t=12345",
+            "http://[::1]:8000/socket.io/1/?t=12345",
+            id="http-query",
         ),
     ],
 )
-def test_encrypted_url_ipv6(
-    method: str,
-    args: tuple,
-    expected_prefix: str,
-    extra_in: str | None,
-) -> None:
+def test_encrypted_url_ipv6(method: str, args: tuple[Any, ...], expected: str) -> None:
     """IPv6 host must be bracketed in all SamsungTVEncryptedWSAsyncRemote URLs."""
     remote = SamsungTVEncryptedWSAsyncRemote(
         IPV6_HOST,
         web_session=Mock(aiohttp.ClientSession),
-        token="037739871315caef138547b03e348b72",
+        token=TOKEN,
         session_id="1",
         port=8000,
     )
-    url = getattr(remote, method)(*args)
-    assert url.startswith(expected_prefix)
-    assert "[::1]" in url
-    if extra_in is not None:
-        assert extra_in in url
+    assert getattr(remote, method)(*args) == expected
 
 
-@pytest.mark.parametrize("host", ["::1", "[::1]"], ids=["unbracketed", "bracketed"])
+@pytest.mark.parametrize(
+    "host",
+    [
+        pytest.param("::1", id="unbracketed"),
+        pytest.param("[::1]", id="bracketed"),
+    ],
+)
 def test_ipv6_host_with_or_without_brackets(host: str) -> None:
     """An IPv6 host is accepted with or without brackets."""
-    conn = SamsungTVWSBaseConnection(host, endpoint="samsung.remote.control")
+    conn = SamsungTVWSBaseConnection(host, endpoint=ENDPOINT)
     remote = SamsungTVEncryptedWSAsyncRemote(
         host,
         web_session=Mock(aiohttp.ClientSession),
-        token="037739871315caef138547b03e348b72",
+        token=TOKEN,
         session_id="1",
         port=8000,
     )
@@ -123,7 +136,7 @@ def test_ipv6_host_with_or_without_brackets(host: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "port, expected_url",
+    ("port", "expected_url"),
     [
         pytest.param(
             8001,

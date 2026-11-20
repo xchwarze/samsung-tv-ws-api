@@ -1,15 +1,18 @@
-"""SamsungTV Encrypted."""
+"""Tests for the encrypted session module."""
 
 import binascii
 
 from samsungtvws.encrypted.command import SamsungTVEncryptedCommand
 from samsungtvws.encrypted.session import SamsungTVEncryptedSession
 
-TOKEN = "037739871315caef138547b03e348b72"
-SESSION_ID = "1"
+from .const import (
+    SESSION_ID,
+    TOKEN,
+)
 
 
 def test_simple_encrypt() -> None:
+    """Ensure a message round-trips through encrypt and decrypt."""
     session = SamsungTVEncryptedSession(TOKEN, SESSION_ID)
     message = "This is a test message"
 
@@ -24,6 +27,7 @@ def test_simple_encrypt() -> None:
 
 
 def test_command_encryption() -> None:
+    """Ensure a command is encrypted into a socket.io callCommon frame."""
     session = SamsungTVEncryptedSession(TOKEN, SESSION_ID)
     command = SamsungTVEncryptedCommand(
         "POST",

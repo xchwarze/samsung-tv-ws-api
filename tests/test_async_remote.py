@@ -1,7 +1,7 @@
-"""Tests for remote module."""
+"""Tests for the async remote module."""
 
-import asyncio
-from unittest.mock import Mock, call, patch
+from collections.abc import Callable
+from unittest.mock import AsyncMock, Mock, call
 
 import pytest
 
@@ -13,6 +13,7 @@ from .const import (
     ED_APPS_LAUNCH_SAMPLE,
     ED_EDENTV_UPDATE_SAMPLE,
     ED_INSTALLED_APP_SAMPLE,
+    INSTALLED_APPS,
     MS_CHANNEL_CONNECT_SAMPLE,
     MS_ERROR_SAMPLE,
     MS_REMOTE_TOUCH_DISABLE_SAMPLE,
@@ -21,75 +22,45 @@ from .const import (
 )
 
 
-def create_future_with_result(result) -> asyncio.Future:
-    future = asyncio.Future()
-    future.set_result(result)
-    return future
-
-
 @pytest.mark.asyncio
-async def test_connect(async_connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE)]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
-    tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    await tv.start_listening()
-    assert tv.token == 123456789
-
-
-@pytest.mark.asyncio
-async def test_connect_with_extra_event(async_connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[
-            create_future_with_result(MS_VOICEAPP_HIDE_SAMPLE),
-            create_future_with_result(ED_EDENTV_UPDATE_SAMPLE),
-            create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE),
-        ]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
-    tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    await tv.start_listening()
-    assert tv.token == 123456789
-
-
-@pytest.mark.asyncio
-async def test_connect_with_touch_events(async_connection: Mock) -> None:
-    """Ensure touch events sent before connect are ignored."""
-    async_connection.recv = Mock(
-        side_effect=[
-            create_future_with_result(MS_REMOTE_TOUCH_ENABLE_SAMPLE),
-            create_future_with_result(MS_REMOTE_TOUCH_DISABLE_SAMPLE),
-            create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE),
-        ]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
-    tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    await tv.start_listening()
-    assert tv.token == 123456789
+@pytest.mark.parametrize(
+    "events",
+    [
+        pytest.param([], id="connect-only"),
+        pytest.param(
+            [MS_VOICEAPP_HIDE_SAMPLE, ED_EDENTV_UPDATE_SAMPLE], id="extra-events"
+        ),
+        pytest.param(
+            [MS_REMOTE_TOUCH_ENABLE_SAMPLE, MS_REMOTE_TOUCH_DISABLE_SAMPLE],
+            id="touch-events",
+        ),
+    ],
+)
+async def test_connect(
+    block_recv_until_close: Callable[..., None], events: list[str]
+) -> None:
+    """Ensure events sent before ms.channel.connect are ignored."""
+    block_recv_until_close(*events, MS_CHANNEL_CONNECT_SAMPLE)
+    async with SamsungTVWSAsyncRemote("127.0.0.1") as tv:
+        await tv.start_listening()
+        assert tv.token == 123456789
 
 
 @pytest.mark.asyncio
 async def test_connection_failure(async_connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[create_future_with_result(MS_ERROR_SAMPLE)]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
+    """Ensure an error event while listening raises ConnectionFailure."""
+    async_connection.recv = AsyncMock(return_value=MS_ERROR_SAMPLE)
+    async_connection.send = AsyncMock()
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    with pytest.raises(ConnectionFailure):
+    with pytest.raises(ConnectionFailure, match="ms.error"):
         await tv.start_listening()
 
 
 @pytest.mark.asyncio
 async def test_send_key(async_connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE)]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
+    """Ensure a key is sent as a SendRemoteKey click."""
+    async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
+    async_connection.send = AsyncMock()
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
     await tv.send_command(SendRemoteKey.click("KEY_POWER"))
     async_connection.send.assert_called_once_with(
@@ -103,80 +74,48 @@ async def test_send_key(async_connection: Mock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_list(async_connection: Mock) -> None:
-    """Ensure valid app_list data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[
-            create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE),
-            create_future_with_result(ED_INSTALLED_APP_SAMPLE),
-        ]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
-    tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    await tv.start_listening()
-    assert await tv.app_list() == [
-        {
-            "appId": "111299001912",
-            "app_type": 2,
-            "icon": "/opt/share/webappservice/apps_icon/FirstScreen/111299001912/250x250.png",
-            "is_lock": 0,
-            "name": "YouTube",
-        },
-        {
-            "appId": "3201608010191",
-            "app_type": 2,
-            "icon": "/opt/share/webappservice/apps_icon/FirstScreen/3201608010191/250x250.png",
-            "is_lock": 0,
-            "name": "Deezer",
-        },
-    ]
+@pytest.mark.parametrize(
+    "events",
+    [
+        pytest.param([], id="in-order"),
+        pytest.param([ED_APPS_LAUNCH_SAMPLE], id="unrelated-event-first"),
+    ],
+)
+async def test_app_list(
+    async_connection: Mock,
+    block_recv_until_close: Callable[..., None],
+    events: list[str],
+) -> None:
+    """Ensure app_list data is parsed, even after an unrelated event."""
+    block_recv_until_close(MS_CHANNEL_CONNECT_SAMPLE, *events, ED_INSTALLED_APP_SAMPLE)
+    async_connection.send = AsyncMock()
+    async with SamsungTVWSAsyncRemote("127.0.0.1") as tv:
+        await tv.start_listening()
+        assert await tv.app_list() == INSTALLED_APPS
 
 
 @pytest.mark.asyncio
-async def test_app_list_bad_order(async_connection: Mock) -> None:
-    """Ensure valid app_list data can be parsed, even if we get events in the wrong order."""
-    async_connection.recv = Mock(
-        side_effect=[
-            create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE),
-            create_future_with_result(ED_APPS_LAUNCH_SAMPLE),
-            create_future_with_result(ED_INSTALLED_APP_SAMPLE),
-        ]
-    )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
+async def test_send_hold_key(
+    async_connection: Mock, mock_async_sleep: AsyncMock
+) -> None:
+    """Ensure holding a key presses, waits and releases it."""
+    async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
+    async_connection.send = AsyncMock()
+
     tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    await tv.start_listening()
-    assert await tv.app_list() == [
-        {
-            "appId": "111299001912",
-            "app_type": 2,
-            "icon": "/opt/share/webappservice/apps_icon/FirstScreen/111299001912/250x250.png",
-            "is_lock": 0,
-            "name": "YouTube",
-        },
-        {
-            "appId": "3201608010191",
-            "app_type": 2,
-            "icon": "/opt/share/webappservice/apps_icon/FirstScreen/3201608010191/250x250.png",
-            "is_lock": 0,
-            "name": "Deezer",
-        },
-    ]
+    await tv.send_command(SendRemoteKey.hold("KEY_POWER", 3))
+
+    assert mock_async_sleep.call_args_list == [call(1), call(3), call(1)]
 
 
 @pytest.mark.asyncio
-async def test_send_hold_key(async_connection: Mock) -> None:
-    """Ensure simple data can be parsed."""
-    async_connection.recv = Mock(
-        side_effect=[create_future_with_result(MS_CHANNEL_CONNECT_SAMPLE)]
+async def test_app_list_timeout(async_connection: Mock) -> None:
+    """Ensure app_list returns None when the TV does not answer in time."""
+    async_connection.recv = AsyncMock(return_value=MS_CHANNEL_CONNECT_SAMPLE)
+    async_connection.send = AsyncMock()
+    tv = SamsungTVWSAsyncRemote("127.0.0.1", timeout=0.01)
+    assert await tv.app_list() is None
+    async_connection.send.assert_called_once_with(
+        '{"method": "ms.channel.emit", "params": {'
+        '"event": "ed.installedApp.get", "to": "host"}}'
     )
-    async_connection.send = Mock(return_value=create_future_with_result(None))
-
-    tv = SamsungTVWSAsyncRemote("127.0.0.1")
-    with patch(
-        "samsungtvws.async_connection.asyncio.sleep",
-        return_value=create_future_with_result(None),
-    ) as patch_sleep:
-        await tv.send_command(SendRemoteKey.hold("KEY_POWER", 3))
-
-    assert patch_sleep.call_count == 3
-    assert patch_sleep.call_args_list == [call(1), call(3), call(1)]

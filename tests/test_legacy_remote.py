@@ -6,6 +6,7 @@ import asyncio
 import base64
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 import pytest_asyncio
@@ -95,6 +96,20 @@ async def fake_tv() -> AsyncIterator[StartFakeTV]:
         await server.wait_closed()
 
 
+@pytest_asyncio.fixture(name="tv_writer")
+async def get_tv_writer() -> AsyncIterator[Mock]:
+    """Patch open_connection: the TV grants access, and return the stream writer."""
+    reader = asyncio.StreamReader()
+    reader.feed_data(_frame(RESPONSE_ACCESS_GRANTED))
+    writer = Mock(asyncio.StreamWriter)
+    writer.is_closing.return_value = False
+    with patch(
+        "samsungtvws.legacy.remote.asyncio.open_connection",
+        AsyncMock(return_value=(reader, writer)),
+    ):
+        yield writer
+
+
 def _remote(port: int) -> SamsungTVLegacyAsyncRemote:
     return SamsungTVLegacyAsyncRemote(
         "127.0.0.1",
@@ -128,25 +143,35 @@ async def test_handshake_and_control(fake_tv: StartFakeTV) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("replies", "error"),
+    ("replies", "error", "match"),
     [
-        pytest.param([RESPONSE_ACCESS_DENIED], UnauthorizedError, id="denied"),
-        pytest.param([WAITING, CANCELLED], UnauthorizedError, id="cancelled"),
-        pytest.param([b"\x01\x02"], ResponseError, id="unhandled"),
-        pytest.param([], ConnectionFailure, id="closed"),
-        pytest.param([b""], ConnectionFailure, id="empty"),
+        pytest.param(
+            [RESPONSE_ACCESS_DENIED], UnauthorizedError, "Access denied", id="denied"
+        ),
+        pytest.param(
+            [WAITING, CANCELLED],
+            UnauthorizedError,
+            "Authorization cancelled",
+            id="cancelled",
+        ),
+        pytest.param(
+            [b"\x01\x02"], ResponseError, "Unhandled response: 0102", id="unhandled"
+        ),
+        pytest.param([], ConnectionFailure, "Connection closed", id="closed"),
+        pytest.param([b""], ConnectionFailure, "Connection closed", id="empty"),
     ],
 )
 async def test_handshake_errors(
     fake_tv: StartFakeTV,
     replies: list[bytes],
     error: type[Exception],
+    match: str,
 ) -> None:
     """Test handshake failures raise and leave the remote disconnected."""
     tv = await fake_tv(replies)
     remote = _remote(tv.port)
 
-    with pytest.raises(error):
+    with pytest.raises(error, match=match):
         await remote.open()
 
     assert not remote.is_connected
@@ -178,7 +203,7 @@ async def test_control_after_tv_closes(fake_tv: StartFakeTV) -> None:
     remote = _remote(tv.port)
     await remote.open()
 
-    with pytest.raises(ConnectionFailure):
+    with pytest.raises(ConnectionFailure, match="Connection closed"):
         await remote.control("KEY_MUTE")
     assert not remote.is_connected
 
@@ -220,3 +245,40 @@ async def test_open_when_connected(fake_tv: StartFakeTV) -> None:
 
         assert remote.is_connected
     assert len(tv.packets) == 1
+
+
+@pytest.mark.asyncio
+async def test_close_ignores_os_error(tv_writer: Mock) -> None:
+    """Test an error while waiting for the socket to close is ignored."""
+    tv_writer.wait_closed.side_effect = OSError
+    remote = _remote(55000)
+    await remote.open()
+
+    await remote.close()
+
+    tv_writer.close.assert_called_once_with()
+    assert not remote.is_connected
+
+
+@pytest.mark.asyncio
+async def test_send_os_error(tv_writer: Mock) -> None:
+    """Test a write error closes the connection and raises ConnectionFailure."""
+    tv_writer.drain.side_effect = BrokenPipeError
+    remote = _remote(55000)
+
+    with pytest.raises(ConnectionFailure, match="BrokenPipeError"):
+        await remote.open()
+
+    tv_writer.close.assert_called_once_with()
+    assert not remote.is_connected
+
+
+@pytest.mark.asyncio
+async def test_control_closed_while_sending(tv_writer: Mock) -> None:
+    """Test a key press fails if the connection is closed while it is being sent."""
+    remote = _remote(55000)
+    await remote.open()
+    tv_writer.drain.side_effect = remote.close
+
+    with pytest.raises(ConnectionFailure, match="Connection is not open"):
+        await remote.control("KEY_MUTE")
