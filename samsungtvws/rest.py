@@ -49,9 +49,7 @@ class SamsungTVRest(connection.SamsungTVWSBaseConnection):
                 "TV unreachable or feature not supported on this model."
             ) from err
         if not response.ok:
-            raise exceptions.HttpApiError(
-                f"HTTP {response.status_code}: {response.text}"
-            )
+            raise exceptions.HttpApiStatusError(response.status_code, response.text)
         return helper.process_api_response(response.text)
 
     def rest_device_info(self) -> dict[str, Any]:

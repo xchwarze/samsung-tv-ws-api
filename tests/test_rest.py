@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from samsungtvws.exceptions import HttpApiError
+from samsungtvws.exceptions import HttpApiError, HttpApiStatusError
 from samsungtvws.rest import SamsungTVRest
 
 from .const import (
@@ -125,25 +125,28 @@ def test_ime_input_without_token(token: str | None) -> None:
 
 
 @pytest.mark.parametrize(
-    ("method", "http_method"),
+    ("method", "http_method", "args"),
     [
-        pytest.param("rest_device_info", "get", id="device_info"),
-        pytest.param("rest_app_status", "get", id="status"),
-        pytest.param("rest_app_run", "post", id="run"),
-        pytest.param("rest_app_close", "delete", id="close"),
-        pytest.param("rest_app_install", "put", id="install"),
+        pytest.param("rest_device_info", "get", (), id="device_info"),
+        pytest.param("rest_app_status", "get", (APP_ID,), id="status"),
+        pytest.param("rest_app_run", "post", (APP_ID,), id="run"),
+        pytest.param("rest_app_close", "delete", (APP_ID,), id="close"),
+        pytest.param("rest_app_install", "put", (APP_ID,), id="install"),
     ],
 )
-def test_request_http_error(method: str, http_method: str) -> None:
-    """Ensure an HTTP error status raises HttpApiError with the status and body."""
+def test_request_http_error(
+    method: str, http_method: str, args: tuple[str, ...]
+) -> None:
+    """Ensure an HTTP error status raises HttpApiStatusError with the status and body."""
     rest = SamsungTVRest("127.0.0.1")
     body = '{"code": 404, "message": "Not found error.", "status": 404}'
-    args = () if method == "rest_device_info" else (APP_ID,)
     with (
         patch(
             f"samsungtvws.rest.requests.{http_method}",
             return_value=Mock(ok=False, status_code=404, text=body),
         ),
-        pytest.raises(HttpApiError, match="HTTP 404: .*Not found error"),
+        pytest.raises(HttpApiStatusError, match="HTTP 404: .*Not found error") as err,
     ):
         getattr(rest, method)(*args)
+    assert err.value.status == 404
+    assert err.value.body == body

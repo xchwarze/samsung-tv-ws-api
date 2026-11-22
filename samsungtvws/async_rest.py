@@ -52,7 +52,7 @@ class SamsungTVAsyncRest(connection.SamsungTVWSBaseConnection):
                 "TV unreachable or feature not supported on this model."
             ) from err
         if status >= 400:
-            raise exceptions.HttpApiError(f"HTTP {status}: {body}")
+            raise exceptions.HttpApiStatusError(status, body)
         return helper.process_api_response(body)
 
     async def rest_device_info(self) -> dict[str, Any]:
