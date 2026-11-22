@@ -8,7 +8,7 @@ import pytest
 from yarl import URL
 
 from samsungtvws.async_rest import SamsungTVAsyncRest
-from samsungtvws.exceptions import HttpApiError
+from samsungtvws.exceptions import HttpApiError, HttpApiStatusError
 
 from .const import (
     APP_ID,
@@ -71,3 +71,45 @@ async def test_rest_unreachable(
     tv = SamsungTVAsyncRest("samsungtv.test", session=web_session)
     with pytest.raises(HttpApiError, match="TV unreachable"):
         await tv.rest_device_info()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method_name", "http_method", "path", "args"),
+    [
+        pytest.param("rest_device_info", "GET", "", (), id="device_info"),
+        pytest.param(
+            "rest_app_status", "GET", f"applications/{APP_ID}", (APP_ID,), id="status"
+        ),
+        pytest.param(
+            "rest_app_run", "POST", f"applications/{APP_ID}", (APP_ID,), id="run"
+        ),
+        pytest.param(
+            "rest_app_close", "DELETE", f"applications/{APP_ID}", (APP_ID,), id="close"
+        ),
+        pytest.param(
+            "rest_app_install", "PUT", f"applications/{APP_ID}", (APP_ID,), id="install"
+        ),
+    ],
+)
+async def test_rest_http_error(
+    aiointercept_mock: aiointercept,
+    web_session: aiohttp.ClientSession,
+    method_name: str,
+    http_method: str,
+    path: str,
+    args: tuple[str, ...],
+) -> None:
+    """Ensure an HTTP error status raises HttpApiStatusError with the status and body."""
+    body = '{"code": 404, "message": "Not found error.", "status": 404}'
+    aiointercept_mock.add(
+        f"http://samsungtv.test:8001/api/v2/{path}",
+        method=http_method,
+        status=404,
+        body=body,
+    )
+    tv = SamsungTVAsyncRest("samsungtv.test", session=web_session)
+    with pytest.raises(HttpApiStatusError, match="HTTP 404: .*Not found error") as err:
+        await getattr(tv, method_name)(*args)
+    assert err.value.status == 404
+    assert err.value.body == body

@@ -31,6 +31,16 @@ class HttpApiError(Exception):
     pass
 
 
+class HttpApiStatusError(HttpApiError):
+    """HTTP API response with an error status code."""
+
+    def __init__(self, status: int, body: str) -> None:
+        """Store the status code and the response body."""
+        super().__init__(f"HTTP {status}: {body}")
+        self.status = status
+        self.body = body
+
+
 class MessageError(Exception):
     """Error from ms.error event."""
 
