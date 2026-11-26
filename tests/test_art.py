@@ -124,9 +124,12 @@ def test_create_connection(
 
 
 def test_upload_send_image_error(connection: Mock, tv_art: SamsungTVArt) -> None:
-    """Ensure a send_image error raises instead of waiting forever."""
+    """Ensure a send_image error raises when the WS binary fallback fails too."""
     _respond(
-        connection, _d2d({"version": "2.01"}), D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR
+        connection,
+        _d2d({"version": "2.01"}),
+        D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR,
+        D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR,
     )
 
     with (
@@ -1029,6 +1032,33 @@ def test_upload_ws_binary(
         "id": _UUID,
     }
     assert payload[2 + header_len :] == b"PNGDATA"
+
+
+def test_upload_falls_back_to_ws_binary(
+    connection: Mock, tv_art: SamsungTVArt, d2d_socket: Mock
+) -> None:
+    """Ensure a rejected D2D send_image (e.g. Art API 1.07) retries via WS binary."""
+    _respond(
+        connection,
+        _d2d({"version": "1.07"}),
+        D2D_SERVICE_MESSAGE_SEND_IMAGE_ERROR,
+        _d2d({"event": "image_added", "content_id": "MY_F0001"}),
+    )
+
+    assert tv_art.upload(b"JPEGDATA", file_type="jpg", matte="none") == "MY_F0001"
+
+    assert [r["request"] for r in _sent(connection)] == ["api_version", "send_image"]
+    payload = connection.send_binary.call_args.args[0]
+    header_len = int.from_bytes(payload[:2], "big")
+    inner = json.loads(json.loads(payload[2 : 2 + header_len])["params"]["data"])
+    assert inner == {
+        "request": "send_image",
+        "file_type": "JPEG",
+        "matte_id": "none",
+        "id": _UUID,
+    }
+    assert payload[2 + header_len :] == b"JPEGDATA"
+    d2d_socket.sendall.assert_not_called()
 
 
 def test_upload_ws_binary_header_too_large(

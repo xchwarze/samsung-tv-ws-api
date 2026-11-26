@@ -644,6 +644,18 @@ class SamsungTVArt(SamsungTVWSConnection):
         payload = len(header).to_bytes(2, "big") + header + data
         self.connection.send_binary(payload)
 
+    def _upload_ws_binary(
+        self, *, upload_id: str, data: bytes, matte: str, file_type: str
+    ) -> str:
+        """Upload via a single WS binary frame and return the new content_id."""
+        self._upload_ws_binary_send_image(
+            upload_id=upload_id, data=data, matte=matte, file_type=file_type
+        )
+        done = self._wait_for_d2d(
+            request_uuid=upload_id, wait_for_sub_event="image_added"
+        )
+        return cast(str, done["content_id"])
+
     def upload(
         self,
         file: str | bytes | bytearray | IO[bytes],
@@ -682,40 +694,43 @@ class SamsungTVArt(SamsungTVWSConnection):
         # Newer firmwares: D2D socket handshake.
         try:
             if self.get_api_version() == "0.97":
-                self._upload_ws_binary_send_image(
-                    upload_id=upload_id,
-                    data=data,
-                    matte=matte,
-                    file_type=ft,
+                return self._upload_ws_binary(
+                    upload_id=upload_id, data=data, matte=matte, file_type=ft
                 )
-                done = self._wait_for_d2d(
-                    request_uuid=upload_id,
-                    wait_for_sub_event="image_added",
-                )
-                return cast(str, done["content_id"])
         except exceptions.ResponseError:
             # If api_version lookup fails, continue with the socket upload approach.
             pass
 
-        ready = self._send_art_request(
-            {
-                "request": "send_image",
-                "id": upload_id,
-                "request_id": upload_id,
-                "file_type": ft,
-                "file_size": file_size,
-                "image_date": date,
-                "matte_id": matte or "none",
-                "portrait_matte_id": portrait_matte or "none",
-                "conn_info": {
-                    "d2d_mode": "socket",
-                    "connection_id": generate_connection_id(),
+        try:
+            ready = self._send_art_request(
+                {
+                    "request": "send_image",
                     "id": upload_id,
+                    "request_id": upload_id,
+                    "file_type": ft,
+                    "file_size": file_size,
+                    "image_date": date,
+                    "matte_id": matte or "none",
+                    "portrait_matte_id": portrait_matte or "none",
+                    "conn_info": {
+                        "d2d_mode": "socket",
+                        "connection_id": generate_connection_id(),
+                        "id": upload_id,
+                    },
                 },
-            },
-            wait_for_sub_event="ready_to_use",
-            request_uuid=upload_id,
-        )
+                wait_for_sub_event="ready_to_use",
+                request_uuid=upload_id,
+            )
+        except exceptions.ResponseError:
+            # Some firmwares (e.g. 2017 Frame UE43LS003, Art API 1.07) reject the
+            # D2D socket handshake with error -1 but accept the WS binary upload.
+            _LOGGING.debug("send_image D2D handshake rejected, trying WS binary upload")
+            return self._upload_ws_binary(
+                upload_id=self._new_request_uuid(),
+                data=data,
+                matte=matte,
+                file_type=ft,
+            )
         assert ready
 
         conn_info = self._parse_conn_info(ready)
