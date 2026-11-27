@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
 from aiointercept import aiointercept
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import pytest
 from yarl import URL
 
@@ -15,6 +16,7 @@ from samsungtvws.encrypted.authenticator import (
     SamsungTVEncryptedPairingExpiredError,
     SamsungTVEncryptedResponseError,
     SamsungTVEncryptedWSAsyncAuthenticator,
+    _CustomRijndael,
 )
 
 from .const import (
@@ -333,3 +335,21 @@ async def test_acknowledge_errors(
         await authenticator.get_session_id_and_close()
 
     assert not isinstance(excinfo.value, SamsungTVEncryptedPairingExpiredError)
+
+
+@pytest.mark.parametrize(
+    "key_size",
+    [
+        pytest.param(24, id="aes-192"),
+        pytest.param(32, id="aes-256"),
+    ],
+)
+def test_custom_rijndael_matches_aes(key_size: int) -> None:
+    """Only 16-byte keys use the custom round count; longer keys are plain AES."""
+    key = bytes(range(key_size))
+    block = bytes.fromhex("00112233445566778899aabbccddeeff")
+
+    encryptor = Cipher(algorithms.AES(key), modes.ECB()).encryptor()
+    expected = encryptor.update(block) + encryptor.finalize()
+
+    assert _CustomRijndael(key).encrypt(block) == expected

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from copy import deepcopy
 import hashlib
 import json
 import logging
@@ -16,6 +17,8 @@ from cryptography.hazmat.primitives.ciphers import (
     algorithms,
     modes,
 )
+from py3rijndael.constants import U1, U2, U3, U4, S, num_rounds, r_con
+from py3rijndael.rijndael import Rijndael
 
 from .. import helper
 
@@ -85,93 +88,90 @@ def _decrypt_parameter_data_with_aes(data: bytes) -> bytes:
     return output
 
 
-def _apply_samy_go_key_transform(data: bytes) -> bytes:
-    from copy import deepcopy
+_NUM_ROUNDS = deepcopy(num_rounds)
+_NUM_ROUNDS[16][16] = 3
 
-    from py3rijndael.constants import U1, U2, U3, U4, S, num_rounds, r_con
-    from py3rijndael.rijndael import Rijndael
 
-    _NUM_ROUNDS = deepcopy(num_rounds)
-    _NUM_ROUNDS[16][16] = 3
+class _CustomRijndael(Rijndael):  # type: ignore[misc]
+    def __init__(self, key: bytes, block_size: int = 16) -> None:
+        super().__init__(key, block_size)
 
-    class _CustomRijndael(Rijndael):  # type: ignore[misc]
-        def __init__(self, key: bytes, block_size: int = 16) -> None:
-            super().__init__(key, block_size)
+        rounds = _NUM_ROUNDS[len(key)][block_size]
+        b_c = block_size // 4
+        # encryption round keys
+        k_e = [[0] * b_c for _ in range(rounds + 1)]
+        # decryption round keys
+        k_d = [[0] * b_c for _ in range(rounds + 1)]
+        round_key_count = (rounds + 1) * b_c
+        k_c = len(key) // 4
 
-            rounds = _NUM_ROUNDS[len(key)][block_size]
-            b_c = block_size // 4
-            # encryption round keys
-            k_e = [[0] * b_c for _ in range(rounds + 1)]
-            # decryption round keys
-            k_d = [[0] * b_c for _ in range(rounds + 1)]
-            round_key_count = (rounds + 1) * b_c
-            k_c = len(key) // 4
+        # copy user material bytes into temporary ints
+        tk = []
+        for i in range(0, k_c):
+            tk.append(
+                (ord(key[i * 4 : i * 4 + 1]) << 24)
+                | (ord(key[i * 4 + 1 : i * 4 + 1 + 1]) << 16)
+                | (ord(key[i * 4 + 2 : i * 4 + 2 + 1]) << 8)
+                | ord(key[i * 4 + 3 : i * 4 + 3 + 1])
+            )
 
-            # copy user material bytes into temporary ints
-            tk = []
-            for i in range(0, k_c):
-                tk.append(
-                    (ord(key[i * 4 : i * 4 + 1]) << 24)
-                    | (ord(key[i * 4 + 1 : i * 4 + 1 + 1]) << 16)
-                    | (ord(key[i * 4 + 2 : i * 4 + 2 + 1]) << 8)
-                    | ord(key[i * 4 + 3 : i * 4 + 3 + 1])
+        # copy values into round key arrays
+        t = 0
+        j = 0
+        while j < k_c and t < round_key_count:
+            k_e[t // b_c][t % b_c] = tk[j]
+            k_d[rounds - (t // b_c)][t % b_c] = tk[j]
+            j += 1
+            t += 1
+        r_con_pointer = 0
+        while t < round_key_count:
+            # extrapolate using phi (the round key evolution function)
+            tt = tk[k_c - 1]
+            tk[0] ^= (
+                (S[(tt >> 16) & 0xFF] & 0xFF) << 24
+                ^ (S[(tt >> 8) & 0xFF] & 0xFF) << 16
+                ^ (S[tt & 0xFF] & 0xFF) << 8
+                ^ (S[(tt >> 24) & 0xFF] & 0xFF)
+                ^ (r_con[r_con_pointer] & 0xFF) << 24
+            )
+            r_con_pointer += 1
+            if k_c != 8:
+                for i in range(1, k_c):
+                    tk[i] ^= tk[i - 1]
+            else:
+                for i in range(1, k_c // 2):
+                    tk[i] ^= tk[i - 1]
+                tt = tk[k_c // 2 - 1]
+                tk[k_c // 2] ^= (
+                    (S[tt & 0xFF] & 0xFF)
+                    ^ (S[(tt >> 8) & 0xFF] & 0xFF) << 8
+                    ^ (S[(tt >> 16) & 0xFF] & 0xFF) << 16
+                    ^ (S[(tt >> 24) & 0xFF] & 0xFF) << 24
                 )
-
+                for i in range(k_c // 2 + 1, k_c):
+                    tk[i] ^= tk[i - 1]
             # copy values into round key arrays
-            t = 0
             j = 0
             while j < k_c and t < round_key_count:
                 k_e[t // b_c][t % b_c] = tk[j]
                 k_d[rounds - (t // b_c)][t % b_c] = tk[j]
                 j += 1
                 t += 1
-            r_con_pointer = 0
-            while t < round_key_count:
-                # extrapolate using phi (the round key evolution function)
-                tt = tk[k_c - 1]
-                tk[0] ^= (
-                    (S[(tt >> 16) & 0xFF] & 0xFF) << 24
-                    ^ (S[(tt >> 8) & 0xFF] & 0xFF) << 16
-                    ^ (S[tt & 0xFF] & 0xFF) << 8
-                    ^ (S[(tt >> 24) & 0xFF] & 0xFF)
-                    ^ (r_con[r_con_pointer] & 0xFF) << 24
+        # inverse MixColumn where needed
+        for r in range(1, rounds):
+            for j in range(b_c):
+                tt = k_d[r][j]
+                k_d[r][j] = (
+                    U1[(tt >> 24) & 0xFF]
+                    ^ U2[(tt >> 16) & 0xFF]
+                    ^ U3[(tt >> 8) & 0xFF]
+                    ^ U4[tt & 0xFF]
                 )
-                r_con_pointer += 1
-                if k_c != 8:
-                    for i in range(1, k_c):
-                        tk[i] ^= tk[i - 1]
-                else:
-                    for i in range(1, k_c // 2):
-                        tk[i] ^= tk[i - 1]
-                    tt = tk[k_c // 2 - 1]
-                    tk[k_c // 2] ^= (
-                        (S[tt & 0xFF] & 0xFF)
-                        ^ (S[(tt >> 8) & 0xFF] & 0xFF) << 8
-                        ^ (S[(tt >> 16) & 0xFF] & 0xFF) << 16
-                        ^ (S[(tt >> 24) & 0xFF] & 0xFF) << 24
-                    )
-                    for i in range(k_c // 2 + 1, k_c):
-                        tk[i] ^= tk[i - 1]
-                # copy values into round key arrays
-                j = 0
-                while j < k_c and t < round_key_count:
-                    k_e[t // b_c][t % b_c] = tk[j]
-                    k_d[rounds - (t // b_c)][t % b_c] = tk[j]
-                    j += 1
-                    t += 1
-            # inverse MixColumn where needed
-            for r in range(1, rounds):
-                for j in range(b_c):
-                    tt = k_d[r][j]
-                    k_d[r][j] = (
-                        U1[(tt >> 24) & 0xFF]
-                        ^ U2[(tt >> 16) & 0xFF]
-                        ^ U3[(tt >> 8) & 0xFF]
-                        ^ U4[tt & 0xFF]
-                    )
-            self.Ke = k_e
-            self.Kd = k_d
+        self.Ke = k_e
+        self.Kd = k_d
 
+
+def _apply_samy_go_key_transform(data: bytes) -> bytes:
     r = _CustomRijndael(bytes.fromhex(TRANS_KEY))
     return r.encrypt(data)  # type: ignore[no-any-return]
 
