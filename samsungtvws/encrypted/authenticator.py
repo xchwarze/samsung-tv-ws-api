@@ -394,8 +394,6 @@ class SamsungTVEncryptedWSAsyncAuthenticator:
 
     async def _second_step_of_pairing(self, pin: str) -> dict[str, bytes] | None:
         hello_output = _generate_server_hello(self.USER_ID, pin)
-        if not hello_output:
-            return None
 
         content = (
             '{"auth_Data":{"auth_type":"SPC","GeneratorServerHello":"'
